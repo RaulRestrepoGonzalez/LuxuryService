@@ -1,4 +1,31 @@
 <div class="book-page page-light">
+
+  @if (payment) {
+    <div class="payment-overlay" (click)="payment = null">
+      <div class="payment-modal" (click)="$event.stopPropagation()">
+        <button type="button" class="payment-close" (click)="payment = null">×</button>
+        <div class="payment-success-icon">✅</div>
+        <h2>¡Cita agendada!</h2>
+        <p class="payment-sub">Realiza el pago para confirmar tu reserva</p>
+        <div class="payment-details">
+          <div class="payment-row"><span>Servicio</span><strong>{{ selectedService?.nombre }} ({{ tipoVehiculo === 'auto' ? 'Automóvil' : 'Camioneta' }})</strong></div>
+          <div class="payment-row"><span>Fecha</span><strong>{{ appointmentForm.get('fecha')?.value }}</strong></div>
+          <div class="payment-row"><span>Horario</span><strong>{{ selectedHorarioLabel() }}</strong></div>
+          <div class="payment-row"><span>Subtotal</span><strong>{{ formatPrice((payment.amount - 10000)) }}</strong></div>
+          <div class="payment-row"><span>Recargo reserva</span><strong>+ $10,000</strong></div>
+          <div class="payment-row payment-total"><span>Total</span><strong>{{ formatPrice(payment.amount) }}</strong></div>
+        </div>
+        <div class="payment-10min-terms">⏱ Tienes <strong>10 minutos</strong> para pagar. Luego la reserva expira.</div>
+        <div class="payment-qr-wrap">
+          <img [src]="payment.qr" alt="QR de pago" class="payment-qr" />
+          <p class="payment-qr-hint">Escanea con tu banco</p>
+        </div>
+        <a [href]="payment.url" target="_blank" class="payment-btn">Pagar ahora</a>
+        <p class="payment-ref">Ref: {{ payment.reference }}</p>
+      </div>
+    </div>
+  }
+
   <h2 class="catalog-section-title">
     <span class="slash">/</span> AGENDAR CITA <span class="slash">/</span>
   </h2>
@@ -13,12 +40,16 @@
   <form [formGroup]="appointmentForm" (ngSubmit)="submit()" class="book-layout">
     <section class="book-panel">
       <h3><span class="book-step">1</span> Elige el servicio</h3>
+      <div class="svc-tipo-toggle">
+        <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'; appointmentForm.patchValue({ tipoVehiculo: 'auto' })">🚗 Automóvil</button>
+        <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'; appointmentForm.patchValue({ tipoVehiculo: 'camioneta' })">🚙 Camioneta</button>
+      </div>
       <div class="service-picks">
         @for (s of servicios; track s.id) {
           <label class="service-pick" [class.selected]="appointmentForm.get('servicioId')?.value === s.id">
             <input type="radio" formControlName="servicioId" [value]="s.id" />
             <span class="service-pick-name">{{ s.nombre }}</span>
-            <span class="service-pick-price">{{ formatPrice(s.precio_base) }}</span>
+            <span class="service-pick-price">{{ formatPrice(tipoVehiculo === 'auto' ? s.precio_auto : s.precio_camioneta) }}</span>
           </label>
         }
       </div>
@@ -81,12 +112,27 @@
       </section>
     }
 
-    @if (successMsg) { <div class="book-success">{{ successMsg }}</div> }
+    @if (successMsg && !payment) { <div class="book-success">{{ successMsg }}</div> }
     @if (errorMsg) { <div class="book-error">{{ errorMsg }}</div> }
 
-    @if (appointmentForm.get('horario')?.value) {
+    @if (appointmentForm.get('horario')?.value && !payment) {
+      <div class="book-fee-notice">
+        <div class="book-price-breakdown">
+          <span>Servicio ({{ tipoVehiculo === 'auto' ? 'Automóvil' : 'Camioneta' }})</span>
+          <span>{{ formatPrice(precioActual) }}</span>
+        </div>
+        <div class="book-price-breakdown">
+          <span>Recargo por reserva en línea</span>
+          <span>+ $10,000</span>
+        </div>
+        <div class="book-price-breakdown book-price-total">
+          <span>Total</span>
+          <span>{{ formatPrice(totalConRecargo) }}</span>
+        </div>
+      </div>
+      <p class="book-terms">⏱ Tienes <strong>10 minutos</strong> para completar el pago, de lo contrario la reserva expirará automáticamente.</p>
       <button type="submit" class="btn-hero-primary book-submit" [disabled]="appointmentForm.invalid || submitting || !auth.isLoggedIn()">
-        {{ submitting ? 'Agendando...' : 'Confirmar cita' }}
+        {{ submitting ? 'Agendando...' : 'Confirmar cita y pagar' }}
       </button>
     }
   </form>

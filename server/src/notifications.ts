@@ -19,14 +19,15 @@ export async function crearNotificacion(data: {
   });
 }
 
-export async function notificarCitaAgendada(usuarioId: string, email: string, servicioNombre: string, fecha: string, horario: string) {
+export async function notificarCitaAgendada(usuarioId: string, email: string, servicioNombre: string, fecha: string, horario: string, reference?: string) {
   const horaLabel = horario === '10:00' ? '10:00 a.m.' : horario === '14:00' ? '2:00 p.m.' : horario;
+  const ref = reference ? ` (Ref: ${reference})` : '';
   await crearNotificacion({
     usuarioId,
     email,
     tipo: 'cita',
-    titulo: 'Cita confirmada',
-    mensaje: `Tu cita de ${servicioNombre} quedó agendada para el ${fecha} a las ${horaLabel}. Te esperamos en Luxury Service.`
+    titulo: 'Cita agendada — pendiente de pago',
+    mensaje: `Tu cita de ${servicioNombre} quedó agendada para el ${fecha} a las ${horaLabel}. Realiza el pago para confirmar.${ref}`
   });
 }
 

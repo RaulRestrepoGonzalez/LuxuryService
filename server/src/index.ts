@@ -5,6 +5,9 @@ import jwt from 'jsonwebtoken';
 import { connectDb, getDb, ObjectId, toApiId, toApiList } from './db.js';
 import { buildChatbotReply, HORARIOS, invalidateChatbotCache } from './chatbot.js';
 import { notificarCitaAgendada, notificarBienvenidaCliente } from './notifications.js';
+import { createCheckout, processWebhook } from './payments.js';
+import { enviarTicketCita, enviarConfirmacionPago } from './email.js';
+import QRCode from 'qrcode';
 import { randomBytes } from 'crypto';
 
 const app = express();
@@ -256,17 +259,106 @@ app.get('/api/appointments/calendar', async (req, res) => {
 });
 
 app.post('/api/appointments', auth, async (req, res) => {
-  const { servicioId, fecha, horario } = req.body;
+  const { servicioId, fecha, horario, tipoVehiculo = 'auto' } = req.body;
   if (!(HORARIOS as readonly string[]).includes(horario)) return res.status(400).json({ error: 'Horario inválido' });
   const existing = await getDb().collection('citas').findOne({ fecha, horario, servicio_id: new ObjectId(servicioId), estado: { $ne: 'cancelada' } });
   if (existing) return res.status(409).json({ error: 'Horario ocupado' });
   const servicio = await getDb().collection('servicios').findOne({ _id: new ObjectId(servicioId) });
+  if (!servicio) return res.status(404).json({ error: 'Servicio no encontrado' });
+
+  const precioBase = tipoVehiculo === 'camioneta'
+    ? (servicio.precio_camioneta || servicio.precio_base || 0)
+    : (servicio.precio_auto || servicio.precio_base || 0);
+  const bookingFee = 10000;
+  const precioTotal = precioBase + bookingFee;
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+  const checkout = await createCheckout({
+    amount: precioTotal,
+    description: `${servicio.nombre} - Luxury Service`,
+    returnUrl: `${baseUrl}/app/mis-citas`,
+    webhookUrl: `${baseUrl}/api/payments/webhook`,
+    customerEmail: req.user!.email,
+  });
+
   await getDb().collection('citas').insertOne({
     usuario_id: new ObjectId(req.user!.id), servicio_id: new ObjectId(servicioId),
-    fecha, horario, estado: 'pendiente', created_at: new Date()
+    fecha, horario, tipoVehiculo, estado: 'pendiente_pago', precio_base: precioBase,
+    booking_fee: bookingFee, precio_total: precioTotal,
+    payment_reference: checkout.reference, created_at: new Date()
   });
-  await notificarCitaAgendada(req.user!.id, req.user!.email, servicio?.nombre || 'Servicio', fecha, horario);
-  res.json({ success: true, message: 'Cita agendada. Revisa tus notificaciones.' });
+
+  await getDb().collection('pagos').insertOne({
+    usuario_id: new ObjectId(req.user!.id), email: req.user!.email,
+    referencia: checkout.reference, monto: precioTotal,
+    servicio_nombre: servicio.nombre, fecha, horario,
+    estado: 'pendiente', checkout_url: checkout.checkoutUrl,
+    created_at: new Date()
+  });
+
+  const qrBase64 = await QRCode.toDataURL(checkout.checkoutUrl, { width: 300, margin: 2 });
+
+  await notificarCitaAgendada(req.user!.id, req.user!.email, servicio.nombre, fecha, horario, checkout.reference);
+
+  try {
+    await enviarTicketCita({
+      to: req.user!.email, nombre: req.user!.email.split('@')[0],
+      servicio: servicio.nombre, fecha, horario,
+      precioTotal, reference: checkout.reference,
+      checkoutUrl: checkout.checkoutUrl, qrBase64: qrBase64.replace(/^data:image\/png;base64,/, ''),
+    });
+  } catch (err: any) {
+    console.error('Error enviando email:', err.message);
+  }
+
+  res.json({
+    success: true, message: 'Cita agendada. Realiza el pago para confirmar.',
+    payment: { url: checkout.checkoutUrl, reference: checkout.reference, amount: precioTotal, qr: qrBase64 }
+  });
+});
+
+app.post('/api/payments/webhook', async (req, res) => {
+  const { valid, payload } = processWebhook(req.body);
+  if (!valid || !payload) return res.status(400).json({ error: 'Invalid webhook' });
+
+  if (payload.status === 'APPROVED') {
+    await getDb().collection('citas').updateOne(
+      { payment_reference: payload.reference },
+      { $set: { estado: 'confirmada', payment_status: 'pagado', payment_transaction: payload.transactionId } }
+    );
+    await getDb().collection('pagos').updateOne(
+      { referencia: payload.reference },
+      { $set: { estado: 'pagado', transaction_id: payload.transactionId, pagado_at: new Date() } }
+    );
+    const pago = await getDb().collection('pagos').findOne({ referencia: payload.reference });
+    if (pago) {
+      try {
+        await enviarConfirmacionPago({
+          to: pago.email, nombre: pago.email.split('@')[0],
+          servicio: pago.servicio_nombre, fecha: pago.fecha,
+          horario: pago.horario, reference: payload.reference,
+        });
+      } catch (err: any) {
+        console.error('Error enviando confirmación:', err.message);
+      }
+    }
+  } else if (payload.status === 'DECLINED') {
+    await getDb().collection('pagos').updateOne(
+      { referencia: payload.reference },
+      { $set: { estado: 'rechazado' } }
+    );
+  }
+
+  res.json({ received: true });
+});
+
+app.get('/api/payments/qr', async (req, res) => {
+  const url = req.query.url as string;
+  if (!url) return res.status(400).json({ error: 'url requerida' });
+  const qr = await QRCode.toBuffer(url, { width: 400, margin: 2 });
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.send(qr);
 });
 
 app.get('/api/appointments/my', auth, async (req, res) => {

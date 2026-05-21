@@ -132,6 +132,35 @@
   border-color: #0a0a0a;
 }
 
+.svc-tipo-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem auto 0;
+  max-width: 400px;
+  padding: 0 1.5rem;
+}
+
+.svc-tipo-btn {
+  flex: 1;
+  padding: 0.65rem 1rem;
+  border: 2px solid #e0e0e0;
+  background: #fff;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin: 0;
+}
+
+.svc-tipo-btn.active {
+  border-color: #ff2b2b;
+  background: rgba(255, 43, 43, 0.06);
+  color: #ff2b2b;
+}
+
 .svc-categories {
   max-width: 1200px;
   margin: 0 auto;

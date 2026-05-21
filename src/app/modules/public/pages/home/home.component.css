@@ -2,13 +2,18 @@
 
 .hero-brand-line {
   margin: 0 0 0.5rem;
-  font-size: 0.9rem;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.9);
+  line-height: 0;
 }
 
 .hero-brand-line span { color: #ff2b2b; font-weight: 800; }
+
+.hero-logo {
+  height: 260px;
+  width: auto;
+  display: block;
+  margin: 0 auto;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.7));
+}
 
 /* —— SOMOS MULTIMARCAS —— */
 .home-multimarcas {

@@ -14,6 +14,11 @@
     }
   </div>
 
+  <div class="svc-tipo-toggle">
+    <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'">🚗 Automóvil</button>
+    <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'">🚙 Camioneta</button>
+  </div>
+
   <div class="svc-categories">
     @for (cat of filterCats(); track cat) {
       <section class="svc-category-block">

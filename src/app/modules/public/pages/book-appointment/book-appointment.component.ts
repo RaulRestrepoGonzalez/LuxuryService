@@ -22,7 +22,8 @@ const CACHE_TTL = 120_000;
 })
 export class BookAppointmentComponent implements OnInit {
   appointmentForm: FormGroup;
-  servicios = FALLBACK_SERVICIOS.map(s => ({ id: s.id, nombre: s.nombre, precio_base: s.precio_base }));
+  servicios = FALLBACK_SERVICIOS.map(s => ({ id: s.id, nombre: s.nombre, precio_auto: s.precio_auto, precio_camioneta: s.precio_camioneta, precio_base: s.precio_base }));
+  tipoVehiculo: 'auto' | 'camioneta' = 'auto';
   horarios: HorarioSlot[] = [];
   loadingSlots = false;
   submitting = false;
@@ -33,6 +34,8 @@ export class BookAppointmentComponent implements OnInit {
   weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   calendarDays: { date: Date; inMonth: boolean; iso: string; disabled: boolean; fullyBooked: boolean }[] = [];
   loadingCalendar = false;
+
+  payment: { url: string; reference: string; amount: number; qr: string } | null = null;
 
   private bookedCache = new Map<string, Set<string>>();
   private slotCache = new Map<string, HorarioSlot[]>();
@@ -49,7 +52,8 @@ export class BookAppointmentComponent implements OnInit {
     this.appointmentForm = this.fb.group({
       servicioId: ['', Validators.required],
       fecha: ['', Validators.required],
-      horario: ['', Validators.required]
+      horario: ['', Validators.required],
+      tipoVehiculo: ['auto', Validators.required]
     });
   }
 
@@ -77,6 +81,9 @@ export class BookAppointmentComponent implements OnInit {
   onServiceChange() {
     this.appointmentForm.patchValue({ fecha: '', horario: '' });
     this.horarios = [];
+    this.payment = null;
+    this.successMsg = '';
+    this.errorMsg = '';
   }
 
   private cacheKey(sid: string, y: number, m: number) {
@@ -114,14 +121,14 @@ export class BookAppointmentComponent implements OnInit {
     this.calendarMonth = new Date(this.calendarMonth.getFullYear(), this.calendarMonth.getMonth() - 1, 1);
     this.bookedDates = new Set();
     this.buildCalendar();
-    if (this.appointmentForm.get('servicioId')?.value) this.loadMonthBookings();
+    if (this.appointmentForm.get('servicioId')?.value && this.serviciosFromApi) this.loadMonthBookings();
   }
 
   nextMonth() {
     this.calendarMonth = new Date(this.calendarMonth.getFullYear(), this.calendarMonth.getMonth() + 1, 1);
     this.bookedDates = new Set();
     this.buildCalendar();
-    if (this.appointmentForm.get('servicioId')?.value) this.loadMonthBookings();
+    if (this.appointmentForm.get('servicioId')?.value && this.serviciosFromApi) this.loadMonthBookings();
   }
 
   monthLabel() {
@@ -156,6 +163,9 @@ export class BookAppointmentComponent implements OnInit {
     if (disabled) return;
     this.appointmentForm.patchValue({ fecha: iso, horario: '' });
     this.loadSlots(iso);
+    this.payment = null;
+    this.successMsg = '';
+    this.errorMsg = '';
   }
 
   loadSlots(fecha: string) {
@@ -169,10 +179,7 @@ export class BookAppointmentComponent implements OnInit {
     }
 
     if (sid.startsWith('fb-')) {
-      this.horarios = [
-        { value: '10:00', label: '10:00 a.m.' },
-        { value: '14:00', label: '2:00 p.m.' }
-      ];
+      this.horarios = DEFAULT_SLOTS;
       return;
     }
 
@@ -192,6 +199,9 @@ export class BookAppointmentComponent implements OnInit {
 
   selectHorario(h: HorarioSlot) {
     this.appointmentForm.patchValue({ horario: h.value });
+    this.payment = null;
+    this.successMsg = '';
+    this.errorMsg = '';
   }
 
   selectedHorarioLabel(): string {
@@ -203,6 +213,23 @@ export class BookAppointmentComponent implements OnInit {
     return this.appointmentForm.get('fecha')?.value === iso;
   }
 
+  get selectedService(): any {
+    const id = this.appointmentForm.get('servicioId')?.value;
+    return this.servicios.find(s => s.id === id);
+  }
+
+  get precioActual(): number {
+    const s = this.selectedService;
+    if (!s) return 0;
+    return this.tipoVehiculo === 'auto'
+      ? (s.precio_auto ?? s.precio_base)
+      : (s.precio_camioneta ?? s.precio_base);
+  }
+
+  get totalConRecargo(): number {
+    return this.precioActual + 10000;
+  }
+
   submit() {
     if (!this.auth.isLoggedIn()) {
       this.router.navigate(['/acceso']);
@@ -211,21 +238,31 @@ export class BookAppointmentComponent implements OnInit {
     if (this.appointmentForm.invalid) return;
     this.submitting = true;
     this.errorMsg = '';
-    this.api.post<{ message?: string }>('/appointments', this.appointmentForm.value).subscribe({
+    this.payment = null;
+    const payload = {
+      ...this.appointmentForm.value,
+      tipoVehiculo: this.tipoVehiculo,
+      precio: this.precioActual,
+      recargoReserva: 10000,
+      total: this.totalConRecargo
+    };
+    this.api.post<any>('/appointments', payload).subscribe({
       next: res => {
         this.submitting = false;
-        this.successMsg = res.message || '¡Cita agendada! Revisa tus notificaciones.';
+        this.successMsg = res.message || '¡Cita agendada!';
+        this.payment = res.payment || null;
         this.slotCache.clear();
         this.bookedCache.clear();
-        this.appointmentForm.patchValue({ horario: '' });
-        this.loadMonthBookings();
-        this.loadSlots(this.appointmentForm.get('fecha')?.value);
       },
       error: err => {
         this.submitting = false;
         this.errorMsg = err?.error?.error || 'No se pudo agendar';
       }
     });
+  }
+
+  payAgain() {
+    if (this.payment) window.open(this.payment.url, '_blank');
   }
 
   formatPrice(n: number) {

@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService } from 'src/app/core/services/api.service';
 import { AuthService } from 'src/app/core/services/auth.service';
 import { productImage } from 'src/app/shared/constants/catalog-images';
+import { FALLBACK_PRODUCTOS, groupByCategoriaProductos } from 'src/app/shared/constants/productos.data';
 
 export interface Producto {
   id: string;
@@ -33,7 +34,13 @@ export class ShopComponent implements OnInit {
   toast = '';
   toastVisible = false;
 
-  constructor(private api: ApiService, public auth: AuthService) {}
+  constructor(private api: ApiService, public auth: AuthService) {
+    const fb = groupByCategoriaProductos(FALLBACK_PRODUCTOS);
+    this.categories = ['Todos', ...fb.categorias];
+    this.productos = FALLBACK_PRODUCTOS;
+    this.filtered = FALLBACK_PRODUCTOS;
+    this.loading = false;
+  }
 
   ngOnInit() {
     if (typeof window === 'undefined') return;
@@ -41,16 +48,13 @@ export class ShopComponent implements OnInit {
   }
 
   loadProducts() {
-    this.loading = true;
     this.api.get<Producto[]>('/products').subscribe({
       next: res => {
         this.productos = res;
         const cats = [...new Set(res.map(p => p.categoria).filter(Boolean))] as string[];
         this.categories = ['Todos', ...cats];
         this.applyFilter();
-        this.loading = false;
-      },
-      error: () => { this.loading = false; }
+      }
     });
   }
 

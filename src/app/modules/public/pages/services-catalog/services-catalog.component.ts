@@ -24,6 +24,7 @@ export class ServicesCatalogComponent implements OnInit {
   grouped: Record<string, Servicio[]> = {};
   activeFilter = 'Todos';
   hoveredCard: string | null = null;
+  tipoVehiculo: 'auto' | 'camioneta' = 'auto';
 
   readonly brandName = 'Luxury Service Manga M&S';
 
@@ -70,6 +71,7 @@ export class ServicesCatalogComponent implements OnInit {
 
   precioAuto(s: Servicio) { return s.precio_auto ?? s.precio_base; }
   precioCamioneta(s: Servicio) { return s.precio_camioneta ?? s.precio_base; }
+  precioActual(s: Servicio) { return this.tipoVehiculo === 'auto' ? this.precioAuto(s) : this.precioCamioneta(s); }
 
   totalInCategory(cat: string) {
     return this.grouped[cat]?.length ?? 0;

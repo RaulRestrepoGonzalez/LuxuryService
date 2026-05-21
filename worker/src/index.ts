@@ -139,11 +139,11 @@ app.get('/api/appointments/available', async (c) => {
 });
 app.post('/api/appointments', auth, async (c) => {
   const user = c.get('user') as any;
-  const { servicioId, fecha, horario } = await c.req.json();
+  const { servicioId, fecha, horario, tipoVehiculo = 'auto' } = await c.req.json();
   if (!HORARIOS.includes(horario)) return c.json({ error: 'Horario inválido' }, 400);
   const existing = await c.env.DB.prepare('SELECT id FROM citas WHERE fecha = ? AND horario = ? AND servicio_id = ? AND estado NOT IN ("cancelada")').bind(fecha, horario, servicioId).first();
   if (existing) return c.json({ error: 'Horario ocupado' }, 409);
-  await c.env.DB.prepare('INSERT INTO citas (usuario_id, servicio_id, fecha, horario, estado) VALUES (?, ?, ?, ?, ?)').bind(user.id, servicioId, fecha, horario, 'pendiente').run();
+  await c.env.DB.prepare('INSERT INTO citas (usuario_id, servicio_id, fecha, horario, tipo_vehiculo, estado) VALUES (?, ?, ?, ?, ?, ?)').bind(user.id, servicioId, fecha, horario, tipoVehiculo, 'pendiente').run();
   return c.json({ success: true });
 });
 app.get('/api/appointments/my', auth, async (c) => {
