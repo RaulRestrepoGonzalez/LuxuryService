@@ -57,34 +57,41 @@ export class AuthComponent implements OnDestroy {
   continueWithEmail() {
     if (this.emailForm.invalid) return;
     this.error = '';
-    this.loading = true;
     this.email = this.emailForm.value.email.trim().toLowerCase();
 
     if (this.email === 'admin@luxuryservice.co') {
-      this.loading = false;
       this.isAdmin = true;
       this.step = 'admin-login';
       return;
     }
 
+    this.loading = true;
+
     this.auth.checkEmail(this.email).pipe(
-      takeUntil(this.destroy$),
-      this.loadingPipe()
+      takeUntil(this.destroy$)
     ).subscribe({
       next: res => {
-        this.userName = res.nombre;
-        this.isAdmin = res.isAdmin;
-        if (res.isAdmin) {
-          this.step = 'admin-login';
-        } else if (res.exists) {
+        if (res.exists) {
           this.step = 'client-welcome';
+          this.userName = res.nombre;
+          this.auth.clientAccess(this.email).pipe(
+            takeUntil(this.destroy$)
+          ).subscribe({
+            next: () => this.router.navigate(['/client/mis-citas']),
+            error: () => {
+              this.loading = false;
+              this.error = 'No se pudo acceder';
+            }
+          });
         } else {
+          this.loading = false;
           this.step = 'client-register';
           const guess = this.email.split('@')[0].replace(/[._]/g, ' ');
           this.clientForm.patchValue({ nombre: guess.charAt(0).toUpperCase() + guess.slice(1) });
         }
       },
       error: () => {
+        this.loading = false;
         this.error = 'No se pudo verificar el correo.';
       }
     });
