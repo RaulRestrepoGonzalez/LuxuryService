@@ -24,6 +24,7 @@ function adminRequired(c: any, next: any) {
   return next();
 }
 
+const ADMIN_EMAIL = 'admin@luxuryservice.co';
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=[\]{}|;:,.<>~`])[A-Za-z\d@$!%*?&#^()_+\-=[\]{}|;:,.<>~`]{8,}$/;
 const TERMINOS_VERSION = '1.0.0-2026';
 const POLITICA_VERSION = '1.0.0-2026';
@@ -43,8 +44,9 @@ async function logConsent(db: D1Database, data: { usuarioId?: number; email: str
 app.get('/api/auth/check-email', async (c) => {
   const email = c.req.query('email')?.trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return c.json({ error: 'Email inválido' }, 400);
-  const user = await c.env.DB.prepare('SELECT id, nombre FROM usuarios WHERE email = ?').bind(email).first();
-  return c.json({ exists: !!user, nombre: user?.nombre ?? null });
+  const isAdmin = email === ADMIN_EMAIL;
+  const user = await c.env.DB.prepare('SELECT id, nombre, rol FROM usuarios WHERE email = ?').bind(email).first();
+  return c.json({ exists: !!user, nombre: user?.nombre ?? null, rol: isAdmin ? 'admin' : (user as any)?.rol ?? null, isAdmin, requiresPassword: isAdmin });
 });
 
 app.post('/api/auth/register', async (c) => {
@@ -53,6 +55,7 @@ app.post('/api/auth/register', async (c) => {
   const emailNorm = email?.trim().toLowerCase();
 
   if (!nombre?.trim() || !emailNorm || !password) return c.json({ error: 'Datos incompletos' }, 400);
+  if (emailNorm === ADMIN_EMAIL) return c.json({ error: 'El correo del administrador no puede registrarse como cliente' }, 400);
   if (!aceptaTerminos || !consentimientoDatos) return c.json({ error: 'Debe aceptar términos y autorizar el tratamiento de datos (Ley 1581 de 2012)' }, 400);
   if (versionTerminos !== TERMINOS_VERSION || versionPolitica !== POLITICA_VERSION) return c.json({ error: 'Versión de documentos desactualizada. Recargue la página.' }, 400);
 
@@ -85,9 +88,18 @@ app.post('/api/auth/register', async (c) => {
 app.post('/api/auth/login', async (c) => {
   const { email, password } = await c.req.json();
   const emailNorm = email?.trim().toLowerCase();
-  const user = await c.env.DB.prepare('SELECT * FROM usuarios WHERE email = ?').bind(emailNorm).first();
-  if (!user || !(await bcrypt.compare(password, user.password_hash as string))) return c.json({ error: 'Credenciales incorrectas' }, 401);
-  if (!user.acepta_terminos || !user.consentimiento_datos) return c.json({ error: 'Cuenta pendiente de aceptación de términos. Contacte soporte.' }, 403);
+  if (emailNorm !== ADMIN_EMAIL) return c.json({ error: 'Acceso solo para administradores con contraseña' }, 401);
+  let user: any = await c.env.DB.prepare('SELECT * FROM usuarios WHERE email = ?').bind(emailNorm).first();
+  if (!user) {
+    const adminHash = await bcrypt.hash('Admin123!', 10);
+    const result = await c.env.DB.prepare(
+      `INSERT INTO usuarios (nombre, email, password_hash, rol, acepta_terminos, consentimiento_datos, fecha_aceptacion_terminos, version_terminos, version_politica, ip_registro)
+       VALUES ('Administrador', ?, ?, 'admin', 1, 1, datetime('now'), ?, ?, 'auto')`
+    ).bind(emailNorm, adminHash, TERMINOS_VERSION, POLITICA_VERSION).run();
+    user = await c.env.DB.prepare('SELECT * FROM usuarios WHERE id = ?').bind(result.meta.last_row_id).first();
+  }
+  if (!(await bcrypt.compare(password, (user as any).password_hash as string))) return c.json({ error: 'Credenciales incorrectas' }, 401);
+  if (!(user as any).acepta_terminos || !(user as any).consentimiento_datos) return c.json({ error: 'Cuenta pendiente de aceptación de términos. Contacte soporte.' }, 403);
   const token = sign({ id: user.id, email: user.email, rol: user.rol }, c.env.JWT_SECRET, { expiresIn: '7d' });
   return c.json({ token, user: { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol } });
 });
@@ -157,6 +169,21 @@ app.put('/api/admin/appointments/:id/status', auth, adminRequired, async (c) => 
   await c.env.DB.prepare('UPDATE citas SET estado = ? WHERE id = ?').bind(estado, c.req.param('id')).run();
   return c.json({ success: true });
 });
+app.get('/api/admin/dashboard/analytics', auth, adminRequired, async (c) => {
+  const db = c.env.DB;
+  const revenueTrendRows = await db.prepare("SELECT strftime('%Y-%m', created_at) as mes, SUM(CASE WHEN tipo='ingreso' THEN monto ELSE 0 END) as ingresos, SUM(CASE WHEN tipo='egreso' THEN monto ELSE 0 END) as egresos FROM transacciones GROUP BY mes ORDER BY mes").all();
+  const revenueTrend = (revenueTrendRows.results || []).map((r: any) => ({ _id: r.mes, ingresos: Number(r.ingresos || 0), egresos: Number(r.egresos || 0) }));
+  const statusRows = await db.prepare('SELECT estado, COUNT(*) as count FROM citas GROUP BY estado').all();
+  const appointmentsByStatus = (statusRows.results || []).map((r: any) => ({ _id: r.estado, count: Number(r.count) }));
+  const clientRows = await db.prepare("SELECT strftime('%Y-%m', created_at) as mes, COUNT(*) as count FROM usuarios WHERE rol='cliente' GROUP BY mes ORDER BY mes").all();
+  const clientsTrend = (clientRows.results || []).map((r: any) => ({ _id: r.mes, count: Number(r.count) }));
+  const servicesRows = await db.prepare('SELECT s.nombre, COUNT(c.id) as count FROM citas c LEFT JOIN servicios s ON c.servicio_id = s.id GROUP BY s.nombre ORDER BY count DESC').all();
+  const servicesBooked = (servicesRows.results || []).map((r: any) => ({ _id: r.nombre || 'Desconocido', count: Number(r.count) }));
+  const totalClients = await db.prepare("SELECT COUNT(*) as c FROM usuarios WHERE rol='cliente'").first();
+  const totalAppointments = await db.prepare('SELECT COUNT(*) as c FROM citas').first();
+  const totalServices = await db.prepare("SELECT COUNT(*) as c FROM servicios WHERE activo=1").first();
+  return c.json({ revenueTrend, appointmentsByStatus, clientsTrend, servicesBooked, totalClients: Number(totalClients?.c || 0), totalAppointments: Number(totalAppointments?.c || 0), totalServices: Number(totalServices?.c || 0) });
+});
 app.get('/api/admin/dashboard/stats', auth, adminRequired, async (c) => {
   const ingresos = await c.env.DB.prepare('SELECT SUM(monto) as total FROM transacciones WHERE tipo="ingreso"').first();
   const egresos = await c.env.DB.prepare('SELECT SUM(monto) as total FROM transacciones WHERE tipo="egreso"').first();
@@ -168,6 +195,15 @@ app.get('/api/admin/dashboard/product-sales', auth, adminRequired, async (c) => 
   const topProducts = stats.slice(0, 3);
   const bottomProducts = stats.slice(-3).reverse();
   return c.json({ productStats: stats, topProducts, bottomProducts });
+});
+app.get('/api/admin/dashboard/powerbi', auth, adminRequired, async (c) => {
+  const db = c.env.DB;
+  const transacciones = await db.prepare('SELECT fecha, tipo, monto, descripcion, created_at FROM transacciones ORDER BY fecha').all();
+  const citas = await db.prepare('SELECT c.id, c.fecha, c.horario, c.estado, c.created_at, u.nombre as cliente_nombre, u.email as cliente_email, s.nombre as servicio_nombre, s.precio_auto FROM citas c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN servicios s ON c.servicio_id = s.id ORDER BY c.fecha').all();
+  const usuarios = await db.prepare('SELECT id, nombre, email, rol, created_at FROM usuarios ORDER BY created_at').all();
+  const productos = await db.prepare('SELECT id, nombre, categoria, precio, stock FROM productos ORDER BY nombre').all();
+  const servicios = await db.prepare('SELECT id, nombre, categoria, precio_auto, precio_camioneta, duracion_minutos FROM servicios ORDER BY nombre').all();
+  return c.json({ transacciones: transacciones.results, citas: citas.results, usuarios: usuarios.results, productos: productos.results, servicios: servicios.results });
 });
 app.get('/api/admin/dashboard/export', auth, adminRequired, async (c) => {
   const rows = await c.env.DB.prepare('SELECT fecha, tipo, monto, descripcion FROM transacciones ORDER BY fecha').all();

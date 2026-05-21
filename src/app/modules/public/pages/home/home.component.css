@@ -18,6 +18,8 @@
   background: #0a0a0a url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1920&q=60') center/cover no-repeat;
   text-align: center;
   overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: 420px;
 }
 
 .multimarcas-bg {
@@ -100,6 +102,8 @@
   padding: 3rem 1.5rem 4rem;
   background: #0a0a0a;
   color: #fff;
+  content-visibility: auto;
+  contain-intrinsic-size: 800px;
 }
 
 .tarifario-header {
@@ -246,6 +250,8 @@
 .home-map-section {
   margin: 0 -2rem;
   background: #0a0a0a;
+  content-visibility: auto;
+  contain-intrinsic-size: 500px;
 }
 
 .section-slash-title {
@@ -320,6 +326,8 @@
   margin: 0 -2rem;
   background: #ffffff;
   padding: 4rem 1.5rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 600px;
 }
 
 .home-contact-inner {

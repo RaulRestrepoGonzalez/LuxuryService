@@ -3,28 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ApiService } from 'src/app/core/services/api.service';
 import { serviceImage } from 'src/app/shared/constants/catalog-images';
-
-export interface Servicio {
-  id: string;
-  nombre: string;
-  descripcion: string;
-  duracion_minutos: number;
-  precio_base: number;
-  precio_auto: number;
-  precio_camioneta: number;
-  categoria?: string;
-  subcategoria?: string;
-  items?: string[];
-  icono?: string;
-  imagen_url?: string;
-  agendable?: boolean;
-  iva_incluido?: boolean;
-}
-
-interface CatalogResponse {
-  categorias: string[];
-  grouped: Record<string, Servicio[]>;
-}
+import { Servicio, FALLBACK_SERVICIOS, groupByCategoria } from 'src/app/shared/constants/servicios.data';
 
 const CATEGORIA_META: Record<string, { accent: 'red' | 'black'; tagline: string }> = {
   'Servicios Básicos': { accent: 'red', tagline: 'Lavado, encerado y grafitado' },
@@ -43,34 +22,31 @@ const CATEGORIA_META: Record<string, { accent: 'red' | 'black'; tagline: string 
 export class ServicesCatalogComponent implements OnInit {
   categorias: string[] = [];
   grouped: Record<string, Servicio[]> = {};
-  loading = true;
-  expandedCategory: string | null = 'Servicios Básicos';
   activeFilter = 'Todos';
+  hoveredCard: string | null = null;
 
   readonly brandName = 'Luxury Service Manga M&S';
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService) {
+    const fb = groupByCategoria(FALLBACK_SERVICIOS);
+    this.categorias = fb.categorias;
+    this.grouped = fb.grouped;
+  }
 
   ngOnInit() {
     if (typeof window === 'undefined') return;
-    this.api.get<CatalogResponse>('/services/catalog').subscribe({
+    this.api.get<{ categorias: string[]; grouped: Record<string, Servicio[]> }>('/services/catalog').subscribe({
       next: res => {
         this.categorias = res.categorias;
         this.grouped = res.grouped;
-        this.loading = false;
       },
       error: () => {
         this.api.get<Servicio[]>('/services').subscribe({
           next: list => {
-            this.grouped = list.reduce((acc, s) => {
-              const c = s.categoria || 'Otros';
-              (acc[c] ??= []).push(s);
-              return acc;
-            }, {} as Record<string, Servicio[]>);
-            this.categorias = Object.keys(this.grouped);
-            this.loading = false;
-          },
-          error: () => { this.loading = false; }
+            const g = groupByCategoria(list);
+            this.categorias = g.categorias;
+            this.grouped = g.grouped;
+          }
         });
       }
     });
@@ -78,10 +54,6 @@ export class ServicesCatalogComponent implements OnInit {
 
   meta(cat: string) {
     return CATEGORIA_META[cat] ?? { accent: 'black' as const, tagline: 'Servicios profesionales' };
-  }
-
-  toggleCategory(cat: string) {
-    this.expandedCategory = this.expandedCategory === cat ? null : cat;
   }
 
   filterCats(): string[] {

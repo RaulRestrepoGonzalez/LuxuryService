@@ -31,10 +31,10 @@ export class HomeComponent implements OnInit {
   loadingTarifario = true;
 
   contacto = {
-    direccion: 'Av. Principal Manga, Bogotá D.C., Colombia',
+    direccion: 'Av. Principal Manga, Cartagena, Colombia',
     horario: 'Lunes - Sábado: 8:00 a.m. - 6:00 p.m. · Domingo: cerrado',
-    telefono: '+57 (601) 234 5678',
-    telefonoRaw: '+576012345678',
+    telefono: '+57 (605) 234 5678',
+    telefonoRaw: '+576052345678',
     email: 'contacto@luxuryservice.co'
   };
 

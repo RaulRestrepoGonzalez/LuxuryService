@@ -7,7 +7,6 @@
 
     @if (step === 'email') {
       <h2>Accede con tu correo</h2>
-      <p class="auth-subtitle">Clientes: solo email · Admin: email y contraseña</p>
       @if (error) { <div class="auth-error">{{ error }}</div> }
       <form [formGroup]="emailForm" (ngSubmit)="continueWithEmail()">
         <div class="auth-field">
@@ -22,7 +21,7 @@
 
     @if (step === 'admin-login') {
       <h2>Panel administrador</h2>
-      <p class="auth-subtitle">Ingresa tu contraseña</p>
+      <p class="auth-subtitle">Ingresa tu contraseña para acceder al dashboard de gestión</p>
       <div class="auth-email-display">
         <span>{{ email }}</span>
         <button type="button" class="auth-change-email" (click)="backToEmail()">Cambiar</button>
@@ -36,6 +35,7 @@
         <button type="submit" class="auth-btn auth-btn-primary" [disabled]="adminForm.invalid || loading">
           @if (loading) { <span class="auth-loading"></span> } Entrar al dashboard
         </button>
+        <p class="auth-field-hint">Contraseña por defecto: <strong>Admin123!</strong> · Puedes cambiarla después</p>
       </form>
     }
 

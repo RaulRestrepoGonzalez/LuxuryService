@@ -12,7 +12,7 @@
 
   <form [formGroup]="appointmentForm" (ngSubmit)="submit()" class="book-layout">
     <section class="book-panel">
-      <h3>1. Elige el servicio</h3>
+      <h3><span class="book-step">1</span> Elige el servicio</h3>
       <div class="service-picks">
         @for (s of servicios; track s.id) {
           <label class="service-pick" [class.selected]="appointmentForm.get('servicioId')?.value === s.id">
@@ -24,66 +24,70 @@
       </div>
     </section>
 
-    <section class="book-panel">
-      <h3>2. Selecciona fecha</h3>
-      <div class="calendar">
-        <div class="calendar-nav">
-          <button type="button" class="cal-nav-btn" (click)="prevMonth()">‹</button>
-          <span class="cal-month">{{ monthLabel() }}</span>
-          <button type="button" class="cal-nav-btn" (click)="nextMonth()">›</button>
+    @if (appointmentForm.get('servicioId')?.value) {
+      <section class="book-panel">
+        <h3><span class="book-step">2</span> Selecciona la fecha</h3>
+        <div class="calendar">
+          <div class="calendar-nav">
+            <button type="button" class="cal-nav-btn" (click)="prevMonth()">‹</button>
+            <span class="cal-month">{{ monthLabel() }}</span>
+            <button type="button" class="cal-nav-btn" (click)="nextMonth()">›</button>
+          </div>
+          <div class="calendar-weekdays">
+            @for (d of weekDays; track d) { <span>{{ d }}</span> }
+          </div>
+          <div class="calendar-grid">
+            @for (day of calendarDays; track day.iso) {
+              <button
+                type="button"
+                class="cal-day"
+                [class.other-month]="!day.inMonth"
+                [class.disabled]="day.disabled"
+                [class.booked]="day.fullyBooked"
+                [class.selected]="isSelectedDate(day.iso)"
+                [disabled]="day.disabled"
+                (click)="selectDate(day.iso, day.disabled)"
+              >
+                {{ day.date.getDate() }}
+              </button>
+            }
+          </div>
+          <p class="cal-legend"><span class="dot booked"></span> Día completo · Horarios: 10:00 a.m. y 2:00 p.m.</p>
         </div>
-        <div class="calendar-weekdays">
-          @for (d of weekDays; track d) { <span>{{ d }}</span> }
-        </div>
-        <div class="calendar-grid">
-          @for (day of calendarDays; track day.iso) {
-            <button
-              type="button"
-              class="cal-day"
-              [class.other-month]="!day.inMonth"
-              [class.disabled]="day.disabled"
-              [class.booked]="day.fullyBooked"
-              [class.selected]="isSelectedDate(day.iso)"
-              [disabled]="day.disabled"
-              (click)="selectDate(day.iso, day.disabled)"
-            >
-              {{ day.date.getDate() }}
-            </button>
-          }
-        </div>
-        <p class="cal-legend"><span class="dot booked"></span> Día completo · Horarios: 10:00 a.m. y 2:00 p.m.</p>
-      </div>
-    </section>
+      </section>
+    }
 
-    <section class="book-panel">
-      <h3>3. Horario disponible</h3>
-      @if (!appointmentForm.get('fecha')?.value) {
-        <p class="book-hint">Selecciona una fecha en el calendario</p>
-      } @else if (loadingSlots) {
-        <p class="book-hint">Cargando horarios...</p>
-      } @else if (horarios.length === 0) {
-        <p class="book-hint">No hay horarios disponibles este día</p>
-      } @else {
-        <div class="time-slots">
-          @for (h of horarios; track h.value) {
-            <button
-              type="button"
-              class="time-slot"
-              [class.selected]="appointmentForm.get('horario')?.value === h.value"
-              (click)="selectHorario(h)"
-            >
-              {{ h.label }}
-            </button>
-          }
-        </div>
-      }
-    </section>
+    @if (appointmentForm.get('fecha')?.value) {
+      <section class="book-panel">
+        <h3><span class="book-step">3</span> Elige el horario</h3>
+        @if (loadingSlots) {
+          <p class="book-hint">Cargando horarios...</p>
+        } @else if (horarios.length === 0) {
+          <p class="book-hint">No hay horarios disponibles este día</p>
+        } @else {
+          <div class="time-slots">
+            @for (h of horarios; track h.value) {
+              <button
+                type="button"
+                class="time-slot"
+                [class.selected]="appointmentForm.get('horario')?.value === h.value"
+                (click)="selectHorario(h)"
+              >
+                {{ h.label }}
+              </button>
+            }
+          </div>
+        }
+      </section>
+    }
 
     @if (successMsg) { <div class="book-success">{{ successMsg }}</div> }
     @if (errorMsg) { <div class="book-error">{{ errorMsg }}</div> }
 
-    <button type="submit" class="btn-hero-primary book-submit" [disabled]="appointmentForm.invalid || submitting || !auth.isLoggedIn()">
-      {{ submitting ? 'Agendando...' : 'Confirmar cita' }}
-    </button>
+    @if (appointmentForm.get('horario')?.value) {
+      <button type="submit" class="btn-hero-primary book-submit" [disabled]="appointmentForm.invalid || submitting || !auth.isLoggedIn()">
+        {{ submitting ? 'Agendando...' : 'Confirmar cita' }}
+      </button>
+    }
   </form>
 </div>

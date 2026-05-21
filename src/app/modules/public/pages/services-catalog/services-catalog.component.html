@@ -7,80 +7,79 @@
     <span class="svc-iva-badge">PRECIOS 2025 · IVA INCLUIDO</span>
   </header>
 
-  @if (!loading) {
-    <div class="svc-filters">
-      <button type="button" class="svc-filter-chip" [class.active]="activeFilter === 'Todos'" (click)="activeFilter = 'Todos'">Todos</button>
-      @for (cat of categorias; track cat) {
-        <button type="button" class="svc-filter-chip" [class.active]="activeFilter === cat" (click)="activeFilter = cat">{{ cat }}</button>
-      }
-    </div>
-  }
+  <div class="svc-filters">
+    <button type="button" class="svc-filter-chip" [class.active]="activeFilter === 'Todos'" (click)="activeFilter = 'Todos'">Todos</button>
+    @for (cat of categorias; track cat) {
+      <button type="button" class="svc-filter-chip" [class.active]="activeFilter === cat" (click)="activeFilter = cat">{{ cat }}</button>
+    }
+  </div>
 
-  @if (loading) {
-    <div class="svc-skeleton-grid">
-      @for (i of [1,2,3,4,5,6]; track i) {
-        <div class="svc-skeleton"></div>
-      }
-    </div>
-  } @else {
-    <div class="svc-categories">
-      @for (cat of filterCats(); track cat; let ci = $index) {
-        <section class="svc-category-block" [style.animation-delay.ms]="ci * 80">
-          <button type="button" class="svc-category-banner" [class.accent-red]="meta(cat).accent === 'red'" [class.accent-black]="meta(cat).accent === 'black'" (click)="toggleCategory(cat)">
-            <div class="svc-banner-text">
-              <h2>{{ cat }}</h2>
-              <span>{{ meta(cat).tagline }} · {{ totalInCategory(cat) }} servicios</span>
-            </div>
-            <span class="svc-banner-chevron" [class.open]="expandedCategory === cat">▼</span>
-          </button>
+  <div class="svc-categories">
+    @for (cat of filterCats(); track cat) {
+      <section class="svc-category-block">
+        <div class="svc-category-banner" [class.accent-red]="meta(cat).accent === 'red'" [class.accent-black]="meta(cat).accent === 'black'">
+          <div class="svc-banner-text">
+            <h2>{{ cat }}</h2>
+            <span>{{ meta(cat).tagline }} · {{ totalInCategory(cat) }} servicios</span>
+          </div>
+          <span class="svc-iva-badge-small">IVA INCLUIDO</span>
+        </div>
 
-          @if (expandedCategory === cat || activeFilter !== 'Todos') {
-            <div class="svc-cards-grid">
-              @for (s of grouped[cat]; track s.id; let i = $index) {
-                <article class="svc-card" [style.animation-delay.ms]="i * 40">
-                  <div class="svc-card-img-wrap">
-                    <img [src]="img(s)" [alt]="s.nombre" loading="lazy" />
-                    @if (s.subcategoria) {
-                      <span class="svc-card-badge">{{ s.subcategoria }}</span>
+        <div class="svc-cards-grid">
+          @for (s of grouped[cat]; track s.id) {
+            <article class="svc-card" [class.expanded]="hoveredCard === s.id" (mouseenter)="hoveredCard = s.id" (mouseleave)="hoveredCard = null">
+              <div class="svc-card-img-wrap">
+                <img [src]="img(s)" [alt]="s.nombre" loading="lazy" width="400" height="300" />
+                <div class="svc-card-overlay">
+                  <span class="svc-card-cta-hint">Ver detalle →</span>
+                </div>
+              </div>
+
+              <div class="svc-card-front">
+                <h3>{{ s.nombre }}</h3>
+              </div>
+
+              <div class="svc-card-back">
+                <p class="svc-card-desc">{{ s.descripcion }}</p>
+
+                @if (s.items?.length) {
+                  <ul class="svc-card-items">
+                    @for (item of s.items; track item) {
+                      <li>{{ item }}</li>
                     }
+                  </ul>
+                }
+
+                <div class="svc-prices-dual">
+                  <div class="svc-price-line">
+                    <span class="svc-price-label">Auto</span>
+                    <span class="svc-price">{{ formatPrice(precioAuto(s)) }}</span>
                   </div>
-                  <div class="svc-card-body">
-                    <h3>{{ s.nombre }}</h3>
-                    <p class="svc-card-desc">{{ s.descripcion }}</p>
-                    @if (s.items?.length) {
-                      <ul class="svc-card-items">
-                        @for (item of s.items; track item) {
-                          <li>{{ item }}</li>
-                        }
-                      </ul>
-                    }
-                    <div class="svc-card-footer">
-                      <div class="svc-prices-dual">
-                        <div class="svc-price-line">
-                          <span class="svc-price-label">Auto</span>
-                          <span class="svc-price">{{ formatPrice(precioAuto(s)) }}</span>
-                        </div>
-                        <div class="svc-price-line">
-                          <span class="svc-price-label">Camioneta</span>
-                          <span class="svc-price svc-price-red">{{ formatPrice(precioCamioneta(s)) }}</span>
-                        </div>
-                      </div>
-                      @if (s.agendable !== false) {
-                        <a class="svc-cta" [routerLink]="['/agendar-cita']" [queryParams]="{ servicio: s.id }">Agendar →</a>
-                      }
-                    </div>
+                  <div class="svc-price-line">
+                    <span class="svc-price-label">Camioneta</span>
+                    <span class="svc-price svc-price-red">{{ formatPrice(precioCamioneta(s)) }}</span>
                   </div>
-                </article>
-              }
-            </div>
+                </div>
+
+                @if (s.iva_incluido) {
+                  <span class="svc-iva-tag">IVA incluido</span>
+                }
+
+                @if (s.agendable !== false) {
+                  <a class="svc-cta-btn" [routerLink]="['/agendar-cita']" [queryParams]="{ servicio: s.id }">
+                    Agendar →
+                  </a>
+                }
+              </div>
+            </article>
           }
-        </section>
-      }
-    </div>
+        </div>
+      </section>
+    }
+  </div>
 
-    <div class="svc-bottom-cta">
-      <p>¿Listo para agendar? Horarios: <strong>10:00 a.m.</strong> y <strong>2:00 p.m.</strong></p>
-      <a routerLink="/agendar-cita" class="btn-hero-primary">Agendar cita</a>
-    </div>
-  }
+  <div class="svc-bottom-cta">
+    <p>¿Listo para agendar? Horarios: <strong>10:00 a.m.</strong> y <strong>2:00 p.m.</strong></p>
+    <a routerLink="/agendar-cita" class="btn-hero-primary">Agendar cita</a>
+  </div>
 </div>

@@ -27,6 +27,20 @@
   color: #0a0a0a;
 }
 
+.book-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #ff2b2b;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
 .service-picks {
   display: flex;
   flex-direction: column;

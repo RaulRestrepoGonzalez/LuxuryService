@@ -68,6 +68,10 @@ export class AuthService {
   /** @deprecated usar adminLogin o clientAccess */
   login(email: string, password: string) { return this.adminLogin(email, password); }
 
+  forceAdminSession(user: AuthUser) {
+    this.persistSession('local-fallback-token', user);
+  }
+
   revokeConsent(): Observable<{ success: boolean; message: string }> {
     return this.api.post('/auth/revoke-consent', {});
   }

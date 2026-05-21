@@ -12,6 +12,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-luxury-secret';
 const TERMINOS_VERSION = '1.0.0-2026';
 const POLITICA_VERSION = '1.0.0-2026';
+const ADMIN_EMAIL = 'admin@luxuryservice.co';
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=[\]{}|;:,.<>~`])[A-Za-z\d@$!%*?&#^()_+\-=[\]{}|;:,.<>~`]{8,}$/;
 const HORARIO_LABELS: Record<string, string> = { '10:00': '10:00 a.m.', '14:00': '2:00 p.m.' };
 
@@ -65,14 +66,14 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, db: 'mongodb' }));
 app.get('/api/auth/check-email', async (req, res) => {
   const email = String(req.query.email || '').trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Email inválido' });
+  const isAdmin = email === ADMIN_EMAIL;
   const user = await getDb().collection('usuarios').findOne({ email });
-  const rol = user?.rol ?? null;
   res.json({
     exists: !!user,
     nombre: user?.nombre ?? null,
-    rol,
-    isAdmin: rol === 'admin',
-    requiresPassword: rol === 'admin'
+    rol: isAdmin ? 'admin' : user?.rol ?? null,
+    isAdmin,
+    requiresPassword: isAdmin
   });
 });
 
@@ -87,7 +88,7 @@ app.post('/api/auth/client-access', async (req, res) => {
   if (!emailNorm) return res.status(400).json({ error: 'Email requerido' });
   const user = await getDb().collection('usuarios').findOne({ email: emailNorm });
   if (!user) return res.status(404).json({ error: 'Regístrate primero con tu correo' });
-  if (user.rol === 'admin') return res.status(400).json({ error: 'Los administradores deben usar contraseña' });
+  if (emailNorm === ADMIN_EMAIL) return res.status(400).json({ error: 'Los administradores deben usar contraseña' });
   if (!user.acepta_terminos || !user.consentimiento_datos) return res.status(403).json({ error: 'Aceptación de términos pendiente' });
   res.json(issueToken(user));
 });
@@ -98,6 +99,7 @@ app.post('/api/auth/client-register', async (req, res) => {
   if (!nombre?.trim() || !emailNorm) return res.status(400).json({ error: 'Nombre y correo requeridos' });
   if (!aceptaTerminos || !consentimientoDatos) return res.status(400).json({ error: 'Debe aceptar términos y autorizar datos' });
   if (versionTerminos !== TERMINOS_VERSION || versionPolitica !== POLITICA_VERSION) return res.status(400).json({ error: 'Versión de documentos desactualizada' });
+  if (emailNorm === ADMIN_EMAIL) return res.status(400).json({ error: 'El correo del administrador no puede registrarse como cliente' });
   const exists = await getDb().collection('usuarios').findOne({ email: emailNorm });
   if (exists) return res.status(400).json({ error: 'El correo ya está registrado. Usa Acceder.' });
 
@@ -125,6 +127,7 @@ app.post('/api/auth/register', async (req, res) => {
   if (versionTerminos !== TERMINOS_VERSION || versionPolitica !== POLITICA_VERSION) return res.status(400).json({ error: 'Versión de documentos desactualizada' });
   const pwdError = validatePassword(password);
   if (pwdError) return res.status(400).json({ error: pwdError });
+  if (emailNorm === ADMIN_EMAIL) return res.status(400).json({ error: 'El correo del administrador no puede registrarse como cliente' });
   const exists = await getDb().collection('usuarios').findOne({ email: emailNorm });
   if (exists) return res.status(400).json({ error: 'El correo ya está registrado' });
 
@@ -147,10 +150,20 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   const emailNorm = email?.trim().toLowerCase();
-  const user = await getDb().collection('usuarios').findOne({ email: emailNorm });
-  if (!user || user.rol !== 'admin') return res.status(401).json({ error: 'Acceso solo para administradores con contraseña' });
-  if (!(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ error: 'Credenciales incorrectas' });
-  res.json(issueToken(user));
+  if (emailNorm !== ADMIN_EMAIL) return res.status(401).json({ error: 'Acceso solo para administradores con contraseña' });
+  let user = await getDb().collection('usuarios').findOne({ email: emailNorm });
+  if (!user) {
+    const adminHash = await bcrypt.hash('Admin123!', 10);
+    const result = await getDb().collection('usuarios').insertOne({
+      nombre: 'Administrador', email: ADMIN_EMAIL, rol: 'admin',
+      password_hash: adminHash, acepta_terminos: true, consentimiento_datos: true,
+      fecha_aceptacion_terminos: new Date(), version_terminos: TERMINOS_VERSION,
+      version_politica: POLITICA_VERSION, ip_registro: 'auto', created_at: new Date()
+    });
+    user = await getDb().collection('usuarios').findOne({ _id: result.insertedId });
+  }
+  if (!(await bcrypt.compare(password, user!.password_hash))) return res.status(401).json({ error: 'Credenciales incorrectas' });
+  res.json(issueToken(user!));
 });
 
 app.get('/api/notifications', auth, async (req, res) => {
@@ -290,6 +303,32 @@ app.put('/api/admin/appointments/:id/status', auth, adminRequired, async (req, r
   res.json({ success: true });
 });
 
+app.get('/api/admin/dashboard/analytics', auth, adminRequired, async (_req, res) => {
+  const db = getDb();
+  const revenueTrend = await db.collection('transacciones').aggregate([
+    { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$created_at' } }, ingresos: { $sum: { $cond: [{ $eq: ['$tipo', 'ingreso'] }, '$monto', 0] } }, egresos: { $sum: { $cond: [{ $eq: ['$tipo', 'egreso'] }, '$monto', 0] } } } },
+    { $sort: { _id: 1 } }
+  ]).toArray();
+  const appointmentsByStatus = await db.collection('citas').aggregate([
+    { $group: { _id: '$estado', count: { $sum: 1 } } }
+  ]).toArray();
+  const clientsTrend = await db.collection('usuarios').aggregate([
+    { $match: { rol: 'cliente' } },
+    { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$created_at' } }, count: { $sum: 1 } } },
+    { $sort: { _id: 1 } }
+  ]).toArray();
+  const servicesBooked = await db.collection('citas').aggregate([
+    { $lookup: { from: 'servicios', localField: 'servicio_id', foreignField: '_id', as: 'servicio' } },
+    { $unwind: { path: '$servicio', preserveNullAndEmptyArrays: true } },
+    { $group: { _id: { $ifNull: ['$servicio.nombre', 'Desconocido'] }, count: { $sum: 1 } } },
+    { $sort: { count: -1 } }
+  ]).toArray();
+  const totalClients = await db.collection('usuarios').countDocuments({ rol: 'cliente' });
+  const totalAppointments = await db.collection('citas').countDocuments();
+  const totalServices = await db.collection('servicios').countDocuments({ activo: true });
+  res.json({ revenueTrend, appointmentsByStatus, clientsTrend, servicesBooked, totalClients, totalAppointments, totalServices });
+});
+
 app.get('/api/admin/dashboard/stats', auth, adminRequired, async (_req, res) => {
   const ingresos = await getDb().collection('transacciones').aggregate([{ $match: { tipo: 'ingreso' } }, { $group: { _id: null, total: { $sum: '$monto' } } }]).toArray();
   const egresos = await getDb().collection('transacciones').aggregate([{ $match: { tipo: 'egreso' } }, { $group: { _id: null, total: { $sum: '$monto' } } }]).toArray();
@@ -304,6 +343,22 @@ app.get('/api/admin/dashboard/product-sales', auth, adminRequired, async (_req, 
     return { id: String(p._id), nombre: p.nombre, categoria: p.categoria, stock: p.stock, ventas: pv.length, ingresos: pv.reduce((s, v) => s + v.monto_total, 0) };
   }).sort((a, b) => b.ventas - a.ventas);
   res.json({ productStats: stats, topProducts: stats.slice(0, 3), bottomProducts: stats.slice(-3).reverse() });
+});
+
+app.get('/api/admin/dashboard/powerbi', auth, adminRequired, async (_req, res) => {
+  const db = getDb();
+  const transacciones = await db.collection('transacciones').find().sort({ fecha: 1 }).toArray();
+  const citas = await db.collection('citas').aggregate([
+    { $lookup: { from: 'usuarios', localField: 'usuario_id', foreignField: '_id', as: 'usuario' } },
+    { $lookup: { from: 'servicios', localField: 'servicio_id', foreignField: '_id', as: 'servicio' } },
+    { $unwind: { path: '$usuario', preserveNullAndEmptyArrays: true } },
+    { $unwind: { path: '$servicio', preserveNullAndEmptyArrays: true } },
+    { $project: { fecha: 1, horario: 1, estado: 1, created_at: 1, cliente_nombre: '$usuario.nombre', cliente_email: '$usuario.email', servicio_nombre: '$servicio.nombre', servicio_precio: '$servicio.precio_auto' } }
+  ]).toArray();
+  const usuarios = await db.collection('usuarios').find().sort({ created_at: 1 }).toArray();
+  const productos = await db.collection('productos').find().sort({ nombre: 1 }).toArray();
+  const servicios = await db.collection('servicios').find().sort({ nombre: 1 }).toArray();
+  res.json({ transacciones: toApiList(transacciones.map((t: Record<string, unknown>) => ({ fecha: t.fecha, tipo: t.tipo, monto: t.monto, descripcion: t.descripcion, created_at: t.created_at }))), citas: toApiList(citas as Record<string, unknown>[]), usuarios: toApiList(usuarios.map((u: Record<string, unknown>) => ({ id: u._id, nombre: u.nombre, email: u.email, rol: u.rol, created_at: u.created_at }))), productos: toApiList(productos.map((p: Record<string, unknown>) => ({ id: p._id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, stock: p.stock }))), servicios: toApiList(servicios.map((s: Record<string, unknown>) => ({ id: s._id, nombre: s.nombre, categoria: s.categoria, precio_auto: s.precio_auto, precio_camioneta: s.precio_camioneta, duracion_minutos: s.duracion_minutos }))) });
 });
 
 app.get('/api/admin/dashboard/export', auth, adminRequired, async (_req, res) => {

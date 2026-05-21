@@ -23,7 +23,7 @@
     <div class="catalog-grid">
       @for (p of filtered; track p.id; let i = $index) {
         <article class="md-card" [style.animation-delay.ms]="i * 50">
-          <img class="md-card-image" [src]="img(p)" [alt]="p.nombre" loading="lazy" />
+          <img class="md-card-image" [src]="img(p)" [alt]="p.nombre" loading="lazy" width="400" height="300" />
           <div class="md-card-body">
             @if (p.categoria) {
               <span class="md-card-meta" style="display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.08em">{{ p.categoria }}</span>
