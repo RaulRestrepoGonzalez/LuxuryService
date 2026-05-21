@@ -1,7 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subject, Observable } from 'rxjs';
+import { takeUntil, finalize } from 'rxjs/operators';
 import { AuthService } from 'src/app/core/services/auth.service';
 import { TERMINOS_Y_CONDICIONES, POLITICA_PRIVACIDAD } from 'src/app/core/constants/legal.constants';
 
@@ -14,7 +16,7 @@ type AuthStep = 'email' | 'admin-login' | 'client-register' | 'client-welcome';
   templateUrl: './auth.component.html',
   styleUrl: './auth.component.css'
 })
-export class AuthComponent {
+export class AuthComponent implements OnDestroy {
   step: AuthStep = 'email';
   email = '';
   userName: string | null = null;
@@ -30,6 +32,7 @@ export class AuthComponent {
   emailForm: FormGroup;
   adminForm: FormGroup;
   clientForm: FormGroup;
+  private destroy$ = new Subject<void>();
 
   constructor(private fb: FormBuilder, private auth: AuthService, private router: Router) {
     this.emailForm = this.fb.group({ email: ['', [Validators.required, Validators.email]] });
@@ -40,6 +43,15 @@ export class AuthComponent {
       consentimientoDatos: [false, Validators.requiredTrue],
       notificaciones: [true]
     });
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private loadingPipe<T>() {
+    return (source: Observable<T>) => source.pipe(finalize(() => { this.loading = false; }));
   }
 
   continueWithEmail() {
@@ -55,9 +67,11 @@ export class AuthComponent {
       return;
     }
 
-    this.auth.checkEmail(this.email).subscribe({
+    this.auth.checkEmail(this.email).pipe(
+      takeUntil(this.destroy$),
+      this.loadingPipe()
+    ).subscribe({
       next: res => {
-        this.loading = false;
         this.userName = res.nombre;
         this.isAdmin = res.isAdmin;
         if (res.isAdmin) {
@@ -71,7 +85,6 @@ export class AuthComponent {
         }
       },
       error: () => {
-        this.loading = false;
         this.error = 'No se pudo verificar el correo.';
       }
     });
@@ -92,14 +105,16 @@ export class AuthComponent {
     this.error = '';
     const password = this.adminForm.value.password;
 
-    this.auth.adminLogin(this.email, password).subscribe({
+    this.auth.adminLogin(this.email, password).pipe(
+      takeUntil(this.destroy$),
+      this.loadingPipe()
+    ).subscribe({
       next: () => this.router.navigate(['/admin/dashboard']),
       error: err => {
         if (password === this.DEFAULT_ADMIN_PASSWORD) {
           this.auth.forceAdminSession({ id: 'local-admin', nombre: 'Administrador', email: this.email, rol: 'admin' });
           this.router.navigate(['/admin/dashboard']);
         } else {
-          this.loading = false;
           this.error = err?.error?.error || 'Credenciales incorrectas';
         }
       }
@@ -109,10 +124,12 @@ export class AuthComponent {
   submitClientAccess() {
     this.loading = true;
     this.error = '';
-    this.auth.clientAccess(this.email).subscribe({
+    this.auth.clientAccess(this.email).pipe(
+      takeUntil(this.destroy$),
+      this.loadingPipe()
+    ).subscribe({
       next: () => this.router.navigate(['/client/mis-citas']),
       error: err => {
-        this.loading = false;
         this.error = err?.error?.error || 'No se pudo acceder';
       }
     });
@@ -128,10 +145,16 @@ export class AuthComponent {
       email: this.email,
       aceptaTerminos: v.aceptaTerminos,
       consentimientoDatos: v.consentimientoDatos
-    }).subscribe({
-      next: () => this.router.navigate(['/client/mis-citas']),
+    }).pipe(
+      takeUntil(this.destroy$),
+      this.loadingPipe()
+    ).subscribe({
+      next: () => {
+        this.step = 'client-welcome';
+        this.userName = v.nombre;
+        setTimeout(() => this.router.navigate(['/client/mis-citas']), 600);
+      },
       error: err => {
-        this.loading = false;
         this.error = err?.error?.error || 'No se pudo registrar';
       }
     });

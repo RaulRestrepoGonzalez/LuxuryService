@@ -8,6 +8,7 @@
     @if (auth.currentUser$ | async; as user) {
       <a routerLink="/client/mis-citas" routerLinkActive="nav-active">Mis citas</a>
       <a routerLink="/client/perfil" routerLinkActive="nav-active">{{ user.nombre }}</a>
+      <span class="site-nav-email">{{ user.email }}</span>
       @if (auth.isAdmin()) {
         <a routerLink="/admin/dashboard" class="site-nav-dashboard" routerLinkActive="nav-active-dash">Dashboard</a>
       }

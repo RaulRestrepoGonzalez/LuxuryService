@@ -8,7 +8,7 @@ import { notificarCitaAgendada, notificarBienvenidaCliente } from './notificatio
 import { createCheckout, processWebhook } from './payments.js';
 import { enviarTicketCita, enviarConfirmacionPago } from './email.js';
 import QRCode from 'qrcode';
-import { randomBytes } from 'crypto';
+import { createHash } from 'crypto';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -87,39 +87,54 @@ function issueToken(user: { _id: unknown; email: string; nombre: string; rol: st
 }
 
 app.post('/api/auth/client-access', async (req, res) => {
-  const emailNorm = req.body.email?.trim().toLowerCase();
-  if (!emailNorm) return res.status(400).json({ error: 'Email requerido' });
-  const user = await getDb().collection('usuarios').findOne({ email: emailNorm });
-  if (!user) return res.status(404).json({ error: 'Regístrate primero con tu correo' });
-  if (emailNorm === ADMIN_EMAIL) return res.status(400).json({ error: 'Los administradores deben usar contraseña' });
-  if (!user.acepta_terminos || !user.consentimiento_datos) return res.status(403).json({ error: 'Aceptación de términos pendiente' });
-  res.json(issueToken(user));
+  try {
+    const emailNorm = req.body.email?.trim().toLowerCase();
+    if (!emailNorm) return res.status(400).json({ error: 'Email requerido' });
+    if (emailNorm === ADMIN_EMAIL) return res.status(400).json({ error: 'Los administradores deben usar contraseña' });
+    const user = await getDb().collection('usuarios').findOne({ email: emailNorm }, { projection: { _id: 1, email: 1, nombre: 1, rol: 1, acepta_terminos: 1, consentimiento_datos: 1 } });
+    if (!user) return res.status(404).json({ error: 'Regístrate primero con tu correo' });
+    if (!user.acepta_terminos || !user.consentimiento_datos) return res.status(403).json({ error: 'Aceptación de términos pendiente' });
+    console.log(`[ACCESS] OK: ${emailNorm}`);
+    res.json(issueToken({ _id: user._id, email: user.email, nombre: user.nombre, rol: user.rol }));
+  } catch (err) {
+    console.error('[ACCESS] Error:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 app.post('/api/auth/client-register', async (req, res) => {
-  const { nombre, email, aceptaTerminos, consentimientoDatos, versionTerminos, versionPolitica } = req.body;
-  const emailNorm = email?.trim().toLowerCase();
-  if (!nombre?.trim() || !emailNorm) return res.status(400).json({ error: 'Nombre y correo requeridos' });
-  if (!aceptaTerminos || !consentimientoDatos) return res.status(400).json({ error: 'Debe aceptar términos y autorizar datos' });
-  if (versionTerminos !== TERMINOS_VERSION || versionPolitica !== POLITICA_VERSION) return res.status(400).json({ error: 'Versión de documentos desactualizada' });
-  if (emailNorm === ADMIN_EMAIL) return res.status(400).json({ error: 'El correo del administrador no puede registrarse como cliente' });
-  const exists = await getDb().collection('usuarios').findOne({ email: emailNorm });
-  if (exists) return res.status(400).json({ error: 'El correo ya está registrado. Usa Acceder.' });
+  try {
+    const { nombre, email, aceptaTerminos, consentimientoDatos, versionTerminos, versionPolitica } = req.body;
+    const emailNorm = email?.trim().toLowerCase();
+    if (!nombre?.trim() || !emailNorm) return res.status(400).json({ error: 'Nombre y correo requeridos' });
+    if (!aceptaTerminos || !consentimientoDatos) return res.status(400).json({ error: 'Debe aceptar términos y autorizar datos' });
+    if (versionTerminos !== TERMINOS_VERSION || versionPolitica !== POLITICA_VERSION) return res.status(400).json({ error: 'Versión de documentos desactualizada' });
+    if (emailNorm === ADMIN_EMAIL) return res.status(400).json({ error: 'El correo del administrador no puede registrarse como cliente' });
+    const exists = await getDb().collection('usuarios').findOne({ email: emailNorm });
+    if (exists) return res.status(400).json({ error: 'El correo ya está registrado. Usa Acceder.' });
 
-  const placeholderHash = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
-  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'desconocida');
-  const result = await getDb().collection('usuarios').insertOne({
-    nombre: nombre.trim(), email: emailNorm, password_hash: placeholderHash, rol: 'cliente',
-    passwordless: true, acepta_terminos: true, consentimiento_datos: true,
-    notificaciones_activas: true, fecha_aceptacion_terminos: new Date(),
-    version_terminos: TERMINOS_VERSION, version_politica: POLITICA_VERSION, ip_registro: ip, created_at: new Date()
-  });
-  const userId = String(result.insertedId);
-  await logConsent({ usuarioId: userId, email: emailNorm, tipo: 'registro_terminos', version: TERMINOS_VERSION, ip, userAgent: req.headers['user-agent'] });
-  await logConsent({ usuarioId: userId, email: emailNorm, tipo: 'autorizacion_datos', version: POLITICA_VERSION, ip, userAgent: req.headers['user-agent'] });
-  await notificarBienvenidaCliente(userId, emailNorm);
-  const user = { _id: result.insertedId, nombre: nombre.trim(), email: emailNorm, rol: 'cliente' };
-  res.json(issueToken(user));
+    const placeholderHash = createHash('sha256').update(emailNorm).digest('hex');
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'desconocida');
+    const result = await getDb().collection('usuarios').insertOne({
+      nombre: nombre.trim(), email: emailNorm, password_hash: placeholderHash, rol: 'cliente',
+      passwordless: true, acepta_terminos: true, consentimiento_datos: true,
+      notificaciones_activas: true, fecha_aceptacion_terminos: new Date(),
+      version_terminos: TERMINOS_VERSION, version_politica: POLITICA_VERSION, ip_registro: ip, created_at: new Date()
+    });
+    const userId = String(result.insertedId);
+    Promise.all([
+      logConsent({ usuarioId: userId, email: emailNorm, tipo: 'registro_terminos', version: TERMINOS_VERSION, ip, userAgent: req.headers['user-agent'] }),
+      logConsent({ usuarioId: userId, email: emailNorm, tipo: 'autorizacion_datos', version: POLITICA_VERSION, ip, userAgent: req.headers['user-agent'] }),
+      notificarBienvenidaCliente(userId, emailNorm)
+    ]).catch(e => console.error('Background tasks failed:', e));
+    const user = { _id: result.insertedId, nombre: nombre.trim(), email: emailNorm, rol: 'cliente' };
+    const token = issueToken(user);
+    console.log(`[REGISTER] OK: ${emailNorm} -> ${String(result.insertedId)}`);
+    res.json(token);
+  } catch (err) {
+    console.error('Error en client-register:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 app.post('/api/auth/register', async (req, res) => {
@@ -166,7 +181,7 @@ app.post('/api/auth/login', async (req, res) => {
     user = await getDb().collection('usuarios').findOne({ _id: result.insertedId });
   }
   if (!(await bcrypt.compare(password, user!.password_hash))) return res.status(401).json({ error: 'Credenciales incorrectas' });
-  res.json(issueToken(user!));
+  res.json(issueToken({ _id: user!._id, email: user!.email, nombre: user!.nombre, rol: user!.rol }));
 });
 
 app.get('/api/notifications', auth, async (req, res) => {
@@ -553,7 +568,11 @@ app.post('/api/admin/promotions', auth, adminRequired, async (req, res) => {
   res.json({ success: true, enviadas: clientes.length });
 });
 
-connectDb().then(() => {
+connectDb().then(async () => {
+  const db = getDb();
+  await db.collection('usuarios').createIndex({ email: 1 }, { unique: true, background: true });
+  await db.collection('citas').createIndex({ fecha: 1, servicio_id: 1 });
+  await db.collection('notificaciones').createIndex({ usuario_id: 1, created_at: -1 });
   app.listen(PORT, () => {
     console.log(`API MongoDB → http://localhost:${PORT}/api`);
     console.log(`Compass: mongodb://127.0.0.1:27017 → luxury_service`);

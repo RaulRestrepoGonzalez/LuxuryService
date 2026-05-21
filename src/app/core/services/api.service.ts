@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { environment } from 'src/environments/environment';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { tap, catchError, timeout } from 'rxjs/operators';
 
 @Injectable({ providedIn: 'root' })
@@ -23,7 +23,8 @@ export class ApiService {
       tap(value => this.cache.set(key, { value, expiry: now + (ttl ?? this.cacheTtl) })),
       catchError(err => {
         this.cache.delete(key);
-        throw err;
+        console.error('[API GET] Error:', err instanceof HttpErrorResponse ? err.status : err);
+        return throwError(() => err);
       })
     );
   }
@@ -41,14 +42,32 @@ export class ApiService {
 
   post<T>(endpoint: string, body: any): Observable<T> {
     this.cache.delete(`GET:${endpoint}`);
-    return this.http.post<T>(`${this.baseUrl}${endpoint}`, body).pipe(timeout(8_000));
+    return this.http.post<T>(`${this.baseUrl}${endpoint}`, body).pipe(
+      timeout(8_000),
+      catchError(err => {
+        console.error('[API POST] Error:', err instanceof HttpErrorResponse ? err.status : err);
+        return throwError(() => err);
+      })
+    );
   }
   put<T>(endpoint: string, body: any): Observable<T> {
     this.cache.delete(`GET:${endpoint}`);
-    return this.http.put<T>(`${this.baseUrl}${endpoint}`, body).pipe(timeout(8_000));
+    return this.http.put<T>(`${this.baseUrl}${endpoint}`, body).pipe(
+      timeout(8_000),
+      catchError(err => {
+        console.error('[API PUT] Error:', err instanceof HttpErrorResponse ? err.status : err);
+        return throwError(() => err);
+      })
+    );
   }
   delete<T>(endpoint: string): Observable<T> {
     this.cache.delete(`GET:${endpoint}`);
-    return this.http.delete<T>(`${this.baseUrl}${endpoint}`).pipe(timeout(8_000));
+    return this.http.delete<T>(`${this.baseUrl}${endpoint}`).pipe(
+      timeout(8_000),
+      catchError(err => {
+        console.error('[API DELETE] Error:', err instanceof HttpErrorResponse ? err.status : err);
+        return throwError(() => err);
+      })
+    );
   }
 }

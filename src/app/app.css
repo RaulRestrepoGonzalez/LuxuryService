@@ -91,6 +91,15 @@ body {
   color: #ffffff !important;
 }
 
+.site-nav-email {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+  position: relative;
+  padding-left: 0.75rem;
+  border-left: 1px solid #d0d0d0;
+}
+
 .site-nav-cta {
   background: var(--brand-red) !important;
   color: var(--brand-white) !important;
