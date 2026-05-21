@@ -1,0 +1,138 @@
+<section class="page-hero">
+  <div class="page-hero-bg" [style.background-image]="'url(' + heroImage + ')'"></div>
+  <div class="page-hero-overlay"></div>
+  <div class="page-hero-content">
+    <p class="hero-brand-line">Luxury Service <span>Manga</span></p>
+    <h1>Expertos en servicio automotriz premium</h1>
+    <p>Precios 2025 · IVA incluido · Auto y camioneta</p>
+    <div class="hero-cta-row">
+      <a routerLink="/agendar-cita" class="btn-hero-primary">Solicitar servicio</a>
+      <a routerLink="/servicios" class="btn-hero-outline">Ver tarifario</a>
+    </div>
+  </div>
+</section>
+
+<section class="home-multimarcas">
+  <div class="multimarcas-bg"></div>
+  <h2 class="multimarcas-title">SOMOS MULTIMARCAS</h2>
+  <div class="multimarcas-card">
+    <div class="brands-grid">
+      @for (m of marcas; track m.nombre) {
+        <div class="brand-item" [title]="m.nombre">
+          <img [src]="m.logo" [alt]="m.nombre" loading="lazy" (error)="onLogoError($event, m.nombre)" />
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="home-tarifario">
+  <div class="tarifario-header">
+    <div class="tarifario-brand">
+      <span class="tarifario-logo">LS</span>
+      <div>
+        <strong>Luxury Service</strong>
+        <em>Manga</em>
+      </div>
+    </div>
+    <div class="tarifario-badge">PRECIOS 2025<br>IVA INCLUIDO</div>
+  </div>
+
+  @if (loadingTarifario) {
+    <p class="tarifario-loading">Cargando tarifario...</p>
+  } @else {
+    @for (cat of tarifarioCategorias; track cat) {
+      <div class="tarifario-categoria">
+        <h3 class="tarifario-cat-title">{{ cat }}</h3>
+        <div class="tarifario-table">
+          <div class="tarifario-row tarifario-row-head">
+            <span class="col-servicio">Servicio</span>
+            <span class="col-precio">Auto</span>
+            <span class="col-precio">Camioneta</span>
+          </div>
+          @for (s of tarifarioGrouped[cat]; track s.id) {
+            <div class="tarifario-row">
+              <span class="col-servicio">{{ s.nombre }}</span>
+              <span class="col-precio col-auto">{{ formatPrice(s.precio_auto) }}</span>
+              <span class="col-precio col-camioneta">{{ formatPrice(s.precio_camioneta) }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+
+  <div class="home-services-cta">
+    <a routerLink="/servicios" class="btn-hero-primary">Ver catálogo completo</a>
+    <a routerLink="/agendar-cita" class="btn-hero-outline-dark">Agendar cita</a>
+  </div>
+</section>
+
+<!-- Mapa -->
+<section class="home-map-section">
+  <h2 class="section-slash-title"><span class="slash">/</span> UBICACIÓN <span class="slash">/</span></h2>
+  <div class="home-map-wrap">
+    <iframe
+      title="Ubicación Luxury Service Manga"
+      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.848!2d-74.072!3d4.711!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNMKwNDInNDAuMCJOIDc0wrAwNCcxOS4yIlc!5e0!3m2!1ses!2sco!4v1"
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+      allowfullscreen
+    ></iframe>
+    <div class="map-pin-card">
+      <strong>Luxury Service Manga</strong>
+      <p>{{ contacto.direccion }}</p>
+    </div>
+  </div>
+</section>
+
+<!-- Contacto -->
+<section class="home-contact">
+  <div class="home-contact-inner">
+    <div class="contact-info">
+      <h2><span class="slash">/</span> CONTÁCTANOS <span class="slash">/</span></h2>
+      <p class="contact-lead">Si tienes algún problema con tu vehículo o necesitas un servicio premium, agenda con nuestro equipo profesional hoy mismo.</p>
+      <dl class="contact-details">
+        <div class="contact-detail-row">
+          <dt>Dirección</dt>
+          <dd>{{ contacto.direccion }}</dd>
+        </div>
+        <div class="contact-detail-row">
+          <dt>Horario</dt>
+          <dd>{{ contacto.horario }}</dd>
+        </div>
+        <div class="contact-detail-row">
+          <dt>Contacto</dt>
+          <dd>
+            <a [href]="'tel:' + contacto.telefonoRaw">{{ contacto.telefono }}</a><br>
+            <a [href]="'mailto:' + contacto.email">{{ contacto.email }}</a>
+          </dd>
+        </div>
+        <div class="contact-detail-row">
+          <dt>Citas</dt>
+          <dd>10:00 a.m. y 2:00 p.m.</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="contact-form-panel">
+      <form [formGroup]="contactForm" (ngSubmit)="submitContact()">
+        <input type="text" formControlName="nombre" placeholder="Ingresa tu nombre completo*" />
+        <input type="tel" formControlName="telefono" placeholder="Ingresa tu teléfono*" />
+        <input type="email" formControlName="email" placeholder="Ingresa tu correo*" />
+        <textarea formControlName="mensaje" rows="4" placeholder="Escribe tu mensaje"></textarea>
+        @if (contactSuccess) {
+          <p class="contact-form-msg success">Mensaje enviado. Te contactaremos pronto.</p>
+        }
+        @if (contactError) {
+          <p class="contact-form-msg error">{{ contactError }}</p>
+        }
+        <button type="submit" class="contact-submit" [disabled]="contactForm.invalid || contactSending">
+          {{ contactSending ? 'Enviando...' : 'Agendar cita' }}
+        </button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<app-site-footer></app-site-footer>

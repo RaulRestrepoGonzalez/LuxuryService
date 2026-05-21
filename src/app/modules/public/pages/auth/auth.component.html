@@ -1,0 +1,96 @@
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">◆</div>
+      <span>Luxury Service</span>
+    </div>
+
+    @if (step === 'email') {
+      <h2>Accede con tu correo</h2>
+      <p class="auth-subtitle">Clientes: solo email · Admin: email y contraseña</p>
+      @if (error) { <div class="auth-error">{{ error }}</div> }
+      <form [formGroup]="emailForm" (ngSubmit)="continueWithEmail()">
+        <div class="auth-field">
+          <label for="email">Correo electrónico</label>
+          <input id="email" formControlName="email" type="email" placeholder="tu@correo.com" autocomplete="email" />
+        </div>
+        <button type="submit" class="auth-btn auth-btn-primary" [disabled]="emailForm.invalid || loading">
+          @if (loading) { <span class="auth-loading"></span> } Continuar
+        </button>
+      </form>
+    }
+
+    @if (step === 'admin-login') {
+      <h2>Panel administrador</h2>
+      <p class="auth-subtitle">Ingresa tu contraseña</p>
+      <div class="auth-email-display">
+        <span>{{ email }}</span>
+        <button type="button" class="auth-change-email" (click)="backToEmail()">Cambiar</button>
+      </div>
+      @if (error) { <div class="auth-error">{{ error }}</div> }
+      <form [formGroup]="adminForm" (ngSubmit)="submitAdminLogin()">
+        <div class="auth-field">
+          <label for="password">Contraseña</label>
+          <input id="password" formControlName="password" type="password" autocomplete="current-password" />
+        </div>
+        <button type="submit" class="auth-btn auth-btn-primary" [disabled]="adminForm.invalid || loading">
+          @if (loading) { <span class="auth-loading"></span> } Entrar al dashboard
+        </button>
+      </form>
+    }
+
+    @if (step === 'client-welcome') {
+      <h2>¡Hola{{ userName ? ', ' + userName : '' }}!</h2>
+      <p class="auth-subtitle">Accede sin contraseña. Recibirás notificaciones de promociones y citas en tu correo.</p>
+      <div class="auth-email-display">
+        <span>{{ email }}</span>
+        <button type="button" class="auth-change-email" (click)="backToEmail()">Cambiar</button>
+      </div>
+      @if (error) { <div class="auth-error">{{ error }}</div> }
+      <button type="button" class="auth-btn auth-btn-primary" [disabled]="loading" (click)="submitClientAccess()">
+        @if (loading) { <span class="auth-loading"></span> } Continuar
+      </button>
+    }
+
+    @if (step === 'client-register') {
+      <h2>Únete a Luxury Service</h2>
+      <p class="auth-subtitle">Solo tu correo — sin contraseña. Te avisamos de promociones y citas.</p>
+      <div class="auth-email-display">
+        <span>{{ email }}</span>
+        <button type="button" class="auth-change-email" (click)="backToEmail()">Cambiar</button>
+      </div>
+      @if (error) { <div class="auth-error">{{ error }}</div> }
+      <form [formGroup]="clientForm" (ngSubmit)="submitClientRegister()">
+        <div class="auth-field">
+          <label for="nombre">Tu nombre</label>
+          <input id="nombre" formControlName="nombre" type="text" autocomplete="name" />
+        </div>
+        <div class="auth-legal">
+          <label class="auth-checkbox">
+            <input type="checkbox" formControlName="aceptaTerminos" />
+            <span>Acepto los <a href="#" (click)="openTerminos($event)">Términos y Condiciones</a></span>
+          </label>
+          <label class="auth-checkbox">
+            <input type="checkbox" formControlName="consentimientoDatos" />
+            <span>Autorizo datos y <strong>notificaciones</strong> (promociones y citas) según Ley 1581</span>
+          </label>
+        </div>
+        <button type="submit" class="auth-btn auth-btn-primary" [disabled]="clientForm.invalid || loading">
+          @if (loading) { <span class="auth-loading"></span> } Crear cuenta
+        </button>
+      </form>
+    }
+  </div>
+</div>
+
+@if (showTerminos || showPolitica) {
+  <div class="legal-modal-backdrop" (click)="closeLegal()">
+    <div class="legal-modal" (click)="$event.stopPropagation()">
+      <div class="legal-modal-header">
+        <h3>{{ showTerminos ? 'Términos' : 'Privacidad' }}</h3>
+        <button type="button" class="legal-modal-close" (click)="closeLegal()">×</button>
+      </div>
+      <div class="legal-modal-body">{{ showTerminos ? terminosText : politicaText }}</div>
+    </div>
+  </div>
+}

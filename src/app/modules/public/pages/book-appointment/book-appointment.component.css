@@ -1,0 +1,193 @@
+@import '../../../../shared/styles/hero-layout.css';
+
+.book-page {
+  padding: 2rem 1.5rem 4rem;
+}
+
+.book-layout {
+  display: grid;
+  gap: 1.75rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.book-panel {
+  background: #fafafa;
+  border: 1px solid #eee;
+  padding: 1.5rem;
+  border-radius: 4px;
+}
+
+.book-panel h3 {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #0a0a0a;
+}
+
+.service-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.service-pick {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.15rem;
+  border: 2px solid #e8e8e8;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.service-pick input { display: none; }
+
+.service-pick.selected {
+  border-color: #ff2b2b;
+  background: rgba(255, 43, 43, 0.04);
+}
+
+.service-pick-name { font-weight: 700; color: #0a0a0a; }
+.service-pick-price { color: #5f6368; font-weight: 600; }
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.cal-month {
+  font-weight: 800;
+  text-transform: capitalize;
+  color: #0a0a0a;
+}
+
+.cal-nav-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: #0a0a0a;
+  margin: 0;
+}
+
+.cal-nav-btn:hover { border-color: #ff2b2b; color: #ff2b2b; }
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #80868b;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-day {
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  background: #fff;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #0a0a0a;
+  margin: 0;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.cal-day.other-month { color: #ccc; }
+.cal-day.disabled { opacity: 0.35; cursor: not-allowed; }
+.cal-day.booked:not(.selected)::after {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 4px;
+  background: #ff2b2b;
+  border-radius: 50%;
+  margin: 2px auto 0;
+}
+.cal-day.selected {
+  background: #ff2b2b;
+  color: #fff;
+  border-color: #ff2b2b;
+}
+
+.cal-legend {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: #80868b;
+}
+
+.cal-legend .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.cal-legend .dot.booked { background: #ff2b2b; }
+
+.time-slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.time-slot {
+  padding: 1.25rem;
+  border: 2px solid #e8e8e8;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0a0a0a;
+  cursor: pointer;
+  margin: 0;
+  transition: all 0.2s ease;
+}
+
+.time-slot:hover { border-color: #0a0a0a; }
+.time-slot.selected {
+  border-color: #ff2b2b;
+  background: #ff2b2b;
+  color: #fff;
+}
+
+.book-hint { color: #80868b; margin: 0; }
+.book-submit { width: 100%; border: none; cursor: pointer; }
+.book-success {
+  background: rgba(52, 168, 83, 0.12);
+  color: #137333;
+  padding: 1rem;
+  border-radius: 4px;
+}
+.book-error {
+  background: rgba(255, 43, 43, 0.1);
+  color: #c5221f;
+  padding: 1rem;
+  border-radius: 4px;
+}
+.book-alert {
+  text-align: center;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  background: #fafafa;
+  border: 1px solid #eee;
+}

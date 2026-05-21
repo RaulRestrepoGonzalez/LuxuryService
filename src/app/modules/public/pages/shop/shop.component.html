@@ -1,0 +1,62 @@
+<div class="catalog-page page-light">
+  <h2 class="catalog-section-title">
+    <span class="slash">/</span> PRODUCTOS DE TIENDA <span class="slash">/</span>
+  </h2>
+
+  <div class="catalog-filters">
+    @for (cat of categories; track cat) {
+      <button type="button" class="catalog-chip" [class.active]="activeCategory === cat" (click)="filterCategory(cat)">
+        {{ cat }}
+      </button>
+    }
+  </div>
+
+  @if (loading) {
+    <div class="catalog-grid">
+      @for (i of [1,2,3,4,5,6]; track i) {
+        <div class="catalog-skeleton"></div>
+      }
+    </div>
+  } @else if (filtered.length === 0) {
+    <div class="catalog-empty">No hay productos en esta categoría</div>
+  } @else {
+    <div class="catalog-grid">
+      @for (p of filtered; track p.id; let i = $index) {
+        <article class="md-card" [style.animation-delay.ms]="i * 50">
+          <img class="md-card-image" [src]="img(p)" [alt]="p.nombre" loading="lazy" />
+          <div class="md-card-body">
+            @if (p.categoria) {
+              <span class="md-card-meta" style="display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.08em">{{ p.categoria }}</span>
+            }
+            <h3>{{ p.nombre }}</h3>
+            <p class="md-card-desc">{{ p.descripcion }}</p>
+            <div class="md-card-footer">
+              <div>
+                <div class="md-card-price">{{ formatPrice(p.precio) }}</div>
+                <span class="md-card-stock" [class]="stockClass(p.stock)">
+                  @if (p.stock <= 0) { Agotado }
+                  @else if (p.stock <= 5) { Quedan {{ p.stock }} }
+                  @else { En stock }
+                </span>
+              </div>
+              @if (auth.isLoggedIn()) {
+                <button
+                  type="button"
+                  class="md-btn md-btn-filled"
+                  [disabled]="p.stock <= 0 || purchasing === p.id"
+                  (click)="comprar(p)"
+                >
+                  {{ purchasing === p.id ? '...' : 'Comprar' }}
+                </button>
+              } @else {
+                <a class="md-btn md-btn-text" routerLink="/acceso">Acceder →</a>
+              }
+            </div>
+          </div>
+        </article>
+      }
+    </div>
+  }
+</div>
+
+<div class="catalog-toast" [class.show]="toastVisible">{{ toast }}</div>

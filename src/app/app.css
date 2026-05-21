@@ -1,0 +1,212 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --brand-black: #0a0a0a;
+  --brand-red: #ff2b2b;
+  --brand-white: #ffffff;
+  --text-muted: #5f6368;
+  font-family: Inter, 'Segoe UI', Arial, sans-serif;
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--brand-black);
+  color: var(--brand-white);
+}
+
+/* Nav estilo referencia — barra blanca, texto negro */
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 2rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e8e8e8;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.site-nav-dashboard {
+  background: #0a0a0a !important;
+  color: #ffffff !important;
+  padding: 0.45rem 1rem !important;
+  border-radius: 2px;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.75rem !important;
+}
+
+.site-nav-dashboard:hover {
+  background: #ff2b2b !important;
+  color: #ffffff !important;
+}
+
+.site-brand {
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand-black);
+  text-decoration: none;
+}
+
+.site-brand:hover {
+  color: var(--brand-red);
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.site-nav a {
+  color: var(--brand-black);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.site-nav a:hover {
+  color: var(--brand-red);
+}
+
+.site-nav-cta {
+  background: var(--brand-red) !important;
+  color: var(--brand-white) !important;
+  padding: 0.5rem 1.25rem;
+  border-radius: 2px;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.8rem !important;
+}
+
+.site-nav-cta:hover {
+  background: #e02424 !important;
+  color: var(--brand-white) !important;
+}
+
+.app-content {
+  padding: 0 2rem;
+  min-height: calc(100vh - 72px);
+  background: var(--brand-black);
+}
+
+/* Botones globales (admin, formularios) */
+.button-primary,
+.button-secondary,
+.button-clear {
+  border: none;
+  padding: 0.85rem 1.5rem;
+  font-weight: 800;
+  cursor: pointer;
+  border-radius: 2px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.button-primary {
+  background: var(--brand-red);
+  color: var(--brand-white);
+}
+
+.button-secondary {
+  background: transparent;
+  color: var(--brand-white);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+}
+
+.button-clear {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--brand-white);
+}
+
+.button-primary:hover,
+.button-secondary:hover,
+.button-clear:hover {
+  transform: translateY(-1px);
+}
+
+.section-title {
+  margin: 0 0 1rem;
+  color: var(--brand-white);
+  font-size: 2rem;
+}
+
+.card-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  padding: 1.5rem;
+}
+
+.card h3 { margin: 0 0 0.75rem; color: #fff; }
+.card p { margin: 0; color: rgba(255, 255, 255, 0.75); }
+
+.table-card { overflow-x: auto; }
+.table-card table { width: 100%; border-collapse: collapse; }
+.table-card th, .table-card td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.table-card th { color: #fff; font-weight: 700; }
+.table-card td { color: rgba(255, 255, 255, 0.8); }
+
+.status-tag {
+  display: inline-flex;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  color: var(--brand-red);
+}
+
+.alert {
+  background: rgba(255, 43, 43, 0.12);
+  border: 1px solid rgba(255, 43, 43, 0.2);
+  color: #fff;
+  border-radius: 2px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+input, select, button { font: inherit; }
+
+input, select {
+  width: 100%;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.95rem 1rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+input::placeholder { color: rgba(255, 255, 255, 0.45); }
+
+@media (max-width: 768px) {
+  .site-header { padding: 1rem; }
+  .site-nav { gap: 0.85rem; }
+  .app-content { padding: 0 1rem; }
+}

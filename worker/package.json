@@ -1,0 +1,6 @@
+{
+  "name": "luxury-worker",
+  "scripts": { "dev": "wrangler dev", "deploy": "wrangler deploy" },
+  "dependencies": { "hono": "^4.0.0", "jsonwebtoken": "^9.0.0", "bcryptjs": "^2.4.3" },
+  "devDependencies": { "@cloudflare/workers-types": "^4.0.0", "wrangler": "^3.0.0" }
+}

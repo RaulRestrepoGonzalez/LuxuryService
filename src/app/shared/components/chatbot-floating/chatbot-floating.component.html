@@ -1,0 +1,28 @@
+<button type="button" class="chatbot-button" (click)="toggle()" aria-label="Asistente">💬</button>
+
+@if (open) {
+  <div class="chatbot-window">
+    <header class="chatbot-header">
+      <strong>Asesor Luxury</strong>
+      <span>Respuesta rápida · Precios y citas</span>
+      <button type="button" class="chat-close" (click)="toggle()">×</button>
+    </header>
+    <div class="chat-suggestions">
+      @for (s of suggestions; track s) {
+        <button type="button" (click)="useSuggestion(s)">{{ s }}</button>
+      }
+    </div>
+    <div class="chat-messages">
+      @for (msg of messages; track $index) {
+        <div class="chat-bubble" [class.user]="msg.from === 'user'" [class.bot]="msg.from === 'bot'">{{ msg.text }}</div>
+      }
+      @if (typing) {
+        <div class="chat-bubble bot typing"><span></span><span></span><span></span></div>
+      }
+    </div>
+    <div class="chat-input-row">
+      <input [(ngModel)]="newMessage" (keyup.enter)="send()" placeholder="Pregunta precios, servicios..." />
+      <button type="button" (click)="send()" [disabled]="typing">Enviar</button>
+    </div>
+  </div>
+}

@@ -1,0 +1,14 @@
+name = "luxury-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "luxury-db"
+database_id = "TU_DATABASE_ID"
+
+[triggers]
+crons = ["0 0 * * *"]
+
+[vars]
+JWT_SECRET = "tu-secreto-muy-seguro-2026"

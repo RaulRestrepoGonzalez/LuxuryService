@@ -1,0 +1,23 @@
+/** Marcas atendidas — sección SOMOS MULTIMARCAS */
+export const MARCAS_MULTIMARCAS = [
+  { nombre: 'Nissan', logo: 'https://cdn.worldvectorlogo.com/logos/nissan-6.svg' },
+  { nombre: 'Toyota', logo: 'https://cdn.worldvectorlogo.com/logos/toyota-1.svg' },
+  { nombre: 'Mazda', logo: 'https://cdn.worldvectorlogo.com/logos/mazda-6.svg' },
+  { nombre: 'Kia', logo: 'https://cdn.worldvectorlogo.com/logos/kia-motors-1.svg' },
+  { nombre: 'Chevrolet', logo: 'https://cdn.worldvectorlogo.com/logos/chevrolet-8.svg' },
+  { nombre: 'BMW', logo: 'https://cdn.worldvectorlogo.com/logos/bmw-2.svg' },
+  { nombre: 'Ford', logo: 'https://cdn.worldvectorlogo.com/logos/ford-8.svg' },
+  { nombre: 'Renault', logo: 'https://cdn.worldvectorlogo.com/logos/renault-2.svg' },
+  { nombre: 'Mercedes-Benz', logo: 'https://cdn.worldvectorlogo.com/logos/mercedes-benz-9.svg' },
+  { nombre: 'Mitsubishi', logo: 'https://cdn.worldvectorlogo.com/logos/mitsubishi-4.svg' },
+  { nombre: 'Honda', logo: 'https://cdn.worldvectorlogo.com/logos/honda-11.svg' },
+  { nombre: 'Citroën', logo: 'https://cdn.worldvectorlogo.com/logos/citroen-2.svg' },
+  { nombre: 'JAC', logo: 'https://cdn.worldvectorlogo.com/logos/jac-1.svg' },
+  { nombre: 'Dodge', logo: 'https://cdn.worldvectorlogo.com/logos/dodge-4.svg' },
+  { nombre: 'Audi', logo: 'https://cdn.worldvectorlogo.com/logos/audi-11.svg' },
+  { nombre: 'Volvo', logo: 'https://cdn.worldvectorlogo.com/logos/volvo-2.svg' },
+  { nombre: 'Hyundai', logo: 'https://cdn.worldvectorlogo.com/logos/hyundai-2.svg' },
+  { nombre: 'Peugeot', logo: 'https://cdn.worldvectorlogo.com/logos/peugeot-2.svg' },
+  { nombre: 'Suzuki', logo: 'https://cdn.worldvectorlogo.com/logos/suzuki-6.svg' },
+  { nombre: 'Fiat', logo: 'https://cdn.worldvectorlogo.com/logos/fiat-7.svg' },
+];

@@ -1,12 +1,16 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component } from '@angular/core';
+import { AsyncPipe } from '@angular/common';
+import { RouterLink, RouterOutlet } from '@angular/router';
+import { ChatbotFloatingComponent } from './shared/components/chatbot-floating/chatbot-floating.component';
+import { AuthService } from './core/services/auth.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  standalone: true,
+  imports: [RouterLink, RouterOutlet, ChatbotFloatingComponent, AsyncPipe],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App {
-  protected readonly title = signal('LuxuryService');
+  constructor(public auth: AuthService) {}
 }
