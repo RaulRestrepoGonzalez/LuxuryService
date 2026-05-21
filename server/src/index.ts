@@ -210,7 +210,7 @@ app.get('/api/services/catalog', async (_req, res) => {
 });
 
 app.get('/api/products', async (_req, res) => {
-  const docs = await getDb().collection('productos').find().toArray();
+  const docs = await getDb().collection('productos').find({ activo: { $ne: false } }).toArray();
   res.json(toApiList(docs as Record<string, unknown>[]));
 });
 
@@ -462,6 +462,8 @@ app.get('/api/admin/dashboard/export', auth, adminRequired, async (_req, res) =>
   res.send(csv);
 });
 
+/* ——— Admin: productos CRUD ——— */
+
 app.get('/api/admin/products', auth, adminRequired, async (_req, res) => {
   const docs = await getDb().collection('productos').find().toArray();
   res.json(toApiList(docs as Record<string, unknown>[]));
@@ -469,18 +471,55 @@ app.get('/api/admin/products', auth, adminRequired, async (_req, res) => {
 
 app.post('/api/admin/products', auth, adminRequired, async (req, res) => {
   const { nombre, descripcion, precio, stock, categoria } = req.body;
-  await getDb().collection('productos').insertOne({ nombre, descripcion, precio, stock, categoria, icono: 'inventory_2', color: '#4285F4', created_at: new Date() });
+  await getDb().collection('productos').insertOne({ nombre, descripcion, precio, stock, categoria, icono: 'inventory_2', color: '#4285F4', activo: true, created_at: new Date() });
   res.json({ success: true });
 });
 
 app.put('/api/admin/products/:id', auth, adminRequired, async (req, res) => {
-  const { precio, stock } = req.body;
-  await getDb().collection('productos').updateOne({ _id: new ObjectId(req.params.id) }, { $set: { precio, stock } });
+  const set: Record<string, unknown> = {};
+  for (const k of ['nombre', 'descripcion', 'precio', 'stock', 'categoria', 'activo']) {
+    if (req.body[k] !== undefined) set[k] = req.body[k];
+  }
+  await getDb().collection('productos').updateOne({ _id: new ObjectId(req.params.id) }, { $set: set });
   res.json({ success: true });
 });
 
 app.delete('/api/admin/products/:id', auth, adminRequired, async (req, res) => {
   await getDb().collection('productos').deleteOne({ _id: new ObjectId(req.params.id) });
+  res.json({ success: true });
+});
+
+/* ——— Admin: servicios CRUD ——— */
+
+app.get('/api/admin/services', auth, adminRequired, async (_req, res) => {
+  const docs = await getDb().collection('servicios').find().sort({ orden: 1 }).toArray();
+  res.json(toApiList(docs as Record<string, unknown>[]));
+});
+
+app.post('/api/admin/services', auth, adminRequired, async (req, res) => {
+  const { nombre, descripcion, categoria, subcategoria, items, precio_auto, precio_camioneta, duracion_minutos, agendable, icono, imagen_url, orden } = req.body;
+  await getDb().collection('servicios').insertOne({
+    nombre, descripcion, categoria, subcategoria: subcategoria || null, items: items || [],
+    precio_base: precio_auto, precio_auto, precio_camioneta,
+    iva_incluido: true, duracion_minutos, agendable: agendable ?? true,
+    icono: icono || 'auto_awesome', imagen_url: imagen_url || '', color: '#ff2b2b',
+    orden: orden || 99, activo: true, created_at: new Date()
+  });
+  res.json({ success: true });
+});
+
+app.put('/api/admin/services/:id', auth, adminRequired, async (req, res) => {
+  const set: Record<string, unknown> = {};
+  for (const k of ['nombre', 'descripcion', 'categoria', 'subcategoria', 'items', 'precio_auto', 'precio_camioneta', 'duracion_minutos', 'agendable', 'icono', 'imagen_url', 'orden', 'activo']) {
+    if (req.body[k] !== undefined) set[k] = req.body[k];
+  }
+  if (req.body.precio_auto !== undefined) set['precio_base'] = req.body.precio_auto;
+  await getDb().collection('servicios').updateOne({ _id: new ObjectId(req.params.id) }, { $set: set });
+  res.json({ success: true });
+});
+
+app.delete('/api/admin/services/:id', auth, adminRequired, async (req, res) => {
+  await getDb().collection('servicios').deleteOne({ _id: new ObjectId(req.params.id) });
   res.json({ success: true });
 });
 

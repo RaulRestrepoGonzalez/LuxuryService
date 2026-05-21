@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, AfterViewInit, ViewChildren, QueryList, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { ApiService } from 'src/app/core/services/api.service';
 import { Chart, registerables } from 'chart.js';
 
@@ -20,9 +21,13 @@ const STATUS_COLORS: Record<string, string> = {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   styles: [`
     :host { display: block; padding: 1.5rem 0; }
+    .admin-nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .admin-nav a { padding: 0.5rem 1.1rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; text-decoration: none; color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.05); transition: background .2s, color .2s; border: 1px solid transparent; }
+    .admin-nav a:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .admin-nav a.active { background: #ff2b2b; color: #fff; border-color: #ff2b2b; }
     .dash-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
     .dash-header h2 { margin: 0; font-size: 1.5rem; color: #fff; font-weight: 800; }
     .dash-sub { margin: 0.2rem 0 0; font-size: 0.85rem; color: rgba(255,255,255,0.4); }
@@ -73,6 +78,13 @@ const STATUS_COLORS: Record<string, string> = {
     @media (max-width: 700px) { .chart-grid { grid-template-columns: 1fr; } .stat-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } .dash-header { flex-direction: column; } }
   `],
   template: `
+    <nav class="admin-nav">
+      <a routerLink="/admin/dashboard" routerLinkActive="active">Dashboard</a>
+      <a routerLink="/admin/citas" routerLinkActive="active">Citas</a>
+      <a routerLink="/admin/inventario" routerLinkActive="active">Inventario</a>
+      <a routerLink="/admin/servicios" routerLinkActive="active">Servicios</a>
+    </nav>
+
     <div class="dash-header">
       <div>
         <h2>Dashboard ejecutivo</h2>

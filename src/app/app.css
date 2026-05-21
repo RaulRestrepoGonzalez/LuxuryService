@@ -81,6 +81,16 @@ body {
   color: var(--brand-red);
 }
 
+.site-nav a.nav-active {
+  color: var(--brand-red) !important;
+  border-bottom: 2px solid var(--brand-red);
+}
+
+.site-nav a.nav-active-dash {
+  background: #ff2b2b !important;
+  color: #ffffff !important;
+}
+
 .site-nav-cta {
   background: var(--brand-red) !important;
   color: var(--brand-white) !important;

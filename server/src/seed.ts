@@ -32,6 +32,7 @@ async function seed() {
       agendable: s.agendable,
       activo: true,
       icono: s.icono,
+      imagen_url: s.imagen_url,
       color: '#ff2b2b',
       orden: s.orden,
       created_at: new Date()
@@ -47,7 +48,7 @@ async function seed() {
   await database.collection('notificaciones').createIndex({ usuario_id: 1, created_at: -1 });
   await database.collection('servicios').createIndex({ categoria: 1, orden: 1 });
 
-  console.log(`\n✓ Seed: ${SERVICIOS_LUXURY.length} servicios · Precios 2025 IVA incluido`);
+  console.log(`\n✓ Seed: ${SERVICIOS_LUXURY.length} servicios · Precios 2026 IVA incluido`);
   console.log('  Admin: admin@luxuryservice.co / Admin123!\n');
   process.exit(0);
 }

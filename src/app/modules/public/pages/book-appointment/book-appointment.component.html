@@ -41,8 +41,8 @@
     <section class="book-panel">
       <h3><span class="book-step">1</span> Elige el servicio</h3>
       <div class="svc-tipo-toggle">
-        <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'; appointmentForm.patchValue({ tipoVehiculo: 'auto' })">🚗 Automóvil</button>
-        <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'; appointmentForm.patchValue({ tipoVehiculo: 'camioneta' })">🚙 Camioneta</button>
+        <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'">🚗 Automóvil</button>
+        <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'">🚙 Camioneta</button>
       </div>
       <div class="service-picks">
         @for (s of servicios; track s.id) {
@@ -131,7 +131,7 @@
         </div>
       </div>
       <p class="book-terms">⏱ Tienes <strong>10 minutos</strong> para completar el pago, de lo contrario la reserva expirará automáticamente.</p>
-      <button type="submit" class="btn-hero-primary book-submit" [disabled]="appointmentForm.invalid || submitting || !auth.isLoggedIn()">
+      <button type="button" class="btn-hero-primary book-submit" [disabled]="submitting || !auth.isLoggedIn()" (click)="submit()">
         {{ submitting ? 'Agendando...' : 'Confirmar cita y pagar' }}
       </button>
     }

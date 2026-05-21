@@ -1,15 +1,15 @@
 <header class="site-header">
   <a routerLink="/" class="site-brand"><img src="/logo.png" alt="Luxury Service" class="site-logo" /></a>
   <nav class="site-nav">
-    <a routerLink="/">Inicio</a>
-    <a routerLink="/servicios">Servicios</a>
-    <a routerLink="/tienda">Tienda</a>
-    <a routerLink="/agendar-cita">Agendar cita</a>
+    <a routerLink="/" routerLinkActive="nav-active" [routerLinkActiveOptions]="{exact:true}">Inicio</a>
+    <a routerLink="/servicios" routerLinkActive="nav-active">Servicios</a>
+    <a routerLink="/tienda" routerLinkActive="nav-active">Tienda</a>
+    <a routerLink="/agendar-cita" routerLinkActive="nav-active">Agendar cita</a>
     @if (auth.currentUser$ | async; as user) {
-      <a routerLink="/client/mis-citas">Mis citas</a>
-      <a routerLink="/client/perfil">{{ user.nombre }}</a>
+      <a routerLink="/client/mis-citas" routerLinkActive="nav-active">Mis citas</a>
+      <a routerLink="/client/perfil" routerLinkActive="nav-active">{{ user.nombre }}</a>
       @if (auth.isAdmin()) {
-        <a routerLink="/admin/dashboard" class="site-nav-dashboard">Dashboard</a>
+        <a routerLink="/admin/dashboard" class="site-nav-dashboard" routerLinkActive="nav-active-dash">Dashboard</a>
       }
     } @else {
       <a routerLink="/acceso" class="site-nav-cta">Acceder</a>

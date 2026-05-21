@@ -52,8 +52,7 @@ export class BookAppointmentComponent implements OnInit {
     this.appointmentForm = this.fb.group({
       servicioId: ['', Validators.required],
       fecha: ['', Validators.required],
-      horario: ['', Validators.required],
-      tipoVehiculo: ['auto', Validators.required]
+      horario: ['', Validators.required]
     });
   }
 
@@ -69,9 +68,25 @@ export class BookAppointmentComponent implements OnInit {
 
     this.api.get('/services').subscribe({
       next: (res: any) => {
+        const prevId = this.appointmentForm.get('servicioId')?.value;
+        const hasFecha = !!this.appointmentForm.get('fecha')?.value;
         this.servicios = res;
         this.serviciosFromApi = true;
-        if (this.hasPreSelected) this.loadMonthBookings();
+        if (prevId) {
+          if (prevId.startsWith('fb-')) {
+            const prev = FALLBACK_SERVICIOS.find(s => s.id === prevId);
+            if (prev) {
+              const match = res.find((s: any) => s.nombre === prev.nombre);
+              if (match && !hasFecha) {
+                this.appointmentForm.patchValue({ servicioId: match.id });
+              }
+            }
+          } else {
+            const stillExists = res.some((s: any) => s.id === prevId);
+            if (!stillExists) this.appointmentForm.patchValue({ servicioId: '' });
+          }
+        }
+        if (this.appointmentForm.get('servicioId')?.value && !hasFecha) this.loadMonthBookings();
       },
       error: () => {}
     });
@@ -84,6 +99,7 @@ export class BookAppointmentComponent implements OnInit {
     this.payment = null;
     this.successMsg = '';
     this.errorMsg = '';
+    this.loadMonthBookings();
   }
 
   private cacheKey(sid: string, y: number, m: number) {
@@ -91,8 +107,8 @@ export class BookAppointmentComponent implements OnInit {
   }
 
   loadMonthBookings() {
-    const sid = this.appointmentForm.get('servicioId')?.value;
-    if (!sid || sid.startsWith('fb-')) return;
+    const sid = this.resolveRealId(this.appointmentForm.get('servicioId')?.value || '');
+    if (!sid) return;
     const y = this.calendarMonth.getFullYear();
     const m = this.calendarMonth.getMonth() + 1;
     const key = this.cacheKey(sid, y, m);
@@ -148,7 +164,7 @@ export class BookAppointmentComponent implements OnInit {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       const iso = this.toIso(d);
-      const disabled = d < today || d.getDay() === 0;
+      const disabled = d < today || d.getDay() === 0 || this.bookedDates.has(iso);
       this.calendarDays.push({
         date: d,
         inMonth: d.getMonth() === m,
@@ -168,18 +184,21 @@ export class BookAppointmentComponent implements OnInit {
     this.errorMsg = '';
   }
 
+  private resolveRealId(fbOrFakeId: string): string | null {
+    if (!fbOrFakeId.startsWith('fb-')) return fbOrFakeId;
+    const fb = FALLBACK_SERVICIOS.find(s => s.id === fbOrFakeId);
+    if (!fb || !this.serviciosFromApi) return null;
+    const match = this.servicios.find((s: any) => s.nombre === fb.nombre);
+    return match ? match.id : null;
+  }
+
   loadSlots(fecha: string) {
-    const sid = this.appointmentForm.get('servicioId')?.value;
+    const sid = this.resolveRealId(this.appointmentForm.get('servicioId')?.value || '');
     if (!sid) return;
     const key = `${sid}|${fecha}`;
     const cached = this.slotCache.get(key);
     if (cached) {
       this.horarios = cached;
-      return;
-    }
-
-    if (sid.startsWith('fb-')) {
-      this.horarios = DEFAULT_SLOTS;
       return;
     }
 
@@ -215,7 +234,10 @@ export class BookAppointmentComponent implements OnInit {
 
   get selectedService(): any {
     const id = this.appointmentForm.get('servicioId')?.value;
-    return this.servicios.find(s => s.id === id);
+    if (!id) return null;
+    const realId = this.resolveRealId(id);
+    const lookupId = realId || id;
+    return this.servicios.find((s: any) => s.id === lookupId) || FALLBACK_SERVICIOS.find(s => s.id === id);
   }
 
   get precioActual(): number {
@@ -235,12 +257,27 @@ export class BookAppointmentComponent implements OnInit {
       this.router.navigate(['/acceso']);
       return;
     }
-    if (this.appointmentForm.invalid) return;
+    const user = this.auth.getCurrentUser();
+    if (!user || !user.email) {
+      this.errorMsg = 'Debes iniciar sesión con tu correo electrónico para agendar.';
+      return;
+    }
+    if (this.appointmentForm.invalid) {
+      this.errorMsg = 'Completa todos los campos requeridos: servicio, fecha y horario.';
+      return;
+    }
     this.submitting = true;
     this.errorMsg = '';
     this.payment = null;
+    let servicioId = this.appointmentForm.get('servicioId')?.value || '';
+    if (servicioId.startsWith('fb-')) {
+      const realId = this.resolveRealId(servicioId);
+      if (realId) servicioId = realId;
+    }
     const payload = {
-      ...this.appointmentForm.value,
+      servicioId,
+      fecha: this.appointmentForm.get('fecha')?.value,
+      horario: this.appointmentForm.get('horario')?.value,
       tipoVehiculo: this.tipoVehiculo,
       precio: this.precioActual,
       recargoReserva: 10000,
@@ -253,6 +290,9 @@ export class BookAppointmentComponent implements OnInit {
         this.payment = res.payment || null;
         this.slotCache.clear();
         this.bookedCache.clear();
+        if (this.payment?.url) {
+          window.location.href = this.payment.url;
+        }
       },
       error: err => {
         this.submitting = false;

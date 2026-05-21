@@ -64,7 +64,7 @@ export async function buildChatbotReply(message: string): Promise<string> {
   if (matchAny(lower, ['precio', 'cuesta', 'vale', 'costo', 'cuanto', 'tarifa', 'cotiz'])) {
     const svcLines = catalog.services.slice(0, 12).map(s => precioLine(s)).join('\n');
     const prodLines = catalog.products.slice(0, 6).map(p => `• ${p.nombre}: ${cop(p.precio)}${p.stock <= 0 ? ' (agotado)' : ''}`).join('\n');
-    return `Precios 2025 (IVA incluido):\n\nSERVICIOS:\n${svcLines}\n\nPRODUCTOS:\n${prodLines}\n\nVer tarifario completo en /servicios`;
+    return `Precios 2026 (IVA incluido):\n\nSERVICIOS:\n${svcLines}\n\nPRODUCTOS:\n${prodLines}\n\nVer tarifario completo en /servicios`;
   }
 
   if (matchAny(lower, ['producto', 'tienda', 'comprar', 'stock', 'aceite', 'filtro', 'cera', 'aromat'])) {
