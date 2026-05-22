@@ -1,26 +1,49 @@
-import { Injectable } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { isPlatformBrowser } from '@angular/common';
 import { environment } from 'src/environments/environment';
 import { Observable, of, throwError } from 'rxjs';
 import { tap, catchError, timeout } from 'rxjs/operators';
 
+interface CacheEntry { value: any; expiry: number; }
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private baseUrl = environment.apiUrl;
-  private cache = new Map<string, { value: any; expiry: number }>();
-  private cacheTtl = 60_000;
+  private cache = new Map<string, CacheEntry>();
+  private cacheTtl = 300_000;
+  private persistentTtl = 600_000;
+  private platformId = inject(PLATFORM_ID);
+  private persistentKeys = new Set(['/services/catalog', '/services', '/products']);
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    if (isPlatformBrowser(this.platformId)) {
+      for (const key of this.persistentKeys) {
+        try {
+          const raw = localStorage.getItem(`api:${key}`);
+          if (raw) {
+            const entry = JSON.parse(raw) as CacheEntry;
+            if (entry.expiry > Date.now()) this.cache.set(key, entry);
+            else localStorage.removeItem(`api:${key}`);
+          }
+        } catch { /* ignore */ }
+      }
+    }
+  }
 
-  get<T>(endpoint: string, ttl?: number): Observable<T> {
-    const key = `GET:${endpoint}`;
+  get<T>(endpoint: string, ttl?: number, cacheKey?: string): Observable<T> {
+    const key = cacheKey || endpoint;
     const now = Date.now();
     const entry = this.cache.get(key);
     if (entry && entry.expiry > now) return of(entry.value as T);
 
     return this.http.get<T>(`${this.baseUrl}${endpoint}`).pipe(
       timeout(8_000),
-      tap(value => this.cache.set(key, { value, expiry: now + (ttl ?? this.cacheTtl) })),
+      tap(value => {
+        if (ttl === 0) return;
+        const expiry = now + (ttl ?? this.cacheTtl);
+        this.cache.set(key, { value, expiry });
+      }),
       catchError(err => {
         this.cache.delete(key);
         console.error('[API GET] Error:', err instanceof HttpErrorResponse ? err.status : err);
@@ -29,19 +52,20 @@ export class ApiService {
     );
   }
 
-  invalidate(endpoint?: string) {
-    if (endpoint) {
-      this.cache.delete(`GET:${endpoint}`);
-      this.cache.delete(`POST:${endpoint}`);
-      this.cache.delete(`PUT:${endpoint}`);
-      this.cache.delete(`DELETE:${endpoint}`);
+  invalidate(key?: string) {
+    if (key) {
+      this.cache.delete(key);
     } else {
       this.cache.clear();
+      if (isPlatformBrowser(this.platformId)) {
+        for (const k of this.persistentKeys) localStorage.removeItem(`api:${k}`);
+      }
     }
   }
 
   post<T>(endpoint: string, body: any): Observable<T> {
-    this.cache.delete(`GET:${endpoint}`);
+    this.cache.delete(endpoint.replace(/^\//, ''));
+    this.cache.delete('citas');
     return this.http.post<T>(`${this.baseUrl}${endpoint}`, body).pipe(
       timeout(8_000),
       catchError(err => {
@@ -51,7 +75,8 @@ export class ApiService {
     );
   }
   put<T>(endpoint: string, body: any): Observable<T> {
-    this.cache.delete(`GET:${endpoint}`);
+    this.cache.delete(endpoint.replace(/^\//, ''));
+    this.cache.delete('citas');
     return this.http.put<T>(`${this.baseUrl}${endpoint}`, body).pipe(
       timeout(8_000),
       catchError(err => {
@@ -61,7 +86,8 @@ export class ApiService {
     );
   }
   delete<T>(endpoint: string): Observable<T> {
-    this.cache.delete(`GET:${endpoint}`);
+    this.cache.delete(endpoint.replace(/^\//, ''));
+    this.cache.delete('citas');
     return this.http.delete<T>(`${this.baseUrl}${endpoint}`).pipe(
       timeout(8_000),
       catchError(err => {

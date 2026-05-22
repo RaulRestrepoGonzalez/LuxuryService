@@ -41,6 +41,7 @@ export class BookAppointmentComponent implements OnInit {
   private slotCache = new Map<string, HorarioSlot[]>();
   private serviciosFromApi = false;
   private hasPreSelected = false;
+  private resolvingFallback = false;
 
   constructor(
     private fb: FormBuilder,
@@ -69,7 +70,7 @@ export class BookAppointmentComponent implements OnInit {
     this.api.get('/services').subscribe({
       next: (res: any) => {
         const prevId = this.appointmentForm.get('servicioId')?.value;
-        const hasFecha = !!this.appointmentForm.get('fecha')?.value;
+        const fecha = this.appointmentForm.get('fecha')?.value;
         this.servicios = res;
         this.serviciosFromApi = true;
         if (prevId) {
@@ -77,8 +78,10 @@ export class BookAppointmentComponent implements OnInit {
             const prev = FALLBACK_SERVICIOS.find(s => s.id === prevId);
             if (prev) {
               const match = res.find((s: any) => s.nombre === prev.nombre);
-              if (match && !hasFecha) {
+              if (match) {
+                this.resolvingFallback = true;
                 this.appointmentForm.patchValue({ servicioId: match.id });
+                this.resolvingFallback = false;
               }
             }
           } else {
@@ -86,7 +89,13 @@ export class BookAppointmentComponent implements OnInit {
             if (!stillExists) this.appointmentForm.patchValue({ servicioId: '' });
           }
         }
-        if (this.appointmentForm.get('servicioId')?.value && !hasFecha) this.loadMonthBookings();
+        if (this.retrySlots && this.appointmentForm.get('fecha')?.value === this.retrySlots) {
+          this.loadSlots(this.retrySlots);
+        } else if (this.appointmentForm.get('servicioId')?.value && this.appointmentForm.get('fecha')?.value) {
+          this.loadSlots(this.appointmentForm.get('fecha')!.value);
+        } else if (this.appointmentForm.get('servicioId')?.value) {
+          this.loadMonthBookings();
+        }
       },
       error: () => {}
     });
@@ -94,11 +103,13 @@ export class BookAppointmentComponent implements OnInit {
   }
 
   onServiceChange() {
-    this.appointmentForm.patchValue({ fecha: '', horario: '' });
-    this.horarios = [];
-    this.payment = null;
-    this.successMsg = '';
-    this.errorMsg = '';
+    if (!this.resolvingFallback) {
+      this.appointmentForm.patchValue({ fecha: '', horario: '' });
+      this.horarios = [];
+      this.payment = null;
+      this.successMsg = '';
+      this.errorMsg = '';
+    }
     this.loadMonthBookings();
   }
 
@@ -187,14 +198,23 @@ export class BookAppointmentComponent implements OnInit {
   private resolveRealId(fbOrFakeId: string): string | null {
     if (!fbOrFakeId.startsWith('fb-')) return fbOrFakeId;
     const fb = FALLBACK_SERVICIOS.find(s => s.id === fbOrFakeId);
-    if (!fb || !this.serviciosFromApi) return null;
+    if (!fb) return null;
+    if (!this.serviciosFromApi) return fbOrFakeId;
     const match = this.servicios.find((s: any) => s.nombre === fb.nombre);
-    return match ? match.id : null;
+    return match ? match.id : fbOrFakeId;
   }
+
+  private retrySlots: string | null = null;
 
   loadSlots(fecha: string) {
     const sid = this.resolveRealId(this.appointmentForm.get('servicioId')?.value || '');
     if (!sid) return;
+    if (sid.startsWith('fb-') && !this.serviciosFromApi) {
+      this.retrySlots = fecha;
+      this.loadingSlots = true;
+      return;
+    }
+    this.retrySlots = null;
     const key = `${sid}|${fecha}`;
     const cached = this.slotCache.get(key);
     if (cached) {

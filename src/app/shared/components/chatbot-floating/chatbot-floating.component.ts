@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ChatbotService } from 'src/app/core/services/chatbot.service';
@@ -23,8 +23,13 @@ export class ChatbotFloatingComponent implements OnInit {
   newMessage = '';
   typing = false;
   suggestions = ['Precios', 'Horarios', 'Servicios', 'Productos', 'Agendar cita'];
+  private replyCache = new Map<string, string>();
 
-  constructor(private chatbot: ChatbotService) {}
+  constructor(
+    private chatbot: ChatbotService,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone
+  ) {}
 
   ngOnInit() {
     this.messages.push({
@@ -41,36 +46,53 @@ export class ChatbotFloatingComponent implements OnInit {
     this.newMessage = '';
     this.messages.push({ text: userMsg, from: 'user' });
 
+    const cacheKey = userMsg.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').trim();
+    const cached = this.replyCache.get(cacheKey);
+    if (cached) {
+      this.messages.push({ text: cached, from: 'bot' });
+      this.scheduleScroll();
+      return;
+    }
+
     const quick = QUICK_REPLIES[userMsg.toLowerCase().split(' ')[0]];
     if (quick && userMsg.length < 12) {
+      this.replyCache.set(cacheKey, quick);
       this.messages.push({ text: quick, from: 'bot' });
-      this.chatbot.sendMessage(userMsg).subscribe();
+      this.scheduleScroll();
       return;
     }
 
     this.typing = true;
+    this.cdr.detectChanges();
+    this.scheduleScroll();
+
     this.chatbot.sendMessage(userMsg).subscribe({
       next: res => {
+        this.replyCache.set(cacheKey, res.reply);
         this.typing = false;
         this.messages.push({ text: res.reply, from: 'bot' });
-        this.scrollBottom();
+        this.cdr.detectChanges();
+        this.scheduleScroll();
       },
       error: () => {
         this.typing = false;
         this.messages.push({ text: 'Error de conexión. Intenta de nuevo.', from: 'bot' });
+        this.cdr.detectChanges();
+        this.scheduleScroll();
       }
     });
-    this.scrollBottom();
   }
 
   useSuggestion(s: string) {
     this.send(s === 'Precios' ? '¿Cuáles son los precios?' : s === 'Horarios' ? 'horarios' : s === 'Servicios' ? 'servicios' : s === 'Productos' ? 'productos' : '¿Cómo agendar una cita?');
   }
 
-  private scrollBottom() {
-    setTimeout(() => {
-      const el = document.querySelector('.chat-messages');
-      if (el) el.scrollTop = el.scrollHeight;
-    }, 50);
+  private scheduleScroll() {
+    this.ngZone.runOutsideAngular(() => {
+      requestAnimationFrame(() => {
+        const el = document.querySelector('.chat-messages');
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    });
   }
 }

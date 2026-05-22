@@ -10,7 +10,7 @@ interface CatalogCache {
 }
 
 let cache: CatalogCache | null = null;
-const CACHE_TTL = 60_000;
+const CACHE_TTL = 300_000;
 
 async function getCatalog(): Promise<CatalogCache> {
   if (cache && Date.now() - cache.loadedAt < CACHE_TTL) return cache;
@@ -25,6 +25,16 @@ async function getCatalog(): Promise<CatalogCache> {
     loadedAt: Date.now()
   };
   return cache;
+}
+
+export async function initChatbotCache(): Promise<void> {
+  try {
+    cache = null;
+    await getCatalog();
+    console.log('[chatbot] Catálogo precargado en caché');
+  } catch (err) {
+    console.warn('[chatbot] No se pudo precargar caché al inicio:', (err as Error).message);
+  }
 }
 
 function cop(n: number) {
@@ -43,7 +53,6 @@ function matchAny(text: string, words: string[]) {
 
 export async function buildChatbotReply(message: string): Promise<string> {
   const lower = message.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-  const catalog = await getCatalog();
 
   if (matchAny(lower, ['hola', 'buenas', 'hey', 'saludos', 'buenos'])) {
     return `¡Hola! Soy el asistente de Luxury Service. Puedo ayudarte con precios de servicios y productos, horarios (10:00 a.m. y 2:00 p.m.), agendar citas y promociones. ¿Qué te gustaría saber?`;
@@ -60,6 +69,24 @@ export async function buildChatbotReply(message: string): Promise<string> {
   if (matchAny(lower, ['promoc', 'descuent', 'oferta', 'notific'])) {
     return `Al registrarte solo con tu correo recibirás notificaciones de promociones y confirmación cuando agendes una cita. Revisa tu perfil para ver avisos recientes.`;
   }
+
+  if (matchAny(lower, ['ubicacion', 'donde', 'direccion', 'colombia', 'bogota', 'medellin'])) {
+    return 'Luxury Service opera en Colombia. Para dirección exacta y cobertura, contáctanos al agendar tu cita o escribe "contacto".';
+  }
+
+  if (matchAny(lower, ['contacto', 'telefono', 'whatsapp', 'correo', 'email'])) {
+    return 'Contacto: privacidad@luxuryservice.co · Agenda en la web con tu correo. Te enviamos notificaciones de tu cita y promociones.';
+  }
+
+  if (matchAny(lower, ['gracias', 'perfecto', 'ok', 'listo', 'genial'])) {
+    return '¡Con gusto! Estoy aquí si necesitas precios, servicios, productos u horarios. Luxury Service a tu disposición.';
+  }
+
+  if (matchAny(lower, ['camioneta', 'suv', 'pickup'])) {
+    return `Todos nuestros precios tienen tarifa AUTO y CAMIONETA. Ejemplo Lavado General Express: Auto $45.000 · Camioneta $50.000. Ver /servicios`;
+  }
+
+  const catalog = await getCatalog();
 
   if (matchAny(lower, ['precio', 'cuesta', 'vale', 'costo', 'cuanto', 'tarifa', 'cotiz'])) {
     const svcLines = catalog.services.slice(0, 12).map(s => precioLine(s)).join('\n');
@@ -99,9 +126,6 @@ export async function buildChatbotReply(message: string): Promise<string> {
     const items = catalog.services.filter(s => s.categoria === 'Servicios Anticorrosivos');
     return `ANTICORROSIVOS:\n${items.map(s => precioLine(s)).join('\n')}`;
   }
-  if (matchAny(lower, ['camioneta', 'suv', 'pickup'])) {
-    return `Todos nuestros precios tienen tarifa AUTO y CAMIONETA. Ejemplo Lavado General Express: Auto $45.000 · Camioneta $50.000. Ver /servicios`;
-  }
   if (matchAny(lower, ['servicio', 'manten', 'estetica', 'catalogo'])) {
     const byCat: Record<string, typeof catalog.services> = {};
     for (const s of catalog.services) {
@@ -127,18 +151,6 @@ export async function buildChatbotReply(message: string): Promise<string> {
     if (lower.includes(key.split(' ')[0]) || key.split(' ').some(w => w.length > 4 && lower.includes(w))) {
       return `${p.nombre}: ${cop(p.precio)}. ${p.descripcion}. Stock: ${p.stock > 0 ? p.stock + ' unidades' : 'agotado'}. Compra en Tienda con tu correo registrado.`;
     }
-  }
-
-  if (matchAny(lower, ['ubicacion', 'donde', 'direccion', 'colombia', 'bogota', 'medellin'])) {
-    return 'Luxury Service opera en Colombia. Para dirección exacta y cobertura, contáctanos al agendar tu cita o escribe "contacto".';
-  }
-
-  if (matchAny(lower, ['contacto', 'telefono', 'whatsapp', 'correo', 'email'])) {
-    return 'Contacto: privacidad@luxuryservice.co · Agenda en la web con tu correo. Te enviamos notificaciones de tu cita y promociones.';
-  }
-
-  if (matchAny(lower, ['gracias', 'perfecto', 'ok', 'listo', 'genial'])) {
-    return '¡Con gusto! Estoy aquí si necesitas precios, servicios, productos u horarios. Luxury Service a tu disposición.';
   }
 
   return `Puedo ayudarte con:\n• Precios de servicios y productos\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Cómo agendar una cita\n• Promociones y notificaciones\n\nEjemplo: "¿Cuánto cuesta el cambio de aceite?" o "precios de productos"`;

@@ -3,10 +3,10 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { connectDb, getDb, ObjectId, toApiId, toApiList } from './db.js';
-import { buildChatbotReply, HORARIOS, invalidateChatbotCache } from './chatbot.js';
+import { buildChatbotReply, HORARIOS, invalidateChatbotCache, initChatbotCache } from './chatbot.js';
 import { notificarCitaAgendada, notificarBienvenidaCliente } from './notifications.js';
 import { createCheckout, processWebhook } from './payments.js';
-import { enviarTicketCita, enviarConfirmacionPago } from './email.js';
+import { enviarTicketCita, enviarConfirmacionPago, enviarNotificacionGeneral, getEmailStatus, reenviarEmailsPendientes, ensureTransporter } from './email.js';
 import QRCode from 'qrcode';
 import { createHash } from 'crypto';
 
@@ -64,7 +64,27 @@ declare global {
   }
 }
 
+const PUBLIC_CACHE = 300;
+const PUBLIC_CATALOG_CACHE = 600;
+
 app.get('/api/health', (_req, res) => res.json({ ok: true, db: 'mongodb' }));
+
+app.use('/api/services', (_req, res, next) => {
+  res.set('Cache-Control', `public, max-age=${PUBLIC_CATALOG_CACHE}, s-maxage=${PUBLIC_CATALOG_CACHE}`);
+  next();
+});
+app.use('/api/products', (_req, res, next) => {
+  res.set('Cache-Control', `public, max-age=${PUBLIC_CATALOG_CACHE}, s-maxage=${PUBLIC_CATALOG_CACHE}`);
+  next();
+});
+app.use('/api/appointments/available', (_req, res, next) => {
+  res.set('Cache-Control', `public, max-age=${PUBLIC_CACHE}, s-maxage=${PUBLIC_CACHE}`);
+  next();
+});
+app.use('/api/appointments/calendar', (_req, res, next) => {
+  res.set('Cache-Control', `public, max-age=${PUBLIC_CACHE}, s-maxage=${PUBLIC_CACHE}`);
+  next();
+});
 
 app.get('/api/auth/check-email', async (req, res) => {
   const email = String(req.query.email || '').trim().toLowerCase();
@@ -241,10 +261,14 @@ app.post('/api/purchase', auth, async (req, res) => {
   res.json({ success: true });
 });
 
+function isValidObjectId(id: string): boolean {
+  try { new ObjectId(id); return true; } catch { return false; }
+}
+
 app.get('/api/appointments/available', async (req, res) => {
   const fecha = req.query.fecha as string;
   const servicioId = req.query.servicioId as string;
-  if (!fecha || !servicioId) return res.json([]);
+  if (!fecha || !servicioId || !isValidObjectId(servicioId)) return res.json(HORARIOS.map(h => ({ value: h, label: HORARIO_LABELS[h] || h })));
   const ocupados = await getDb().collection('citas').find({
     fecha, servicio_id: new ObjectId(servicioId), estado: { $ne: 'cancelada' }
   }).toArray();
@@ -257,7 +281,7 @@ app.get('/api/appointments/calendar', async (req, res) => {
   const servicioId = req.query.servicioId as string;
   const year = Number(req.query.year);
   const month = Number(req.query.month);
-  if (!servicioId || !year || !month) return res.json({ bookedDates: [] });
+  if (!servicioId || !year || !month || !isValidObjectId(servicioId)) return res.json({ bookedDates: [] });
   const prefix = `${year}-${String(month).padStart(2, '0')}`;
   const citas = await getDb().collection('citas').find({
     servicio_id: new ObjectId(servicioId),
@@ -410,7 +434,9 @@ app.put('/api/admin/appointments/:id/status', auth, adminRequired, async (req, r
   res.json({ success: true });
 });
 
+const analyticsCache = { data: null as any, loadedAt: 0 };
 app.get('/api/admin/dashboard/analytics', auth, adminRequired, async (_req, res) => {
+  if (analyticsCache.data && Date.now() - analyticsCache.loadedAt < 60000) return res.json(analyticsCache.data);
   const db = getDb();
   const revenueTrend = await db.collection('transacciones').aggregate([
     { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$created_at' } }, ingresos: { $sum: { $cond: [{ $eq: ['$tipo', 'ingreso'] }, '$monto', 0] } }, egresos: { $sum: { $cond: [{ $eq: ['$tipo', 'egreso'] }, '$monto', 0] } } } },
@@ -433,7 +459,9 @@ app.get('/api/admin/dashboard/analytics', auth, adminRequired, async (_req, res)
   const totalClients = await db.collection('usuarios').countDocuments({ rol: 'cliente' });
   const totalAppointments = await db.collection('citas').countDocuments();
   const totalServices = await db.collection('servicios').countDocuments({ activo: true });
-  res.json({ revenueTrend, appointmentsByStatus, clientsTrend, servicesBooked, totalClients, totalAppointments, totalServices });
+  analyticsCache.data = { revenueTrend, appointmentsByStatus, clientsTrend, servicesBooked, totalClients, totalAppointments, totalServices };
+  analyticsCache.loadedAt = Date.now();
+  res.json(analyticsCache.data);
 });
 
 app.get('/api/admin/dashboard/stats', auth, adminRequired, async (_req, res) => {
@@ -568,11 +596,61 @@ app.post('/api/admin/promotions', auth, adminRequired, async (req, res) => {
   res.json({ success: true, enviadas: clientes.length });
 });
 
+app.get('/api/admin/email-status', auth, adminRequired, async (_req, res) => {
+  res.json(getEmailStatus());
+});
+
+app.get('/api/admin/pending-emails', auth, adminRequired, async (_req, res) => {
+  const emails = await getDb().collection('pending_emails').find().sort({ createdAt: -1 }).limit(50).toArray();
+  res.json(toApiList(emails as Record<string, unknown>[]));
+});
+
+app.post('/api/admin/retry-emails', auth, adminRequired, async (_req, res) => {
+  const result = await reenviarEmailsPendientes();
+  res.json(result);
+});
+
+app.post('/api/admin/test-email', auth, adminRequired, async (_req, res) => {
+  const status = getEmailStatus();
+  if (!status.configurado) {
+    return res.status(400).json({ error: 'SMTP no configurado. Revisa server/.env', status });
+  }
+  try {
+    await enviarNotificacionGeneral({
+      to: ADMIN_EMAIL,
+      nombre: 'Admin',
+      asunto: '🔧 Prueba de configuración SMTP - Luxury Service',
+      titulo: 'Prueba exitosa',
+      mensaje: `Este es un email de prueba desde Luxury Service. Si recibes esto, la configuración SMTP funciona correctamente.\n\nHost: ${status.host}\nFrom: ${status.from}\nHora: ${new Date().toISOString()}`
+    });
+    res.json({ success: true, message: 'Email de prueba enviado a ' + ADMIN_EMAIL, status });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error enviando email de prueba: ' + err.message, status });
+  }
+});
+
 connectDb().then(async () => {
   const db = getDb();
   await db.collection('usuarios').createIndex({ email: 1 }, { unique: true, background: true });
   await db.collection('citas').createIndex({ fecha: 1, servicio_id: 1 });
   await db.collection('notificaciones').createIndex({ usuario_id: 1, created_at: -1 });
+  await db.collection('pending_emails').createIndex({ createdAt: 1 });
+  await db.collection('transacciones').createIndex({ tipo: 1, created_at: -1 });
+  await db.collection('citas').createIndex({ usuario_id: 1, created_at: -1 });
+  await db.collection('citas').createIndex({ usuario_id: 1, fecha: -1 });
+  await db.collection('transacciones').createIndex({ referencia: 1 });
+  await initChatbotCache();
+  await ensureTransporter();
+
+  const emailStatus = getEmailStatus();
+  if (emailStatus.configurado) {
+    console.log(`[EMAIL] Envío activo: ${emailStatus.host} (${emailStatus.from})`);
+  } else {
+    console.warn('[EMAIL] Sin SMTP configurado — modo envío directo al MX del destinatario.');
+    console.warn('[EMAIL] Configura SMTP_HOST, SMTP_USER y SMTP_PASS en server/.env para usar relay.');
+    console.warn('[EMAIL] Ejemplo Gmail: SMTP_HOST=smtp.gmail.com SMTP_PORT=587 con App Password');
+  }
+
   app.listen(PORT, () => {
     console.log(`API MongoDB → http://localhost:${PORT}/api`);
     console.log(`Compass: mongodb://127.0.0.1:27017 → luxury_service`);

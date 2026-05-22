@@ -23,7 +23,7 @@ export async function crearNotificacion(data: {
 export async function notificarCitaAgendada(usuarioId: string, email: string, servicioNombre: string, fecha: string, horario: string, reference?: string) {
   const horaLabel = horario === '10:00' ? '10:00 a.m.' : horario === '14:00' ? '2:00 p.m.' : horario;
   const ref = reference ? ` (Ref: ${reference})` : '';
-  const mensaje = `Tu cita de ${servicioNombre} quedó agendada para el ${fecha} a las ${horaLabel}. Realiza el pago para confirmar.${ref}`;
+  const mensaje = `Tu cita de ${servicioNombre} quedó agendada para el ${fecha} a las ${horaLabel}. Realiza el pago para confirmar.${ref}\n\n⏱ Tienes 10 minutos para pagar. Por el alto flujo de clientes, un espacio apartado sin pago es un ingreso que dejamos de percibir. Si no pagas a tiempo, la reserva expira automáticamente.`;
   await Promise.all([
     crearNotificacion({ usuarioId, email, tipo: 'cita', titulo: 'Cita agendada — pendiente de pago', mensaje }),
     enviarNotificacionGeneral({

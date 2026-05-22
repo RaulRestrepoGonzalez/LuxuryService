@@ -7,15 +7,28 @@ import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
 const COLORS = {
-  green: ['rgba(34,197,94,0.7)', 'rgba(34,197,94,0.3)', '#22c55e'],
-  red: ['rgba(255,43,43,0.6)', 'rgba(255,43,43,0.2)', '#ff2b2b'],
-  blue: ['rgba(59,130,246,0.6)', 'rgba(59,130,246,0.2)', '#3b82f6'],
-  purple: ['rgba(168,85,247,0.6)', 'rgba(168,85,247,0.1)', '#a855f7'],
-  yellow: ['rgba(250,204,21,0.7)', 'rgba(250,204,21,0.2)', '#facc15'],
+  green: '#22c55e', greenBg: 'rgba(34,197,94,0.12)',
+  red: '#ef4444', redBg: 'rgba(239,68,68,0.12)',
+  blue: '#3b82f6', blueBg: 'rgba(59,130,246,0.12)',
+  purple: '#a855f7', purpleBg: 'rgba(168,85,247,0.10)',
+  yellow: '#eab308', yellowBg: 'rgba(234,179,8,0.12)',
+  orange: '#f97316', orangeBg: 'rgba(249,115,22,0.12)',
+};
+
+const CHART_COLORS = {
+  green: ['rgba(34,197,94,0.7)', 'rgba(34,197,94,0.15)', '#22c55e'],
+  red: ['rgba(239,68,68,0.6)', 'rgba(239,68,68,0.1)', '#ef4444'],
+  blue: ['rgba(59,130,246,0.6)', 'rgba(59,130,246,0.1)', '#3b82f6'],
+  purple: ['rgba(168,85,247,0.6)', 'rgba(168,85,247,0.08)', '#a855f7'],
+  yellow: ['rgba(234,179,8,0.6)', 'rgba(234,179,8,0.1)', '#eab308'],
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  pendiente: '#facc15', confirmada: '#22c55e', completada: '#3b82f6', cancelada: '#ef4444'
+  pendiente: '#eab308', confirmada: '#22c55e', completada: '#3b82f6', cancelada: '#ef4444'
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pendiente_pago: 'Pendiente pago', pendiente: 'Pendiente', confirmada: 'Confirmada', completada: 'Completada', cancelada: 'Cancelada'
 };
 
 @Component({
@@ -28,54 +41,64 @@ const STATUS_COLORS: Record<string, string> = {
     .admin-nav a { padding: 0.5rem 1.1rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; text-decoration: none; color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.05); transition: background .2s, color .2s; border: 1px solid transparent; }
     .admin-nav a:hover { background: rgba(255,255,255,0.1); color: #fff; }
     .admin-nav a.active { background: #ff2b2b; color: #fff; border-color: #ff2b2b; }
-    .dash-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+
+    .dash-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
     .dash-header h2 { margin: 0; font-size: 1.5rem; color: #fff; font-weight: 800; }
     .dash-sub { margin: 0.2rem 0 0; font-size: 0.85rem; color: rgba(255,255,255,0.4); }
     .export-group { display: flex; gap: 0.5rem; }
-    .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; text-decoration: none; transition: opacity .2s, transform .15s; }
-    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; text-decoration: none; transition: all .2s; }
+    .btn:hover { transform: translateY(-1px); }
     .btn-csv { background: rgba(255,255,255,0.08); color: #ccc; border: 1px solid rgba(255,255,255,0.12); }
     .btn-powerbi { background: #f2c811; color: #000; }
-    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 0.9rem; margin-bottom: 1.5rem; }
-    .stat-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 1rem; padding: 1.15rem 1.25rem; transition: border-color .2s, transform .15s; }
-    .stat-card:hover { border-color: rgba(255,255,255,0.18); transform: translateY(-2px); }
-    .stat-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.3rem; }
-    .stat-icon { font-size: 1.2rem; }
-    .stat-trend { font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 999px; }
-    .stat-trend.up { background: rgba(34,197,94,0.15); color: #22c55e; }
-    .stat-trend.down { background: rgba(255,43,43,0.15); color: #ff6b6b; }
-    .stat-label { margin: 0; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.4); font-weight: 600; }
-    .stat-value { margin: 0.15rem 0 0; font-size: 1.35rem; font-weight: 800; color: #fff; line-height: 1.2; }
-    .stat-sub { margin: 0.15rem 0 0; font-size: 0.75rem; color: rgba(255,255,255,0.3); }
+
+    .dash-content { background: #f3f4f6; border-radius: 16px; padding: 1.5rem; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .kpi-card { background: #fff; border-radius: 12px; padding: 1.25rem 1.25rem 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .kpi-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
+    .kpi-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .kpi-trend { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 6px; white-space: nowrap; }
+    .kpi-trend.up { background: rgba(34,197,94,0.12); color: #16a34a; }
+    .kpi-trend.down { background: rgba(239,68,68,0.12); color: #dc2626; }
+    .kpi-label { margin: 0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; font-weight: 600; }
+    .kpi-value { margin: 0.2rem 0 0; font-size: 1.5rem; font-weight: 800; color: #111827; line-height: 1.2; }
+    .kpi-sub { margin: 0.15rem 0 0; font-size: 0.72rem; color: #9ca3af; }
+
     .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
-    .chart-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 1rem; padding: 1.15rem; transition: border-color .2s; }
-    .chart-card:hover { border-color: rgba(255,255,255,0.13); }
+    .chart-card { background: #fff; border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
     .chart-card-wide { grid-column: 1 / -1; }
-    .chart-card h3 { margin: 0 0 0.1rem; font-size: 0.95rem; color: #fff; font-weight: 700; }
-    .chart-hint { margin: 0 0 0.75rem; font-size: 0.75rem; color: rgba(255,255,255,0.3); }
-    .chart-wrap { position: relative; width: 100%; max-height: 250px; }
-    .chart-wrap canvas { width: 100% !important; height: auto !important; max-height: 250px; }
-    .table-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 1rem; padding: 1.15rem; margin-bottom: 1.5rem; }
-    .table-card h3 { margin: 0 0 0.1rem; font-size: 0.95rem; color: #fff; font-weight: 700; }
+    .chart-card h3 { margin: 0 0 0.05rem; font-size: 0.85rem; color: #111827; font-weight: 700; }
+    .chart-hint { margin: 0 0 0.75rem; font-size: 0.72rem; color: #9ca3af; }
+    .chart-wrap { position: relative; width: 100%; min-height: 220px; }
+    .chart-wrap canvas { width: 100% !important; height: 220px !important; }
+
+    .table-card { background: #fff; border-radius: 12px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 1rem; }
+    .table-card h3 { margin: 0 0 0.05rem; font-size: 0.85rem; color: #111827; font-weight: 700; }
     .table-scroll { overflow-x: auto; margin-top: 0.75rem; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
-    th { text-align: left; padding: 0.55rem 0.7rem; color: rgba(255,255,255,0.35); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    td { padding: 0.55rem 0.7rem; color: rgba(255,255,255,0.75); border-bottom: 1px solid rgba(255,255,255,0.03); white-space: nowrap; }
-    .stock-badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 999px; background: rgba(255,255,255,0.05); font-size: 0.78rem; font-weight: 600; }
-    .stock-badge.low { background: rgba(255,43,43,0.12); color: #ff6b6b; }
-    .empty-state { text-align: center; padding: 2rem 1rem; color: rgba(255,255,255,0.25); font-size: 0.85rem; }
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
-    .modal { background: #141414; border: 1px solid rgba(255,255,255,0.1); border-radius: 1.25rem; max-width: 580px; width: 100%; max-height: 80vh; display: flex; flex-direction: column; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.15rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.07); }
-    .modal-header h3 { margin: 0; font-size: 1.05rem; color: #fff; font-weight: 700; }
-    .modal-close { background: none; border: none; color: rgba(255,255,255,0.4); font-size: 1.4rem; cursor: pointer; padding: 0; line-height: 1; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { text-align: left; padding: 0.6rem 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.04em; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+    td { padding: 0.6rem 0.75rem; color: #374151; border-bottom: 1px solid #f3f4f6; white-space: nowrap; }
+    tbody tr:hover { background: #f9fafb; }
+    .text-right { text-align: right; }
+    .stock-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #f3f4f6; color: #374151; }
+    .stock-badge.low { background: rgba(239,68,68,0.1); color: #dc2626; }
+    .stock-badge.ok { background: rgba(34,197,94,0.1); color: #16a34a; }
+
+    .empty-state { text-align: center; padding: 2.5rem 1rem; color: #9ca3af; font-size: 0.85rem; }
+
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    .modal { background: #fff; border-radius: 16px; max-width: 580px; width: 100%; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; }
+    .modal-header h3 { margin: 0; font-size: 1rem; color: #111827; font-weight: 700; }
+    .modal-close { background: none; border: none; color: #9ca3af; font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; }
     .modal-body { padding: 1.5rem; overflow-y: auto; }
-    .modal-body p, .modal-body li { font-size: 0.85rem; color: rgba(255,255,255,0.75); line-height: 1.6; }
+    .modal-body p, .modal-body li { font-size: 0.85rem; color: #6b7280; line-height: 1.6; }
     .modal-body ol { padding-left: 1.25rem; }
-    .modal-body code { background: rgba(255,255,255,0.06); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.8rem; color: #f2c811; word-break: break-all; }
-    .modal-body .url-box { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; padding: 0.85rem 1rem; margin: 0.75rem 0; font-size: 0.8rem; color: #f2c811; word-break: break-all; font-family: monospace; }
-    .modal-body .url-box code { font-size: inherit; background: none; padding: 0; }
-    @media (max-width: 700px) { .chart-grid { grid-template-columns: 1fr; } .stat-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } .dash-header { flex-direction: column; } }
+    .modal-body code { background: #f3f4f6; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.8rem; color: #111827; word-break: break-all; }
+    .modal-body .url-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.85rem 1rem; margin: 0.75rem 0; font-size: 0.8rem; color: #111827; word-break: break-all; font-family: monospace; cursor: pointer; }
+    .modal-body .url-box:hover { background: #f3f4f6; }
+
+    @media (max-width: 700px) { .chart-grid { grid-template-columns: 1fr; } .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } .dash-header { flex-direction: column; align-items: flex-start; } }
   `],
   template: `
     <nav class="admin-nav">
@@ -83,6 +106,7 @@ const STATUS_COLORS: Record<string, string> = {
       <a routerLink="/admin/citas" routerLinkActive="active">Citas</a>
       <a routerLink="/admin/inventario" routerLinkActive="active">Inventario</a>
       <a routerLink="/admin/servicios" routerLinkActive="active">Servicios</a>
+      <a routerLink="/admin/email-settings" routerLinkActive="active">Email</a>
     </nav>
 
     <div class="dash-header">
@@ -96,106 +120,142 @@ const STATUS_COLORS: Record<string, string> = {
       </div>
     </div>
 
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-icon">💰</span><span class="stat-trend up">{{ trendIngresos }}</span></div>
-        <p class="stat-label">Ingresos totales</p>
-        <p class="stat-value">{{ ingresos | currency:'USD':'symbol':'1.0-0' }}</p>
-        <p class="stat-sub">Margen: {{ margen }}%</p>
-      </div>
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-icon">📉</span><span class="stat-trend down">{{ trendEgresos }}</span></div>
-        <p class="stat-label">Egresos totales</p>
-        <p class="stat-value">{{ egresos | currency:'USD':'symbol':'1.0-0' }}</p>
-        <p class="stat-sub">{{ (ingresos / (egresos || 1)).toFixed(1) }}x ingresos/egreso</p>
-      </div>
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-icon">👤</span></div>
-        <p class="stat-label">Clientes registrados</p>
-        <p class="stat-value">{{ stats.totalClients }}</p>
-        <p class="stat-sub">Nuevos este mes: {{ newClientsThisMonth }}</p>
-      </div>
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-icon">📅</span></div>
-        <p class="stat-label">Citas totales</p>
-        <p class="stat-value">{{ stats.totalAppointments }}</p>
-        <p class="stat-sub">Tasa completadas: {{ completionRate }}%</p>
-      </div>
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-icon">🛠️</span></div>
-        <p class="stat-label">Servicios activos</p>
-        <p class="stat-value">{{ stats.totalServices }}</p>
-        <p class="stat-sub">{{ bookedServicesCount }} con reservas</p>
-      </div>
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-icon">📦</span></div>
-        <p class="stat-label">Productos</p>
-        <p class="stat-value">{{ productStats.length }}</p>
-        <p class="stat-sub">{{ lowStockCount }} con stock bajo</p>
-      </div>
-    </div>
-
-    <div class="chart-grid">
-      <div class="chart-card chart-card-wide">
-        <h3>Evolución mensual: Ingresos vs Egresos</h3>
-        <p class="chart-hint">Indicador de rentabilidad mes a mes</p>
-        <div class="chart-wrap"><canvas #revCanvas></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Citas por estado</h3>
-        <p class="chart-hint">Distribución actual</p>
-        <div class="chart-wrap"><canvas #statusCanvas></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Servicios más reservados</h3>
-        <p class="chart-hint">Top servicios con más citas</p>
-        <div class="chart-wrap"><canvas #servicesCanvas></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Crecimiento de clientes</h3>
-        <p class="chart-hint">Nuevos registros por mes</p>
-        <div class="chart-wrap"><canvas #clientsCanvas></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Citas por mes</h3>
-        <p class="chart-hint">Volumen de citas agendadas</p>
-        <div class="chart-wrap"><canvas #citasCanvas></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Productos: stock crítico</h3>
-        <p class="chart-hint">Productos con stock {{ '< 10 unidades' }}</p>
-        <div class="chart-wrap"><canvas #stockCanvas></canvas></div>
-      </div>
-    </div>
-
-    @if (productStats.length > 0) {
-      <div class="table-card">
-        <h3>Rendimiento de productos</h3>
-        <p class="chart-hint">Ventas, ingresos y stock por producto</p>
-        <div class="table-scroll">
-          <table>
-            <thead><tr><th>Producto</th><th>Categoría</th><th>Ventas</th><th>Ingresos</th><th>Stock</th></tr></thead>
-            <tbody>
-              @for (p of productStats; track p.id) {
-                <tr>
-                  <td>{{ p.nombre }}</td>
-                  <td>{{ p.categoria || 'General' }}</td>
-                  <td>{{ p.ventas }}</td>
-                  <td>{{ p.ingresos | currency:'USD':'symbol':'1.0-0' }}</td>
-                  <td><span class="stock-badge" [class.low]="p.stock < 10">{{ p.stock }}</span></td>
-                </tr>
-              }
-            </tbody>
-          </table>
+    <div class="dash-content">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-icon" style="background:rgba(34,197,94,0.12);color:#16a34a;">$</span>
+            <span class="kpi-trend up">{{ trendIngresos }}</span>
+          </div>
+          <p class="kpi-label">Ingresos totales</p>
+          <p class="kpi-value">{{ ingresos | currency:'USD':'symbol':'1.0-0' }}</p>
+          <p class="kpi-sub">Margen: {{ margen }}% sobre el total</p>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-icon" style="background:rgba(239,68,68,0.12);color:#dc2626;">↑</span>
+            <span class="kpi-trend down">{{ trendEgresos }}</span>
+          </div>
+          <p class="kpi-label">Egresos totales</p>
+          <p class="kpi-value">{{ egresos | currency:'USD':'symbol':'1.0-0' }}</p>
+          <p class="kpi-sub">{{ (ingresos / (egresos || 1)).toFixed(1) }}x ingreso/egreso</p>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-icon" style="background:rgba(59,130,246,0.12);color:#2563eb;">👤</span>
+          </div>
+          <p class="kpi-label">Clientes registrados</p>
+          <p class="kpi-value">{{ stats.totalClients }}</p>
+          <p class="kpi-sub">Nuevos este mes: {{ newClientsThisMonth }}</p>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-icon" style="background:rgba(168,85,247,0.12);color:#9333ea;">📅</span>
+          </div>
+          <p class="kpi-label">Citas totales</p>
+          <p class="kpi-value">{{ stats.totalAppointments }}</p>
+          <p class="kpi-sub">Tasa completadas: {{ completionRate }}%</p>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-icon" style="background:rgba(249,115,22,0.12);color:#ea580c;">🛠️</span>
+          </div>
+          <p class="kpi-label">Servicios activos</p>
+          <p class="kpi-value">{{ stats.totalServices }}</p>
+          <p class="kpi-sub">{{ bookedServicesCount }} con reservas</p>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-top">
+            <span class="kpi-icon" style="background:rgba(234,179,8,0.12);color:#ca8a04;">📦</span>
+          </div>
+          <p class="kpi-label">Productos</p>
+          <p class="kpi-value">{{ productStats.length }}</p>
+          <p class="kpi-sub">{{ lowStockCount }} con stock bajo</p>
         </div>
       </div>
-    }
+
+      <div class="chart-grid">
+        <div class="chart-card chart-card-wide">
+          <h3>Evolución mensual: Ingresos vs Egresos</h3>
+          <p class="chart-hint">Indicador de rentabilidad mes a mes</p>
+          <div class="chart-wrap"><canvas #revCanvas></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Citas por estado</h3>
+          <p class="chart-hint">Distribución actual</p>
+          <div class="chart-wrap"><canvas #statusCanvas></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Servicios más reservados</h3>
+          <p class="chart-hint">Top servicios con más citas</p>
+          <div class="chart-wrap"><canvas #servicesCanvas></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Crecimiento de clientes</h3>
+          <p class="chart-hint">Nuevos registros por mes</p>
+          <div class="chart-wrap"><canvas #clientsCanvas></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Citas por mes</h3>
+          <p class="chart-hint">Volumen de citas agendadas</p>
+          <div class="chart-wrap"><canvas #citasCanvas></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Productos: stock crítico</h3>
+          <p class="chart-hint">Productos con stock &lt; 10 unidades</p>
+          <div class="chart-wrap"><canvas #stockCanvas></canvas></div>
+        </div>
+      </div>
+
+      @if (productStats.length > 0) {
+        <div class="table-card">
+          <h3>Rendimiento de productos</h3>
+          <p class="chart-hint">Ventas, ingresos y stock por producto</p>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Producto</th><th>Categoría</th><th class="text-right">Ventas</th><th class="text-right">Ingresos</th><th class="text-right">Stock</th></tr></thead>
+              <tbody>
+                @for (p of productStats; track p.id) {
+                  <tr>
+                    <td>{{ p.nombre }}</td>
+                    <td>{{ p.categoria || 'General' }}</td>
+                    <td class="text-right">{{ p.ventas }}</td>
+                    <td class="text-right">{{ p.ingresos | currency:'USD':'symbol':'1.0-0' }}</td>
+                    <td class="text-right"><span class="stock-badge" [class.low]="p.stock < 10" [class.ok]="p.stock >= 10">{{ p.stock }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      @if (analytics.appointmentsByStatus?.length) {
+        <div class="table-card">
+          <h3>Resumen de citas</h3>
+          <p class="chart-hint">Cantidad de citas agrupadas por estado</p>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Estado</th><th class="text-right">Cantidad</th></tr></thead>
+              <tbody>
+                @for (s of analytics.appointmentsByStatus; track s._id) {
+                  <tr>
+                    <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{STATUS_COLORS[s._id]||'#9ca3af'}};margin-right:0.5rem;"></span>{{ STATUS_LABELS[s._id] || s._id }}</td>
+                    <td class="text-right"><strong>{{ s.count }}</strong></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </div>
 
     @if (showPowerBI) {
       <div class="modal-backdrop" (click)="showPowerBI = false">
         <div class="modal" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3>⚡ Conectar con Power BI</h3>
+            <h3>Conectar con Power BI</h3>
             <button class="modal-close" (click)="showPowerBI = false">×</button>
           </div>
           <div class="modal-body">
@@ -227,6 +287,9 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   analytics: any = {};
   productStats: any[] = [];
   showPowerBI = false;
+
+  protected readonly STATUS_LABELS = STATUS_LABELS;
+  protected readonly STATUS_COLORS = STATUS_COLORS;
 
   private charts: any[] = [];
 
@@ -327,14 +390,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       data: {
         labels,
         datasets: [
-          { label: 'Ingresos', data: items.map((i: any) => +i.ingresos), backgroundColor: COLORS.green[0], borderColor: COLORS.green[2], borderWidth: 1, borderRadius: 3 },
-          { label: 'Egresos', data: items.map((i: any) => +i.egresos), backgroundColor: COLORS.red[0], borderColor: COLORS.red[2], borderWidth: 1, borderRadius: 3 }
+          { label: 'Ingresos', data: items.map((i: any) => +i.ingresos), backgroundColor: CHART_COLORS.green[0], borderColor: CHART_COLORS.green[2], borderWidth: 1, borderRadius: 4 },
+          { label: 'Egresos', data: items.map((i: any) => +i.egresos), backgroundColor: CHART_COLORS.red[0], borderColor: CHART_COLORS.red[2], borderWidth: 1, borderRadius: 4 }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: true,
-        plugins: { legend: { position: 'top', labels: { color: 'rgba(255,255,255,0.6)', boxWidth: 12, padding: 12 } } },
-        scales: { x: { ticks: { color: 'rgba(255,255,255,0.4)' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: 'rgba(255,255,255,0.4)' }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 12, usePointStyle: true } } },
+        scales: { x: { ticks: { color: '#6b7280' }, grid: { color: '#f3f4f6' } }, y: { ticks: { color: '#6b7280' }, grid: { color: '#f3f4f6' } } }
       }
     });
     this.charts.push(chart);
@@ -348,10 +411,10 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
     const chart = new Chart(el, {
       type: 'doughnut',
       data: {
-        labels: items.map((i: any) => i._id),
-        datasets: [{ data: items.map((i: any) => i.count), backgroundColor: items.map((i: any) => STATUS_COLORS[i._id] || '#666'), borderWidth: 0 }]
+        labels: items.map((i: any) => STATUS_LABELS[i._id] || i._id),
+        datasets: [{ data: items.map((i: any) => i.count), backgroundColor: items.map((i: any) => STATUS_COLORS[i._id] || '#9ca3af'), borderWidth: 0 }]
       },
-      options: { responsive: true, maintainAspectRatio: true, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: 'rgba(255,255,255,0.6)', padding: 10, boxWidth: 12 } } } }
+      options: { responsive: true, maintainAspectRatio: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { padding: 10, boxWidth: 12, usePointStyle: true } } } }
     });
     this.charts.push(chart);
   }
@@ -365,12 +428,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       type: 'bar',
       data: {
         labels: items.map((i: any) => i._id),
-        datasets: [{ label: 'Reservas', data: items.map((i: any) => i.count), backgroundColor: COLORS.blue[0], borderColor: COLORS.blue[2], borderWidth: 1, borderRadius: 3 }]
+        datasets: [{ label: 'Reservas', data: items.map((i: any) => i.count), backgroundColor: CHART_COLORS.blue[0], borderColor: CHART_COLORS.blue[2], borderWidth: 1, borderRadius: 4 }]
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: true,
         plugins: { legend: { display: false } },
-        scales: { x: { ticks: { color: 'rgba(255,255,255,0.4)' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { display: false } } }
+        scales: { x: { ticks: { color: '#6b7280' }, grid: { color: '#f3f4f6' } }, y: { ticks: { color: '#6b7280' }, grid: { display: false } } }
       }
     });
     this.charts.push(chart);
@@ -385,12 +448,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       type: 'line',
       data: {
         labels: items.map((i: any) => i._id),
-        datasets: [{ label: 'Nuevos clientes', data: items.map((i: any) => i.count), borderColor: COLORS.purple[2], backgroundColor: COLORS.purple[1], fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: COLORS.purple[2] }]
+        datasets: [{ label: 'Nuevos clientes', data: items.map((i: any) => i.count), borderColor: CHART_COLORS.purple[2], backgroundColor: CHART_COLORS.purple[1], fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: CHART_COLORS.purple[2] }]
       },
       options: {
         responsive: true, maintainAspectRatio: true,
         plugins: { legend: { display: false } },
-        scales: { x: { ticks: { color: 'rgba(255,255,255,0.4)' }, grid: { display: false } }, y: { ticks: { color: 'rgba(255,255,255,0.4)' }, grid: { color: 'rgba(255,255,255,0.04)' } } }
+        scales: { x: { ticks: { color: '#6b7280' }, grid: { display: false } }, y: { ticks: { color: '#6b7280' }, grid: { color: '#f3f4f6' } } }
       }
     });
     this.charts.push(chart);
@@ -406,12 +469,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       type: 'line',
       data: {
         labels: items.map((i: any) => i._id),
-        datasets: [{ label: 'Citas', data: fake, borderColor: COLORS.green[2], backgroundColor: COLORS.green[1], fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: COLORS.green[2] }]
+        datasets: [{ label: 'Citas', data: fake, borderColor: CHART_COLORS.green[2], backgroundColor: CHART_COLORS.green[1], fill: true, tension: 0.35, pointRadius: 3, pointBackgroundColor: CHART_COLORS.green[2] }]
       },
       options: {
         responsive: true, maintainAspectRatio: true,
         plugins: { legend: { display: false } },
-        scales: { x: { ticks: { color: 'rgba(255,255,255,0.4)' }, grid: { display: false } }, y: { ticks: { color: 'rgba(255,255,255,0.4)' }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true } }
+        scales: { x: { ticks: { color: '#6b7280' }, grid: { display: false } }, y: { ticks: { color: '#6b7280' }, grid: { color: '#f3f4f6' }, beginAtZero: true } }
       }
     });
     this.charts.push(chart);
@@ -426,12 +489,12 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
       type: 'bar',
       data: {
         labels: items.map((i: any) => i.nombre),
-        datasets: [{ label: 'Stock', data: items.map((i: any) => i.stock), backgroundColor: items.map((i: any) => i.stock < 5 ? COLORS.red[0] : COLORS.yellow[0]), borderColor: items.map((i: any) => i.stock < 5 ? COLORS.red[2] : COLORS.yellow[2]), borderWidth: 1, borderRadius: 3 }]
+        datasets: [{ label: 'Stock', data: items.map((i: any) => i.stock), backgroundColor: items.map((i: any) => i.stock < 5 ? CHART_COLORS.red[0] : CHART_COLORS.yellow[0]), borderColor: items.map((i: any) => i.stock < 5 ? CHART_COLORS.red[2] : CHART_COLORS.yellow[2]), borderWidth: 1, borderRadius: 4 }]
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: true,
         plugins: { legend: { display: false } },
-        scales: { x: { ticks: { color: 'rgba(255,255,255,0.4)' }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { ticks: { color: 'rgba(255,255,255,0.5)' }, grid: { display: false } } }
+        scales: { x: { ticks: { color: '#6b7280' }, grid: { color: '#f3f4f6' } }, y: { ticks: { color: '#6b7280' }, grid: { display: false } } }
       }
     });
     this.charts.push(chart);
