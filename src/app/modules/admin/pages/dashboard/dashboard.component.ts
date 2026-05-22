@@ -36,11 +36,6 @@ const STATUS_LABELS: Record<string, string> = {
     .dash-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
     .dash-header h2 { margin: 0; font-size: 1.5rem; color: #fff; font-weight: 800; }
     .dash-sub { margin: 0.2rem 0 0; font-size: 0.85rem; color: rgba(255,255,255,0.4); }
-    .header-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-    .btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: none; text-decoration: none; transition: all .2s; }
-    .btn:hover { transform: translateY(-1px); }
-    .btn-csv { background: rgba(255,255,255,0.08); color: #ccc; border: 1px solid rgba(255,255,255,0.12); }
-    .btn-powerbi { background: #f2c811; color: #000; }
 
     .dash-content { background: #f3f4f6; border-radius: 16px; padding: 2rem; }
 
@@ -86,6 +81,23 @@ const STATUS_LABELS: Record<string, string> = {
     .stock-badge.ok { background: rgba(34,197,94,0.1); color: #16a34a; }
     .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.5rem; vertical-align: middle; }
 
+    .export-section { margin-top: 2rem; }
+    .export-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+    .export-card { background: #fff; border-radius: 14px; padding: 1.25rem 1.25rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); transition: box-shadow .2s, transform .15s; display: flex; flex-direction: column; }
+    .export-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); transform: translateY(-2px); }
+    .export-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .export-body { flex: 1; }
+    .export-body h4 { margin: 0 0 0.3rem; font-size: 1rem; color: #111827; font-weight: 700; }
+    .export-body p { margin: 0 0 0.6rem; font-size: 0.78rem; color: #6b7280; line-height: 1.5; }
+    .export-files { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.8rem; }
+    .export-files span { font-size: 0.65rem; background: #f3f4f6; color: #374151; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; }
+    .export-btn { width: 100%; padding: 0.55rem; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: none; transition: all .2s; text-align: center; }
+    .export-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+    .csv-btn { background: #111827; color: #fff; }
+    .csv-btn:hover:not(:disabled) { background: #1f2937; transform: translateY(-1px); }
+    .pbi-btn { background: #f2c811; color: #000; }
+    .pbi-btn:hover:not(:disabled) { background: #e0b800; transform: translateY(-1px); }
+
     .section-title { font-size: 0.78rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 1rem; }
 
     .empty-state { text-align: center; padding: 2.5rem 1rem; color: #9ca3af; font-size: 0.85rem; }
@@ -94,6 +106,7 @@ const STATUS_LABELS: Record<string, string> = {
 
     @media (max-width: 800px) {
       .chart-grid { grid-template-columns: 1fr; gap: 1rem; }
+      .export-grid { grid-template-columns: 1fr; gap: 1rem; }
       .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
       .dash-header { flex-direction: column; align-items: flex-start; }
       .dash-content { padding: 1rem; }
@@ -114,10 +127,6 @@ const STATUS_LABELS: Record<string, string> = {
       <div>
         <h2>Dashboard ejecutivo</h2>
         <p class="dash-sub">Métricas clave para la toma de decisiones</p>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-csv" (click)="exportCsv()">📄 CSV (ZIP)</button>
-        <button class="btn btn-powerbi" (click)="exportPowerBi()">📊 PowerBI (XLSX)</button>
       </div>
     </div>
 
@@ -258,9 +267,39 @@ const STATUS_LABELS: Record<string, string> = {
           </div>
         </div>
       }
+
+      <div class="export-section">
+        <p class="section-title">Exportar datos</p>
+        <div class="export-grid">
+          <div class="export-card">
+            <div class="export-icon">📄</div>
+            <div class="export-body">
+              <h4>CSV (ZIP)</h4>
+              <p>5 archivos CSV separados por tabla, listos para Excel, Google Sheets o cualquier herramienta de análisis.</p>
+              <div class="export-files">
+                <span>transacciones.csv</span><span>citas.csv</span><span>usuarios.csv</span><span>productos.csv</span><span>servicios.csv</span>
+              </div>
+            </div>
+            <button class="export-btn csv-btn" (click)="exportCsv()" [disabled]="exporting">
+              @if (exporting === 'csv') { Generando… } @else { Descargar ZIP }
+            </button>
+          </div>
+          <div class="export-card">
+            <div class="export-icon">📊</div>
+            <div class="export-body">
+              <h4>Power BI (PBIX)</h4>
+              <p>Archivo nativo de Power BI con datos incrustados. Ábrelo directamente en Power BI Desktop para visualizar y explorar.</p>
+              <div class="export-files">
+                <span>Transacciones</span><span>Citas</span><span>Usuarios</span><span>Productos</span><span>Servicios</span>
+              </div>
+            </div>
+            <button class="export-btn pbi-btn" (click)="exportPowerBi()" [disabled]="exporting">
+              @if (exporting === 'powerbi') { Generando… } @else { Descargar PBIX }
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-
-
   `
 })
 export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -277,6 +316,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   analytics: any = {};
   productStats: any[] = [];
   filterRange = 6;
+  exporting: 'csv' | 'powerbi' | null = null;
 
   protected readonly STATUS_LABELS = STATUS_LABELS;
   protected readonly STATUS_COLORS = STATUS_COLORS;
@@ -364,13 +404,19 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   exportCsv() {
     if (typeof window !== 'undefined') {
-      window.open((this.api as any)['baseUrl'] + '/admin/dashboard/export', '_blank');
+      this.exporting = 'csv';
+      const token = localStorage.getItem('luxury_token');
+      window.open((this.api as any)['baseUrl'] + '/admin/dashboard/export?token=' + encodeURIComponent(token || ''), '_blank');
+      setTimeout(() => this.exporting = null, 3000);
     }
   }
 
   exportPowerBi() {
     if (typeof window !== 'undefined') {
-      window.open((this.api as any)['baseUrl'] + '/admin/dashboard/powerbi', '_blank');
+      this.exporting = 'powerbi';
+      const token = localStorage.getItem('luxury_token');
+      window.open((this.api as any)['baseUrl'] + '/admin/dashboard/powerbi?token=' + encodeURIComponent(token || ''), '_blank');
+      setTimeout(() => this.exporting = null, 3000);
     }
   }
 

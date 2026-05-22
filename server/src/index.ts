@@ -44,9 +44,10 @@ async function logConsent(data: { usuarioId?: string; email: string; tipo: strin
 
 function auth(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  const token = header?.startsWith('Bearer ') ? header.split(' ')[1] : (req.query.token as string);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    req.user = jwt.verify(header.split(' ')[1], JWT_SECRET) as JwtUser;
+    req.user = jwt.verify(token, JWT_SECRET) as JwtUser;
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });
@@ -493,40 +494,97 @@ app.get('/api/admin/dashboard/powerbi', auth, adminRequired, async (_req, res) =
   const productos = await db.collection('productos').find().sort({ nombre: 1 }).toArray();
   const servicios = await db.collection('servicios').find().sort({ nombre: 1 }).toArray();
 
-  const Excel = (await import('exceljs')).default;
-  const wb = new Excel.Workbook();
-  wb.creator = 'LuxuryService';
-  wb.created = new Date();
-
-  const addSheet = <T extends Record<string, unknown>>(name: string, rows: T[], cols: { header: string; key: keyof T }[]) => {
-    const ws = wb.addWorksheet(name);
-    ws.columns = cols.map(c => ({ header: c.header, key: c.key as string, width: Math.max(c.header.length + 2, 18) }));
-    ws.addRows(rows as Record<string, unknown>[]);
-    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1f2937' } };
-    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: rows.length + 1, column: cols.length } };
+  const esc = (s: unknown) => String(s ?? '').replace(/"/g, '""');
+  const mType = (v: unknown) => {
+    if (v === null || v === undefined) return 'null';
+    if (typeof v === 'number') return Number.isInteger(v) ? 'Int64.Type' : 'number';
+    if (typeof v === 'boolean') return 'Logical.Type';
+    return 'text';
   };
 
-  addSheet('Transacciones', transacciones.map(t => ({ fecha: t.fecha, tipo: t.tipo, monto: t.monto, descripcion: t.descripcion })), [
-    { header: 'Fecha', key: 'fecha' }, { header: 'Tipo', key: 'tipo' }, { header: 'Monto', key: 'monto' }, { header: 'Descripción', key: 'descripcion' }
-  ]);
-  addSheet('Citas', citas.map(c => ({ fecha: c.fecha, horario: c.horario, estado: c.estado, cliente: c.cliente_nombre, email: c.cliente_email, servicio: c.servicio_nombre, precio: c.servicio_precio })), [
-    { header: 'Fecha', key: 'fecha' }, { header: 'Horario', key: 'horario' }, { header: 'Estado', key: 'estado' }, { header: 'Cliente', key: 'cliente' }, { header: 'Email', key: 'email' }, { header: 'Servicio', key: 'servicio' }, { header: 'Precio', key: 'precio' }
-  ]);
-  addSheet('Usuarios', usuarios.map(u => ({ id: u._id, nombre: u.nombre, email: u.email, rol: u.rol, registro: u.created_at })), [
-    { header: 'ID', key: 'id' }, { header: 'Nombre', key: 'nombre' }, { header: 'Email', key: 'email' }, { header: 'Rol', key: 'rol' }, { header: 'Registro', key: 'registro' }
-  ]);
-  addSheet('Productos', productos.map(p => ({ id: p._id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, stock: p.stock })), [
-    { header: 'ID', key: 'id' }, { header: 'Nombre', key: 'nombre' }, { header: 'Categoría', key: 'categoria' }, { header: 'Precio', key: 'precio' }, { header: 'Stock', key: 'stock' }
-  ]);
-  addSheet('Servicios', servicios.map(s => ({ id: s._id, nombre: s.nombre, categoria: s.categoria, precio_auto: s.precio_auto, precio_camioneta: s.precio_camioneta, duracion: s.duracion_minutos })), [
-    { header: 'ID', key: 'id' }, { header: 'Nombre', key: 'nombre' }, { header: 'Categoría', key: 'categoria' }, { header: 'Precio Auto', key: 'precio_auto' }, { header: 'Precio Camioneta', key: 'precio_camioneta' }, { header: 'Duración (min)', key: 'duracion' }
-  ]);
+  const buildTableM = (name: string, rows: Record<string, unknown>[], cols: string[]) => {
+    if (rows.length === 0) return `#table(${JSON.stringify(cols)}, {})`;
+    const types = cols.map(c => `${c} = ${mType(rows[0][c])}`).join(', ');
+    const data = rows.map(r => `    {${cols.map(c => {
+      const v = r[c];
+      if (v === null || v === undefined) return 'null';
+      if (typeof v === 'number') return String(v);
+      return `"${esc(v)}"`;
+    }).join(', ')}}`);
+    return `let\n  Source = #table(type table [${types}], {\n${data.join(',\n')}\n  })\nin\n  Source`;
+  };
 
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', 'attachment; filename=luxury_powerbi.xlsx');
-  await wb.xlsx.write(res);
-  res.end();
+  const tCols = ['fecha', 'tipo', 'monto', 'descripcion'];
+  const cCols = ['fecha', 'horario', 'estado', 'cliente', 'email', 'servicio', 'precio'];
+  const uCols = ['id', 'nombre', 'email', 'rol', 'registro'];
+  const pCols = ['id', 'nombre', 'categoria', 'precio', 'stock'];
+  const sCols = ['id', 'nombre', 'categoria', 'precio_auto', 'precio_camioneta', 'duracion'];
+
+  const tables = [
+    { name: 'Transacciones', data: transacciones.map(t => ({ fecha: t.fecha, tipo: t.tipo, monto: t.monto, descripcion: t.descripcion })), cols: tCols },
+    { name: 'Citas', data: citas.map(c => ({ fecha: c.fecha, horario: c.horario, estado: c.estado, cliente: c.cliente_nombre, email: c.cliente_email, servicio: c.servicio_nombre, precio: c.servicio_precio })), cols: cCols },
+    { name: 'Usuarios', data: usuarios.map(u => ({ id: u._id, nombre: u.nombre, email: u.email, rol: u.rol, registro: u.created_at })), cols: uCols },
+    { name: 'Productos', data: productos.map(p => ({ id: p._id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, stock: p.stock })), cols: pCols },
+    { name: 'Servicios', data: servicios.map(s => ({ id: s._id, nombre: s.nombre, categoria: s.categoria, precio_auto: s.precio_auto, precio_camioneta: s.precio_camioneta, duracion: s.duracion_minutos })), cols: sCols },
+  ];
+
+  const tomTables = tables.map(t => {
+    const m = buildTableM(t.name, t.data, t.cols);
+    return {
+      name: t.name,
+      columns: t.cols.map(c => ({
+        name: c,
+        dataType: (() => {
+          if (t.data.length === 0) return 'string';
+          const v = t.data[0][c as keyof typeof t.data[0]];
+          if (v === null || v === undefined) return 'string';
+          if (typeof v === 'number') return Number.isInteger(v) ? 'int64' : 'double';
+          if (typeof v === 'boolean') return 'boolean';
+          return 'string';
+        })(),
+        sourceColumn: c
+      })),
+      partitions: [{ name: 'Partition', source: { type: 'm', expression: m } }]
+    };
+  });
+
+  const model = {
+    name: 'LuxuryService',
+    culture: 'en-US',
+    compatibilityLevel: 1566,
+    model: { tables: tomTables, relationships: [], cultures: [] },
+    pbixDependencies: { version: 1, dependencies: [] }
+  };
+
+  const { gzip } = await import('zlib');
+  const { promisify } = await import('util');
+  const gzipAsync = promisify(gzip);
+
+  const modelJson = JSON.stringify(model, null, 2);
+  const dataModelBuf = await gzipAsync(Buffer.from(modelJson, 'utf-8'), { level: 9 });
+
+  const { ZipArchive: Za } = await import('archiver') as any;
+  const archive = new Za({ zlib: { level: 6 } });
+
+  res.setHeader('Content-Type', 'application/vnd.ms-powerbi');
+  res.setHeader('Content-Disposition', 'attachment; filename=LuxuryService.pbix');
+  archive.pipe(res);
+
+  archive.append(`<?xml version="1.0" encoding="utf-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="json" ContentType="application/json" />
+  <Default Extension="xml" ContentType="application/xml" />
+  <Override PartName="/DataModel" ContentType="application/x-msmediawiki" />
+</Types>`, { name: '[Content_Types].xml' });
+
+  archive.append(JSON.stringify({ version: '2.164', pbiVersion: '2.132.1942.0' }), { name: 'Settings/settings.json' });
+  archive.append(JSON.stringify({ version: '2.164' }), { name: 'Version/version.json' });
+  archive.append(JSON.stringify([]), { name: 'Connections/Connections.json' });
+  archive.append(JSON.stringify({ sections: [] }), { name: 'Report/Report.json' });
+  archive.append('', { name: 'SecurityBindings/SecurityBindings' });
+  archive.append(dataModelBuf, { name: 'DataModel' });
+
+  await archive.finalize();
 });
 
 app.get('/api/admin/dashboard/export', auth, adminRequired, async (_req, res) => {
@@ -543,8 +601,8 @@ app.get('/api/admin/dashboard/export', auth, adminRequired, async (_req, res) =>
   const productos = await db.collection('productos').find().sort({ nombre: 1 }).toArray();
   const servicios = await db.collection('servicios').find().sort({ nombre: 1 }).toArray();
 
-  const { ZipArchive } = await import('archiver');
-  const archive = new ZipArchive({ zlib: { level: 6 } });
+  const ArchiverMod = (await import('archiver')) as any;
+  const archive = new ArchiverMod.ZipArchive({ zlib: { level: 6 } });
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', 'attachment; filename=luxury_datos.zip');
   archive.pipe(res);
