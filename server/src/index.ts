@@ -492,16 +492,89 @@ app.get('/api/admin/dashboard/powerbi', auth, adminRequired, async (_req, res) =
   const usuarios = await db.collection('usuarios').find().sort({ created_at: 1 }).toArray();
   const productos = await db.collection('productos').find().sort({ nombre: 1 }).toArray();
   const servicios = await db.collection('servicios').find().sort({ nombre: 1 }).toArray();
-  res.json({ transacciones: toApiList(transacciones.map((t: Record<string, unknown>) => ({ fecha: t.fecha, tipo: t.tipo, monto: t.monto, descripcion: t.descripcion, created_at: t.created_at }))), citas: toApiList(citas as Record<string, unknown>[]), usuarios: toApiList(usuarios.map((u: Record<string, unknown>) => ({ id: u._id, nombre: u.nombre, email: u.email, rol: u.rol, created_at: u.created_at }))), productos: toApiList(productos.map((p: Record<string, unknown>) => ({ id: p._id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, stock: p.stock }))), servicios: toApiList(servicios.map((s: Record<string, unknown>) => ({ id: s._id, nombre: s.nombre, categoria: s.categoria, precio_auto: s.precio_auto, precio_camioneta: s.precio_camioneta, duracion_minutos: s.duracion_minutos }))) });
+
+  const Excel = (await import('exceljs')).default;
+  const wb = new Excel.Workbook();
+  wb.creator = 'LuxuryService';
+  wb.created = new Date();
+
+  const addSheet = <T extends Record<string, unknown>>(name: string, rows: T[], cols: { header: string; key: keyof T }[]) => {
+    const ws = wb.addWorksheet(name);
+    ws.columns = cols.map(c => ({ header: c.header, key: c.key as string, width: Math.max(c.header.length + 2, 18) }));
+    ws.addRows(rows as Record<string, unknown>[]);
+    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1f2937' } };
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: rows.length + 1, column: cols.length } };
+  };
+
+  addSheet('Transacciones', transacciones.map(t => ({ fecha: t.fecha, tipo: t.tipo, monto: t.monto, descripcion: t.descripcion })), [
+    { header: 'Fecha', key: 'fecha' }, { header: 'Tipo', key: 'tipo' }, { header: 'Monto', key: 'monto' }, { header: 'Descripción', key: 'descripcion' }
+  ]);
+  addSheet('Citas', citas.map(c => ({ fecha: c.fecha, horario: c.horario, estado: c.estado, cliente: c.cliente_nombre, email: c.cliente_email, servicio: c.servicio_nombre, precio: c.servicio_precio })), [
+    { header: 'Fecha', key: 'fecha' }, { header: 'Horario', key: 'horario' }, { header: 'Estado', key: 'estado' }, { header: 'Cliente', key: 'cliente' }, { header: 'Email', key: 'email' }, { header: 'Servicio', key: 'servicio' }, { header: 'Precio', key: 'precio' }
+  ]);
+  addSheet('Usuarios', usuarios.map(u => ({ id: u._id, nombre: u.nombre, email: u.email, rol: u.rol, registro: u.created_at })), [
+    { header: 'ID', key: 'id' }, { header: 'Nombre', key: 'nombre' }, { header: 'Email', key: 'email' }, { header: 'Rol', key: 'rol' }, { header: 'Registro', key: 'registro' }
+  ]);
+  addSheet('Productos', productos.map(p => ({ id: p._id, nombre: p.nombre, categoria: p.categoria, precio: p.precio, stock: p.stock })), [
+    { header: 'ID', key: 'id' }, { header: 'Nombre', key: 'nombre' }, { header: 'Categoría', key: 'categoria' }, { header: 'Precio', key: 'precio' }, { header: 'Stock', key: 'stock' }
+  ]);
+  addSheet('Servicios', servicios.map(s => ({ id: s._id, nombre: s.nombre, categoria: s.categoria, precio_auto: s.precio_auto, precio_camioneta: s.precio_camioneta, duracion: s.duracion_minutos })), [
+    { header: 'ID', key: 'id' }, { header: 'Nombre', key: 'nombre' }, { header: 'Categoría', key: 'categoria' }, { header: 'Precio Auto', key: 'precio_auto' }, { header: 'Precio Camioneta', key: 'precio_camioneta' }, { header: 'Duración (min)', key: 'duracion' }
+  ]);
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename=luxury_powerbi.xlsx');
+  await wb.xlsx.write(res);
+  res.end();
 });
 
 app.get('/api/admin/dashboard/export', auth, adminRequired, async (_req, res) => {
-  const rows = await getDb().collection('transacciones').find().sort({ fecha: 1 }).toArray();
-  let csv = 'fecha,tipo,monto,descripcion\n';
-  for (const row of rows) csv += `${row.fecha},${row.tipo},${row.monto},${row.descripcion}\n`;
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename=reporte.csv');
-  res.send(csv);
+  const db = getDb();
+  const transacciones = await db.collection('transacciones').find().sort({ fecha: 1 }).toArray();
+  const citas = await db.collection('citas').aggregate([
+    { $lookup: { from: 'usuarios', localField: 'usuario_id', foreignField: '_id', as: 'usuario' } },
+    { $lookup: { from: 'servicios', localField: 'servicio_id', foreignField: '_id', as: 'servicio' } },
+    { $unwind: { path: '$usuario', preserveNullAndEmptyArrays: true } },
+    { $unwind: { path: '$servicio', preserveNullAndEmptyArrays: true } },
+    { $project: { fecha: 1, horario: 1, estado: 1, created_at: 1, cliente_nombre: '$usuario.nombre', cliente_email: '$usuario.email', servicio_nombre: '$servicio.nombre', servicio_precio: '$servicio.precio_auto' } }
+  ]).toArray();
+  const usuarios = await db.collection('usuarios').find().sort({ created_at: 1 }).toArray();
+  const productos = await db.collection('productos').find().sort({ nombre: 1 }).toArray();
+  const servicios = await db.collection('servicios').find().sort({ nombre: 1 }).toArray();
+
+  const { ZipArchive } = await import('archiver');
+  const archive = new ZipArchive({ zlib: { level: 6 } });
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename=luxury_datos.zip');
+  archive.pipe(res);
+
+  const csvEscape = (v: unknown) => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  let buf = '\uFEFFfecha,tipo,monto,descripcion\n';
+  for (const r of transacciones) buf += `${csvEscape(r.fecha)},${csvEscape(r.tipo)},${csvEscape(r.monto)},${csvEscape(r.descripcion)}\n`;
+  archive.append(buf, { name: 'transacciones.csv' });
+
+  buf = '\uFEFFfecha,horario,estado,cliente_nombre,cliente_email,servicio_nombre,servicio_precio\n';
+  for (const r of citas) buf += `${csvEscape(r.fecha)},${csvEscape(r.horario)},${csvEscape(r.estado)},${csvEscape(r.cliente_nombre)},${csvEscape(r.cliente_email)},${csvEscape(r.servicio_nombre)},${csvEscape(r.servicio_precio)}\n`;
+  archive.append(buf, { name: 'citas.csv' });
+
+  buf = '\uFEFFid,nombre,email,rol,created_at\n';
+  for (const r of usuarios) buf += `${csvEscape(r._id)},${csvEscape(r.nombre)},${csvEscape(r.email)},${csvEscape(r.rol)},${csvEscape(r.created_at)}\n`;
+  archive.append(buf, { name: 'usuarios.csv' });
+
+  buf = '\uFEFFid,nombre,categoria,precio,stock\n';
+  for (const r of productos) buf += `${csvEscape(r._id)},${csvEscape(r.nombre)},${csvEscape(r.categoria)},${csvEscape(r.precio)},${csvEscape(r.stock)}\n`;
+  archive.append(buf, { name: 'productos.csv' });
+
+  buf = '\uFEFFid,nombre,categoria,precio_auto,precio_camioneta,duracion_minutos\n';
+  for (const r of servicios) buf += `${csvEscape(r._id)},${csvEscape(r.nombre)},${csvEscape(r.categoria)},${csvEscape(r.precio_auto)},${csvEscape(r.precio_camioneta)},${csvEscape(r.duracion_minutos)}\n`;
+  archive.append(buf, { name: 'servicios.csv' });
+
+  await archive.finalize();
 });
 
 /* ——— Admin: productos CRUD ——— */

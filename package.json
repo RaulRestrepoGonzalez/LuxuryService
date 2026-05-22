@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "npm run server & ng serve",
     "server": "cd server && npm run dev",
     "server:seed": "cd server && npm run seed",
     "dev": "npm run server & ng serve",
