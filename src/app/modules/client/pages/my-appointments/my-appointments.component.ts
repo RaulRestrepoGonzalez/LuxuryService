@@ -197,9 +197,9 @@ export class MyAppointmentsComponent implements OnInit {
 
   cargarCitas() {
     if (typeof window === 'undefined') return;
-    this.loading = true;
     this.error = '';
-    this.api.get('/appointments/my', 0, 'citas').subscribe({
+    this.loading = this.citas.length === 0;
+    this.api.get('/appointments/my', 120_000).subscribe({
       next: res => { this.citas = res as any[]; this.loading = false; },
       error: err => { this.loading = false; this.error = 'Error al cargar las citas. Verifica tu conexión.'; }
     });

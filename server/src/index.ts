@@ -320,6 +320,9 @@ app.post('/api/appointments', auth, async (req, res) => {
     customerEmail: req.user!.email,
   });
 
+  const checkoutUrl = checkout.checkoutUrl;
+  const reference = checkout.reference;
+
   await getDb().collection('citas').insertOne({
     usuario_id: new ObjectId(req.user!.id), servicio_id: new ObjectId(servicioId),
     fecha, horario, tipoVehiculo, estado: 'pendiente_pago', precio_base: precioBase,
@@ -335,25 +338,21 @@ app.post('/api/appointments', auth, async (req, res) => {
     created_at: new Date()
   });
 
-  const qrBase64 = await QRCode.toDataURL(checkout.checkoutUrl, { width: 300, margin: 2 });
-
-  await notificarCitaAgendada(req.user!.id, req.user!.email, servicio.nombre, fecha, horario, checkout.reference);
-
-  try {
-    await enviarTicketCita({
-      to: req.user!.email, nombre: req.user!.email.split('@')[0],
-      servicio: servicio.nombre, fecha, horario,
-      precioTotal, reference: checkout.reference,
-      checkoutUrl: checkout.checkoutUrl, qrBase64: qrBase64.replace(/^data:image\/png;base64,/, ''),
-    });
-  } catch (err: any) {
-    console.error('Error enviando email:', err.message);
-  }
+  const qrBase64 = await QRCode.toDataURL(checkoutUrl, { width: 300, margin: 2 });
 
   res.json({
     success: true, message: 'Cita agendada. Realiza el pago para confirmar.',
-    payment: { url: checkout.checkoutUrl, reference: checkout.reference, amount: precioTotal, qr: qrBase64 }
+    payment: { url: checkoutUrl, reference, amount: precioTotal, qr: qrBase64 }
   });
+
+  const qrClean = qrBase64.replace(/^data:image\/png;base64,/, '');
+  notificarCitaAgendada(req.user!.id, req.user!.email, servicio.nombre, fecha, horario, reference).catch(e => console.error('Error notificando:', e.message));
+  enviarTicketCita({
+    to: req.user!.email, nombre: req.user!.email.split('@')[0],
+    servicio: servicio.nombre, fecha, horario,
+    precioTotal, reference,
+    checkoutUrl, qrBase64: qrClean,
+  }).catch(e => console.error('Error enviando email:', e.message));
 });
 
 app.post('/api/payments/webhook', async (req, res) => {

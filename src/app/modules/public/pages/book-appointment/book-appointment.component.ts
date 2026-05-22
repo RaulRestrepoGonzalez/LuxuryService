@@ -97,7 +97,7 @@ export class BookAppointmentComponent implements OnInit {
           this.loadMonthBookings();
         }
       },
-      error: () => {}
+      error: () => console.error('[Booking] Error cargando servicios')
     });
     this.appointmentForm.get('servicioId')?.valueChanges.subscribe(() => this.onServiceChange());
   }
