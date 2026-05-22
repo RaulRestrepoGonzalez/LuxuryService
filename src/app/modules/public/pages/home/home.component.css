@@ -19,7 +19,7 @@
 .home-multimarcas {
   position: relative;
   margin: 0 -2rem;
-  padding: 4rem 1.5rem;
+  padding: 5rem 1.5rem;
   background: #0a0a0a url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1920&q=60') center/cover no-repeat;
   text-align: center;
   overflow: hidden;
@@ -69,9 +69,10 @@
 
 .brands-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 1.25rem 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 1rem;
   align-items: center;
+  justify-items: center;
 }
 
 .brand-item {
@@ -79,15 +80,15 @@
   align-items: center;
   justify-content: center;
   min-height: 56px;
-  padding: 0.5rem;
+  padding: 0.35rem;
   transition: transform 0.2s ease;
 }
 
 .brand-item:hover { transform: scale(1.06); }
 
 .brand-item img {
-  max-width: 72px;
-  max-height: 48px;
+  max-width: 80px;
+  max-height: 44px;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -117,8 +118,8 @@
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  max-width: 900px;
-  margin: 0 auto 2.5rem;
+  max-width: 680px;
+  margin: 0 auto 2rem;
 }
 
 .tarifario-brand {
@@ -171,8 +172,8 @@
 }
 
 .tarifario-categoria {
-  max-width: 900px;
-  margin: 0 auto 2rem;
+  max-width: 680px;
+  margin: 0 auto 1.5rem;
 }
 
 .tarifario-cat-title {
@@ -197,12 +198,12 @@
 
 .tarifario-row {
   display: grid;
-  grid-template-columns: 1fr 110px 120px;
+  grid-template-columns: 1fr 100px 110px;
   gap: 0.5rem;
-  padding: 0.65rem 1rem;
+  padding: 0.6rem 1rem;
   align-items: center;
   border-bottom: 1px dashed rgba(255, 43, 43, 0.35);
-  font-size: 0.88rem;
+  font-size: 0.85rem;
 }
 
 .tarifario-row:last-child { border-bottom: none; }
@@ -211,7 +212,7 @@
   background: rgba(255, 43, 43, 0.15);
   font-weight: 800;
   text-transform: uppercase;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   letter-spacing: 0.08em;
   border-bottom: 1px solid rgba(255, 43, 43, 0.4);
 }
@@ -344,6 +345,8 @@
   align-items: start;
 }
 
+
+
 .contact-info h2 {
   margin: 0 0 1.25rem;
   font-size: 1.75rem;
@@ -398,19 +401,22 @@
 .contact-form-panel form {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 1rem;
 }
 
 .contact-form-panel input,
 .contact-form-panel textarea {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 420px;
   padding: 1rem 1.15rem;
   border: none;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   font-size: 0.95rem;
-  margin: 0;
+  margin: 0 auto;
 }
 
 .contact-form-panel input::placeholder,
@@ -424,7 +430,9 @@
 }
 
 .contact-submit {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 420px;
   padding: 1.1rem;
   border: none;
   border-radius: 8px;
@@ -435,7 +443,6 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
-  margin: 0.5rem 0 0;
   transition: background 0.2s ease, transform 0.15s ease;
 }
 
@@ -480,6 +487,6 @@
     font-size: 0.78rem;
     padding: 0.5rem 0.65rem;
   }
-  .brands-grid { grid-template-columns: repeat(4, 1fr); }
+  .brands-grid { grid-template-columns: repeat(3, 1fr); }
   .map-pin-card { display: none; }
 }

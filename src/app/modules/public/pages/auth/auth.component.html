@@ -9,7 +9,6 @@
       @if (error) { <div class="auth-error">{{ error }}</div> }
       <form [formGroup]="emailForm" (ngSubmit)="continueWithEmail()">
         <div class="auth-field">
-          <label for="email">Correo electrónico</label>
           <input id="email" formControlName="email" type="email" placeholder="tu@correo.com" autocomplete="email" />
         </div>
         <button type="submit" class="auth-btn auth-btn-primary" [disabled]="emailForm.invalid || loading">

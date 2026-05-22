@@ -126,3 +126,47 @@ export async function enviarConfirmacionPago(params: {
     html
   });
 }
+
+export async function enviarNotificacionGeneral(params: {
+  to: string;
+  nombre: string;
+  asunto: string;
+  titulo: string;
+  mensaje: string;
+}) {
+  const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0;">
+<div style="max-width: 600px; margin: 0 auto; background: #fff;">
+<div style="background: #0a0a0a; padding: 2rem; text-align: center;">
+<h1 style="color: #ff2b2b; margin: 0; font-size: 1.5rem; letter-spacing: 0.1em;">LUXURY SERVICE MANGA</h1>
+<p style="color: rgba(255,255,255,0.6); margin: 0.25rem 0 0; font-size: 0.85rem;">Detailing Automotriz Premium · Manga, Cartagena</p>
+</div>
+<div style="padding: 2rem;">
+<h2 style="margin: 0 0 1rem; font-size: 1.2rem; color: #0a0a0a;">${params.titulo}</h2>
+<p style="color: #555; line-height: 1.6;">Hola <strong>${params.nombre}</strong>,</p>
+<p style="color: #555; line-height: 1.6;">${params.mensaje}</p>
+</div>
+<div style="background: #f9f9f9; padding: 1.25rem 2rem; text-align: center; border-top: 1px solid #eee;">
+<p style="color: #888; font-size: 0.8rem; margin: 0;">Av. Principal Manga, Cartagena, Colombia<br>Tel: 300 636 6429 &middot; @luxuryservicemysmanga</p>
+</div>
+</div>
+</body>
+</html>`;
+
+  const text = `Hola ${params.nombre},\n\n${params.mensaje}\n\nLuxury Service Manga - Manga, Cartagena`;
+
+  if (!transporter) {
+    console.log(`[EMAIL SIMULADO] Para: ${params.to} | Asunto: ${params.asunto}`);
+    return;
+  }
+
+  await transporter.sendMail({
+    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+    to: params.to,
+    subject: params.asunto,
+    text,
+    html
+  });
+}

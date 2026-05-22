@@ -6,6 +6,7 @@ import { ApiService } from 'src/app/core/services/api.service';
 import { HERO_IMAGE } from 'src/app/shared/constants/catalog-images';
 import { MARCAS_MULTIMARCAS } from 'src/app/shared/constants/marcas-multimarcas';
 import { SiteFooterComponent } from 'src/app/shared/components/site-footer/site-footer.component';
+import { FALLBACK_SERVICIOS, groupByCategoria } from 'src/app/shared/constants/servicios.data';
 
 interface Servicio {
   id: string;
@@ -54,13 +55,18 @@ export class HomeComponent implements OnInit {
 
   ngOnInit() {
     if (typeof window === 'undefined') return;
+
+    const fallback = groupByCategoria(FALLBACK_SERVICIOS);
+    this.tarifarioCategorias = fallback.categorias;
+    this.tarifarioGrouped = fallback.grouped;
+    this.loadingTarifario = false;
+
     this.api.get<{ categorias: string[]; grouped: Record<string, Servicio[]> }>('/services/catalog').subscribe({
       next: res => {
         this.tarifarioCategorias = res.categorias;
         this.tarifarioGrouped = res.grouped;
-        this.loadingTarifario = false;
       },
-      error: () => { this.loadingTarifario = false; }
+      error: () => {}
     });
   }
 
