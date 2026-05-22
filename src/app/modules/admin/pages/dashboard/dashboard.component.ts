@@ -36,25 +36,11 @@ const STATUS_LABELS: Record<string, string> = {
     .dash-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
     .dash-header h2 { margin: 0; font-size: 1.5rem; color: #fff; font-weight: 800; }
     .dash-sub { margin: 0.2rem 0 0; font-size: 0.85rem; color: rgba(255,255,255,0.4); }
-    .header-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
-    .export-group { display: flex; gap: 0.4rem; align-items: stretch; }
+    .header-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
     .btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: none; text-decoration: none; transition: all .2s; }
     .btn:hover { transform: translateY(-1px); }
-    .btn .btn-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
-    .btn .btn-text strong { font-size: 0.82rem; }
-    .btn .btn-text small { font-size: 0.6rem; opacity: 0.75; font-weight: 400; }
-    .btn .btn-icon { font-size: 1.1rem; }
     .btn-csv { background: rgba(255,255,255,0.08); color: #ccc; border: 1px solid rgba(255,255,255,0.12); }
-    .btn-csv:hover { background: rgba(255,255,255,0.14); color: #fff; }
     .btn-powerbi { background: #f2c811; color: #000; }
-    .btn-powerbi:hover { background: #f0c000; }
-    .btn-info { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.08); width: 32px; justify-content: center; padding: 0; }
-    .btn-info:hover { background: rgba(255,255,255,0.12); color: #fff; }
-    .export-info { background: rgba(0,0,0,0.35); border-radius: 10px; padding: 0.8rem 1rem; font-size: 0.75rem; color: rgba(255,255,255,0.75); line-height: 1.5; max-width: 420px; backdrop-filter: blur(4px); }
-    .export-info p { margin: 0 0 0.4rem; }
-    .export-info p:last-child { margin: 0; }
-    .export-info .url-code { font-size: 0.68rem; background: rgba(0,0,0,0.3); padding: 0.1rem 0.4rem; border-radius: 4px; color: #f2c811; word-break: break-all; }
-    .export-info strong { color: #fff; }
 
     .dash-content { background: #f3f4f6; border-radius: 16px; padding: 2rem; }
 
@@ -130,32 +116,8 @@ const STATUS_LABELS: Record<string, string> = {
         <p class="dash-sub">Métricas clave para la toma de decisiones</p>
       </div>
       <div class="header-actions">
-        <div class="export-group">
-          <button class="btn btn-csv" (click)="exportCsv()" title="Descargar 5 tablas en CSV comprimido">
-            <span class="btn-icon">📄</span>
-            <span class="btn-text">
-              <strong>CSV</strong>
-              <small>5 tablas</small>
-            </span>
-          </button>
-          <button class="btn btn-powerbi" (click)="exportPowerBi()" title="Descargar Excel nativo para Power BI Desktop">
-            <span class="btn-icon">📊</span>
-            <span class="btn-text">
-              <strong>Power BI</strong>
-              <small>.xlsx nativo</small>
-            </span>
-          </button>
-          <button class="btn btn-info" (click)="showExportInfo = !showExportInfo" title="Cómo usar las exportaciones">
-            <span class="btn-icon">?</span>
-          </button>
-        </div>
-        @if (showExportInfo) {
-          <div class="export-info">
-            <p><strong>📄 CSV (ZIP)</strong> — 5 archivos separados: transacciones, citas, usuarios, productos y servicios. Ábrelos en Excel, Google Sheets o cualquier analizador CSV.</p>
-            <p><strong>📊 Power BI (XLSX)</strong> — Archivo Excel con 5 hojas listo para Power BI Desktop. Ve a <em>Obtener datos → Excel</em> y selecciona el archivo.</p>
-            <p><strong>🔗 API REST</strong> — Conecta Power BI directamente via <em>Obtener datos → Web</em> a: <code class="url-code">{{ apiBase }}/admin/dashboard/powerbi</code></p>
-          </div>
-        }
+        <button class="btn btn-csv" (click)="exportCsv()">📄 CSV (ZIP)</button>
+        <button class="btn btn-powerbi" (click)="exportPowerBi()">📊 PowerBI (XLSX)</button>
       </div>
     </div>
 
@@ -315,11 +277,6 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   analytics: any = {};
   productStats: any[] = [];
   filterRange = 6;
-  showExportInfo = false;
-
-  get apiBase(): string {
-    return (this.api as any)['baseUrl'];
-  }
 
   protected readonly STATUS_LABELS = STATUS_LABELS;
   protected readonly STATUS_COLORS = STATUS_COLORS;
