@@ -16,7 +16,7 @@
     "module": "preserve",
     "baseUrl": ".",
     "ignoreDeprecations": "5.0",
-    "rootDir": ".",
+    "rootDir": "./src",
     "paths": {
       "src/*": ["src/*"]
     }
