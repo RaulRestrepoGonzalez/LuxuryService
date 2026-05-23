@@ -171,6 +171,15 @@
   border: 3px solid #fff;
 }
 
+.tarifario-nota {
+  text-align: center;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: -0.5rem auto 1.5rem;
+  max-width: 680px;
+  font-style: italic;
+}
+
 .tarifario-categoria {
   max-width: 680px;
   margin: 0 auto 1.5rem;

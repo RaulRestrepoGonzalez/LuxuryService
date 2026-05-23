@@ -7,8 +7,9 @@ import { AppointmentsMgmtComponent } from './pages/appointments-mgmt/appointment
 import { InventoryMgmtComponent } from './pages/inventory-mgmt/inventory-mgmt.component';
 import { ServicesMgmtComponent } from './pages/services-mgmt/services-mgmt.component';
 import { EmailSettingsComponent } from './pages/email-settings/email-settings.component';
+import { ImportDataComponent } from './pages/import-data/import-data.component';
 
 @NgModule({
-  imports: [CommonModule, AdminRoutingModule, ReactiveFormsModule, DashboardComponent, AppointmentsMgmtComponent, InventoryMgmtComponent, ServicesMgmtComponent, EmailSettingsComponent]
+  imports: [CommonModule, AdminRoutingModule, ReactiveFormsModule, DashboardComponent, AppointmentsMgmtComponent, InventoryMgmtComponent, ServicesMgmtComponent, EmailSettingsComponent, ImportDataComponent]
 })
 export class AdminModule { }

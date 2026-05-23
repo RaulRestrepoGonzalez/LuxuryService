@@ -9,6 +9,10 @@ import { createCheckout, processWebhook } from './payments.js';
 import { enviarTicketCita, enviarConfirmacionPago, enviarNotificacionGeneral, getEmailStatus, reenviarEmailsPendientes, ensureTransporter } from './email.js';
 import QRCode from 'qrcode';
 import { createHash } from 'crypto';
+import multer from 'multer';
+import { parse as csvParse } from 'csv-parse/sync';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -694,6 +698,105 @@ app.put('/api/admin/services/:id', auth, adminRequired, async (req, res) => {
 app.delete('/api/admin/services/:id', auth, adminRequired, async (req, res) => {
   await getDb().collection('servicios').deleteOne({ _id: new ObjectId(req.params.id) });
   res.json({ success: true });
+});
+
+app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Debes subir un archivo' });
+  const tipo = String(req.body.tipo || 'productos');
+  const ext = req.file.originalname.toLowerCase().endsWith('.csv') ? 'csv' : 'xlsx';
+
+  let rows: Record<string, string>[] = [];
+
+  if (ext === 'csv') {
+    const raw = (req.file.buffer as any).toString('utf-8').replace(/^\uFEFF/, '');
+    const records = csvParse(raw, { columns: true, skip_empty_lines: true, relax_column_count: true, trim: true });
+    rows = records as Record<string, string>[];
+  } else {
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = await new ExcelJS.Workbook().xlsx.load(req.file.buffer as any);
+    const ws = wb.worksheets[0];
+    if (!ws) return res.status(400).json({ error: 'El archivo Excel no tiene hojas' });
+    const headers: string[] = [];
+    ws.getRow(1).eachCell(c => headers.push(String(c.text).trim()));
+    ws.eachRow((row, rowIndex) => {
+      if (rowIndex === 1) return;
+      const obj: Record<string, string> = {};
+      row.eachCell((cell, colIndex) => { obj[headers[colIndex - 1]] = String(cell.text).trim(); });
+      rows.push(obj);
+    });
+  }
+
+  if (rows.length === 0) return res.status(400).json({ error: 'El archivo está vacío o no tiene datos' });
+
+  const db = getDb();
+  const collection = tipo === 'servicios' ? 'servicios' : 'productos';
+  let insertados = 0;
+  let actualizados = 0;
+  const errores: string[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const nro = i + 2;
+
+    if (!row.nombre?.trim()) { errores.push(`Fila ${nro}: falta el nombre`); continue; }
+
+    try {
+      const nombre = row.nombre.trim();
+      const exists = await db.collection(collection).findOne({ nombre });
+
+      if (tipo === 'servicios') {
+        const doc = {
+          nombre,
+          descripcion: row.descripcion?.trim() || '',
+          categoria: row.categoria?.trim() || 'General',
+          subcategoria: row.subcategoria?.trim() || null,
+          items: row.items?.trim() ? row.items.split(',').map((s: string) => s.trim()) : [],
+          precio_auto: Number(row.precio_auto) || 0,
+          precio_camioneta: Number(row.precio_camioneta) || Number(row.precio_auto) || 0,
+          precio_base: Number(row.precio_auto) || 0,
+          iva_incluido: true,
+          duracion_minutos: Number(row.duracion_minutos) || 60,
+          agendable: true,
+          icono: row.icono?.trim() || 'auto_awesome',
+          imagen_url: row.imagen_url?.trim() || '',
+          color: row.color?.trim() || '#ff2b2b',
+          orden: Number(row.orden) || 99,
+          activo: true,
+          created_at: new Date()
+        };
+        if (exists) {
+          await db.collection(collection).updateOne({ _id: exists._id }, { $set: doc });
+          actualizados++;
+        } else {
+          await db.collection(collection).insertOne(doc);
+          insertados++;
+        }
+      } else {
+        const doc = {
+          nombre,
+          descripcion: row.descripcion?.trim() || '',
+          categoria: row.categoria?.trim() || 'General',
+          precio: Number(row.precio) || 0,
+          stock: Number(row.stock) || 0,
+          icono: row.icono?.trim() || 'inventory_2',
+          color: row.color?.trim() || '#4285F4',
+          activo: true,
+          created_at: new Date()
+        };
+        if (exists) {
+          await db.collection(collection).updateOne({ _id: exists._id }, { $set: doc });
+          actualizados++;
+        } else {
+          await db.collection(collection).insertOne(doc);
+          insertados++;
+        }
+      }
+    } catch (e: any) {
+      errores.push(`Fila ${nro}: ${e.message}`);
+    }
+  }
+
+  res.json({ success: true, insertados, actualizados, errores: errores.length > 0 ? errores : undefined });
 });
 
 app.post('/api/contact', async (req, res) => {

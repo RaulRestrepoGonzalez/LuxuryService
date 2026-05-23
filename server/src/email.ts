@@ -129,6 +129,11 @@ export async function enviarTicketCita(params: {
 <tr><td style="padding: 0.75rem; border-bottom: 1px solid #eee; color: #888;">Total a pagar</td><td style="padding: 0.75rem; border-bottom: 1px solid #eee; font-weight: 700; color: #ff2b2b; font-size: 1.1rem;">${totalFormateado}</td></tr>
 <tr><td style="padding: 0.75rem; border-bottom: 1px solid #eee; color: #888;">Referencia</td><td style="padding: 0.75rem; border-bottom: 1px solid #eee; font-weight: 600; color: #555; font-family: monospace;">${params.reference}</td></tr>
 </table>
+<div style="background: #1a1a1a; padding: 1.25rem; border-radius: 12px; margin: 1.25rem 0;">
+<p style="color: #fff; margin: 0 0 0.75rem; font-weight: 700; font-size: 0.95rem;">📍 Instrucciones importantes</p>
+<p style="color: #ccc; margin: 0 0 0.5rem; font-size: 0.85rem; line-height: 1.5;">🔴 <strong>Llega 10 minutos antes</strong> de tu cita para realizar el pago en el local y recibir la revisión inicial de tu vehículo.</p>
+<p style="color: #ccc; margin: 0; font-size: 0.85rem; line-height: 1.5;">🔧 El valor final del servicio puede variar según el <strong>estado y tipo de tu vehículo</strong>. Nuestro equipo evaluará tu auto al llegar y te informará si aplican costos adicionales antes de comenzar.</p>
+</div>
 <p style="color: #555; line-height: 1.6;">Para confirmar tu cita, realiza el pago del servicio escaneando el código QR o haciendo clic en el botón:</p>
 <div style="text-align: center; margin: 1.5rem 0;">
 <img src="cid:qr" alt="QR de pago" style="width: 200px; height: 200px; border-radius: 1rem; border: 2px solid #eee;" />
@@ -148,7 +153,7 @@ export async function enviarTicketCita(params: {
 </body>
 </html>`;
 
-  const text = `Hola ${params.nombre},\n\nTu cita de ${params.servicio} ha sido agendada para el ${params.fecha} a las ${horaLegible}.\n\nTotal a pagar: ${totalFormateado} (incluye $10,000 COP recargo por reserva en línea)\nReferencia: ${params.reference}\n\n⏱ Tienes 10 minutos para pagar. Por el alto flujo de clientes, un espacio apartado sin pago es un ingreso que dejamos de percibir. Si no pagas a tiempo, la reserva expira automáticamente.\n\nPara pagar visita: ${params.checkoutUrl}\n\nLuxury Service Manga - Manga, Cartagena`;
+  const text = `Hola ${params.nombre},\n\nTu cita de ${params.servicio} ha sido agendada para el ${params.fecha} a las ${horaLegible}.\n\nTotal a pagar: ${totalFormateado} (incluye $10,000 COP recargo por reserva en línea)\nReferencia: ${params.reference}\n\n📍 Llega 10 minutos antes de tu cita para realizar el pago en el local y recibir la revisión inicial de tu vehículo.\n🔧 El valor final puede variar según el estado y tipo del vehículo. Nuestro equipo evaluará tu auto al llegar.\n\n⏱ Tienes 10 minutos para pagar. Por el alto flujo de clientes, un espacio apartado sin pago es un ingreso que dejamos de percibir. Si no pagas a tiempo, la reserva expira automáticamente.\n\nPara pagar visita: ${params.checkoutUrl}\n\nLuxury Service Manga - Manga, Cartagena`;
 
   return enviarConReintento(
     () => transporter!.sendMail({
@@ -189,6 +194,9 @@ export async function enviarConfirmacionPago(params: {
 <p style="color: #555; line-height: 1.6;">Hola <strong>${params.nombre}</strong>, tu pago ha sido recibido. Tu cita está confirmada.</p>
 <p style="color: #555;"><strong>${params.servicio}</strong> — ${params.fecha} a las ${horaLegible}</p>
 <p style="color: #888; font-size: 0.85rem;">Ref: ${params.reference}</p>
+<div style="background: #1a1a1a; padding: 1.25rem; border-radius: 12px; margin: 1.25rem 0;">
+<p style="color: #fff; margin: 0; font-size: 0.85rem; line-height: 1.5;">📍 Recuerda llegar <strong>10 minutos antes</strong> para la revisión inicial. El valor final puede variar según el <strong>estado y tipo de tu vehículo</strong>.</p>
+</div>
 </div>
 </div>
 </body>

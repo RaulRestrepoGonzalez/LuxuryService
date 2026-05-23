@@ -51,6 +51,7 @@ import { ApiService } from 'src/app/core/services/api.service';
       <a routerLink="/admin/citas" routerLinkActive="active">Citas</a>
       <a routerLink="/admin/inventario" routerLinkActive="active">Inventario</a>
       <a routerLink="/admin/servicios" routerLinkActive="active">Servicios</a>
+      <a routerLink="/admin/importar" routerLinkActive="active">Importar</a>
       <a routerLink="/admin/email-settings" routerLinkActive="active">Email</a>
     </nav>
 
