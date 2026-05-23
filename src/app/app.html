@@ -11,6 +11,7 @@
       <span class="site-nav-email">{{ user.email }}</span>
       @if (auth.isAdmin()) {
         <a routerLink="/admin/dashboard" class="site-nav-dashboard" routerLinkActive="nav-active-dash">Dashboard</a>
+        <a routerLink="/admin/importar" class="site-nav-import" routerLinkActive="nav-active-dash">Importar</a>
       }
     } @else {
       <a routerLink="/acceso" class="site-nav-cta">Acceder</a>

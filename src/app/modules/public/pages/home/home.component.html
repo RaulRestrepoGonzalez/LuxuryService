@@ -42,25 +42,27 @@
   @if (loadingTarifario) {
     <p class="tarifario-loading">Cargando tarifario...</p>
   } @else {
-    @for (cat of tarifarioCategorias; track cat) {
-      <div class="tarifario-categoria">
-        <h3 class="tarifario-cat-title">{{ cat }}</h3>
-        <div class="tarifario-table">
-          <div class="tarifario-row tarifario-row-head">
-            <span class="col-servicio">Servicio</span>
-            <span class="col-precio">Auto</span>
-            <span class="col-precio">Camioneta</span>
-          </div>
-          @for (s of tarifarioGrouped[cat]; track s.id) {
-            <div class="tarifario-row">
-              <span class="col-servicio">{{ s.nombre }}</span>
-              <span class="col-precio col-auto">{{ formatPrice(s.precio_auto) }}</span>
-              <span class="col-precio col-camioneta">{{ formatPrice(s.precio_camioneta) }}</span>
+    <div class="tarifario-grid">
+      @for (cat of tarifarioCategorias; track cat) {
+        <div class="tarifario-categoria">
+          <h3 class="tarifario-cat-title">{{ cat }}</h3>
+          <div class="tarifario-table">
+            <div class="tarifario-row tarifario-row-head">
+              <span class="col-servicio">Servicio</span>
+              <span class="col-precio">Auto</span>
+              <span class="col-precio">Camioneta</span>
             </div>
-          }
+            @for (s of tarifarioGrouped[cat]; track s.id) {
+              <div class="tarifario-row">
+                <span class="col-servicio">{{ s.nombre }}</span>
+                <span class="col-precio col-auto">{{ formatPrice(s.precio_auto) }}</span>
+                <span class="col-precio col-camioneta">{{ formatPrice(s.precio_camioneta) }}</span>
+              </div>
+            }
+          </div>
         </div>
-      </div>
-    }
+      }
+    </div>
   }
 
   <div class="home-services-cta">

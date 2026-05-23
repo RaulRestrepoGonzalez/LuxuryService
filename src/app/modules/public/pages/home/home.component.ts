@@ -17,6 +17,11 @@ interface Servicio {
   categoria?: string;
 }
 
+const CATEGORIAS_VISIBLES = new Set([
+  'Servicios Básicos', 'Combos', 'Servicios Detailing',
+  'Servicios Anticorrosivos', 'Lavados', 'Protección y Acabados'
+]);
+
 @Component({
   selector: 'app-home',
   standalone: true,
@@ -63,8 +68,15 @@ export class HomeComponent implements OnInit {
 
     this.api.get<{ categorias: string[]; grouped: Record<string, Servicio[]> }>('/services/catalog').subscribe({
       next: res => {
-        this.tarifarioCategorias = res.categorias;
-        this.tarifarioGrouped = res.grouped;
+        const categorias = res.categorias.filter(c => CATEGORIAS_VISIBLES.has(c));
+        const grouped: Record<string, Servicio[]> = {};
+        for (const c of categorias) {
+          grouped[c] = res.grouped[c] || [];
+        }
+        if (categorias.length > 0) {
+          this.tarifarioCategorias = categorias;
+          this.tarifarioGrouped = grouped;
+        }
       },
       error: () => {}
     });

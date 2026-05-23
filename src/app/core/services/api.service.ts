@@ -3,7 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from 'src/environments/environment';
 import { Observable, of, throwError, Subject } from 'rxjs';
-import { tap, catchError, timeout } from 'rxjs/operators';
+import { tap, catchError, timeout, retry } from 'rxjs/operators';
 
 interface CacheEntry { value: any; expiry: number; }
 
@@ -50,6 +50,7 @@ export class ApiService {
     }
 
     return this.http.get<T>(`${this.baseUrl}${endpoint}`).pipe(
+      retry(1),
       timeout(8_000),
       tap(value => {
         const expiry = now + effectiveTtl;
@@ -70,7 +71,7 @@ export class ApiService {
 
   private refreshInBackground(key: string, endpoint: string) {
     this.refreshing.add(key);
-    this.http.get(`${this.baseUrl}${endpoint}`).pipe(timeout(8_000)).subscribe({
+    this.http.get(`${this.baseUrl}${endpoint}`).pipe(retry(1), timeout(8_000)).subscribe({
       next: value => {
         const expiry = Date.now() + (key.startsWith('/appointments') ? 120_000 : this.cacheTtl);
         this.cache.set(key, { value, expiry });

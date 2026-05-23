@@ -22,7 +22,7 @@ import { ApiService } from 'src/app/core/services/api.service';
     .card h3 { margin: 0 0 0.5rem; font-size: 1rem; color: #111827; font-weight: 700; }
     .card p { margin: 0 0 1rem; font-size: 0.85rem; color: #6b7280; line-height: 1.5; }
 
-    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .tab { padding: 0.5rem 1.25rem; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: 1px solid #d1d5db; background: #fff; color: #374151; transition: all .15s; }
     .tab:hover { border-color: #9ca3af; }
     .tab.active { background: #111827; color: #fff; border-color: #111827; }
@@ -42,8 +42,6 @@ import { ApiService } from 'src/app/core/services/api.service';
     .btn-primary { padding: 0.6rem 1.5rem; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: none; background: #111827; color: #fff; transition: all .15s; }
     .btn-primary:hover:not(:disabled) { background: #1f2937; transform: translateY(-1px); }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-secondary { padding: 0.6rem 1.5rem; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: 1px solid #d1d5db; background: #fff; color: #374151; transition: all .15s; }
-    .btn-secondary:hover { border-color: #9ca3af; background: #f9fafb; }
 
     .result-box { background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 1.25rem; margin-top: 1.5rem; }
     .result-box.error { background: #fef2f2; border-color: #fca5a5; }
@@ -62,7 +60,6 @@ import { ApiService } from 'src/app/core/services/api.service';
       <a routerLink="/admin/dashboard" routerLinkActive="active">Dashboard</a>
       <a routerLink="/admin/citas" routerLinkActive="active">Citas</a>
       <a routerLink="/admin/inventario" routerLinkActive="active">Inventario</a>
-      <a routerLink="/admin/servicios" routerLinkActive="active">Servicios</a>
       <a routerLink="/admin/importar" routerLinkActive="active">Importar</a>
       <a routerLink="/admin/email-settings" routerLinkActive="active">Email</a>
     </nav>
@@ -74,8 +71,9 @@ import { ApiService } from 'src/app/core/services/api.service';
 
     <div class="page-content">
       <div class="tabs">
-        <button class="tab" [class.active]="tipo === 'productos'" (click)="tipo = 'productos'; limpiar()">Productos</button>
-        <button class="tab" [class.active]="tipo === 'servicios'" (click)="tipo = 'servicios'; limpiar()">Servicios</button>
+        <button class="tab" [class.active]="tipo === 'productos'" (click)="tipo = 'productos'; limpiar()">Solo Productos</button>
+        <button class="tab" [class.active]="tipo === 'servicios'" (click)="tipo = 'servicios'; limpiar()">Solo Servicios</button>
+        <button class="tab" [class.active]="tipo === 'combinado'" (click)="tipo = 'combinado'; limpiar()">Combinado (Prod + Serv)</button>
       </div>
 
       <div class="card">
@@ -88,11 +86,18 @@ import { ApiService } from 'src/app/core/services/api.service';
             <code>nombre, descripcion, categoria, precio, stock</code>
             <small>nombre (requerido) · descripcion · categoria · precio · stock</small>
           </div>
-        } @else {
+        } @else if (tipo === 'servicios') {
           <div class="format-card">
             <h4>Columnas para Servicios</h4>
             <code>nombre, descripcion, categoria, precio_auto, precio_camioneta, duracion_minutos</code>
             <small>nombre (requerido) · descripcion · categoria · precio_auto · precio_camioneta · duracion_minutos</small>
+          </div>
+        } @else {
+          <div class="format-card">
+            <h4>Columnas para archivo combinado</h4>
+            <code>PROVEEDOR, PRODUCTO, TIPO, CLASE, VALOR_VENTA, EXISTENCIA</code>
+            <small>PROVEEDOR · PRODUCTO (requerido) · TIPO (PROD o SERV) · CLASE · VALOR_VENTA · EXISTENCIA</small>
+            <small style="display:block;margin-top:0.4rem;">Las filas con TIPO = PROD van a productos, TIPO = SERV van a servicios.</small>
           </div>
         }
       </div>
@@ -133,7 +138,7 @@ import { ApiService } from 'src/app/core/services/api.service';
   `
 })
 export class ImportDataComponent {
-  tipo: 'productos' | 'servicios' = 'productos';
+  tipo: 'productos' | 'servicios' | 'combinado' = 'productos';
   file: File | null = null;
   dragover = false;
   subiendo = false;

@@ -729,74 +729,156 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
   if (rows.length === 0) return res.status(400).json({ error: 'El archivo está vacío o no tiene datos' });
 
   const db = getDb();
-  const collection = tipo === 'servicios' ? 'servicios' : 'productos';
-  let insertados = 0;
-  let actualizados = 0;
-  const errores: string[] = [];
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const nro = i + 2;
+  if (tipo === 'combinado') {
+    // Combined mode: reads PROVEEDOR, PRODUCTO, TIPO (PROD/SERV), CLASE, VALOR_VENTA, EXISTENCIA
+    let insertados = 0;
+    let actualizados = 0;
+    const errores: string[] = [];
 
-    if (!row.nombre?.trim()) { errores.push(`Fila ${nro}: falta el nombre`); continue; }
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const nro = i + 2;
+      const producto = (row.PRODUCTO || row.producto || '').trim();
+      if (!producto) { errores.push(`Fila ${nro}: falta PRODUCTO`); continue; }
 
-    try {
-      const nombre = row.nombre.trim();
-      const exists = await db.collection(collection).findOne({ nombre });
+      const tipoItem = (row.TIPO || row.tipo || '').trim();
+      const proveedor = (row.PROVEEDOR || row.proveedor || '').trim();
+      const clase = (row.CLASE || row.clase || '').trim();
+      const valorVenta = Number(String(row.VALOR_VENTA || row.valor_venta || '0').replace(/[^0-9.]/g, '')) || 0;
+      const existencia = Number(String(row.EXISTENCIA || row.existencia || '0').replace(/[^0-9.]/g, '')) || 0;
 
-      if (tipo === 'servicios') {
-        const doc = {
-          nombre,
-          descripcion: row.descripcion?.trim() || '',
-          categoria: row.categoria?.trim() || 'General',
-          subcategoria: row.subcategoria?.trim() || null,
-          items: row.items?.trim() ? row.items.split(',').map((s: string) => s.trim()) : [],
-          precio_auto: Number(row.precio_auto) || 0,
-          precio_camioneta: Number(row.precio_camioneta) || Number(row.precio_auto) || 0,
-          precio_base: Number(row.precio_auto) || 0,
-          iva_incluido: true,
-          duracion_minutos: Number(row.duracion_minutos) || 60,
-          agendable: true,
-          icono: row.icono?.trim() || 'auto_awesome',
-          imagen_url: row.imagen_url?.trim() || '',
-          color: row.color?.trim() || '#ff2b2b',
-          orden: Number(row.orden) || 99,
-          activo: true,
-          created_at: new Date()
-        };
-        if (exists) {
-          await db.collection(collection).updateOne({ _id: exists._id }, { $set: doc });
-          actualizados++;
+      try {
+        if (tipoItem === 'SERV') {
+          const collection = 'servicios';
+          const exists = await db.collection(collection).findOne({ nombre: producto });
+          const doc = {
+            nombre: producto,
+            descripcion: `Proveedor: ${proveedor}`,
+            categoria: clase === 'AUTOMOVIL' ? 'Servicios Básicos' : clase === 'CAMIONETA' ? 'Servicios Detailing' : 'General',
+            subcategoria: clase,
+            items: [],
+            precio_auto: valorVenta,
+            precio_camioneta: Math.round(valorVenta * 1.15),
+            precio_base: valorVenta,
+            iva_incluido: true,
+            duracion_minutos: 60,
+            agendable: true,
+            icono: 'auto_awesome',
+            imagen_url: '',
+            color: '#ff2b2b',
+            orden: 99,
+            activo: true,
+            created_at: new Date()
+          };
+          if (exists) {
+            await db.collection(collection).updateOne({ _id: exists._id }, { $set: doc });
+            actualizados++;
+          } else {
+            await db.collection(collection).insertOne(doc);
+            insertados++;
+          }
+        } else if (tipoItem === 'PROD') {
+          const collection = 'productos';
+          const exists = await db.collection(collection).findOne({ nombre: producto });
+          const doc = {
+            nombre: producto,
+            descripcion: `Proveedor: ${proveedor}`,
+            categoria: clase || 'General',
+            precio: valorVenta,
+            stock: existencia,
+            icono: 'inventory_2',
+            color: '#4285F4',
+            activo: true,
+            created_at: new Date()
+          };
+          if (exists) {
+            await db.collection(collection).updateOne({ _id: exists._id }, { $set: doc });
+            actualizados++;
+          } else {
+            await db.collection(collection).insertOne(doc);
+            insertados++;
+          }
         } else {
-          await db.collection(collection).insertOne(doc);
-          insertados++;
+          errores.push(`Fila ${nro}: TIPO "${tipoItem}" no válido (use PROD o SERV)`);
         }
-      } else {
-        const doc = {
-          nombre,
-          descripcion: row.descripcion?.trim() || '',
-          categoria: row.categoria?.trim() || 'General',
-          precio: Number(row.precio) || 0,
-          stock: Number(row.stock) || 0,
-          icono: row.icono?.trim() || 'inventory_2',
-          color: row.color?.trim() || '#4285F4',
-          activo: true,
-          created_at: new Date()
-        };
-        if (exists) {
-          await db.collection(collection).updateOne({ _id: exists._id }, { $set: doc });
-          actualizados++;
-        } else {
-          await db.collection(collection).insertOne(doc);
-          insertados++;
-        }
+      } catch (e: any) {
+        errores.push(`Fila ${nro}: ${e.message}`);
       }
-    } catch (e: any) {
-      errores.push(`Fila ${nro}: ${e.message}`);
     }
-  }
 
-  res.json({ success: true, insertados, actualizados, errores: errores.length > 0 ? errores : undefined });
+    res.json({ success: true, insertados, actualizados, errores: errores.length > 0 ? errores : undefined });
+
+  } else {
+    const collection = tipo === 'servicios' ? 'servicios' : 'productos';
+    let insertados = 0;
+    let actualizados = 0;
+    const errores: string[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const nro = i + 2;
+
+      if (!row.nombre?.trim()) { errores.push(`Fila ${nro}: falta el nombre`); continue; }
+
+      try {
+        const nombre = row.nombre.trim();
+        const exists = await db.collection(collection).findOne({ nombre });
+
+        if (tipo === 'servicios') {
+          const doc = {
+            nombre,
+            descripcion: row.descripcion?.trim() || '',
+            categoria: row.categoria?.trim() || 'General',
+            subcategoria: row.subcategoria?.trim() || null,
+            items: row.items?.trim() ? row.items.split(',').map((s: string) => s.trim()) : [],
+            precio_auto: Number(row.precio_auto) || 0,
+            precio_camioneta: Number(row.precio_camioneta) || Number(row.precio_auto) || 0,
+            precio_base: Number(row.precio_auto) || 0,
+            iva_incluido: true,
+            duracion_minutos: Number(row.duracion_minutos) || 60,
+            agendable: true,
+            icono: row.icono?.trim() || 'auto_awesome',
+            imagen_url: row.imagen_url?.trim() || '',
+            color: row.color?.trim() || '#ff2b2b',
+            orden: Number(row.orden) || 99,
+            activo: true,
+            created_at: new Date()
+          };
+          if (exists) {
+            await db.collection(collection).updateOne({ _id: exists._id }, { $set: doc });
+            actualizados++;
+          } else {
+            await db.collection(collection).insertOne(doc);
+            insertados++;
+          }
+        } else {
+          const doc = {
+            nombre,
+            descripcion: row.descripcion?.trim() || '',
+            categoria: row.categoria?.trim() || 'General',
+            precio: Number(row.precio) || 0,
+            stock: Number(row.stock) || 0,
+            icono: row.icono?.trim() || 'inventory_2',
+            color: row.color?.trim() || '#4285F4',
+            activo: true,
+            created_at: new Date()
+          };
+          if (exists) {
+            await db.collection(collection).updateOne({ _id: exists._id }, { $set: doc });
+            actualizados++;
+          } else {
+            await db.collection(collection).insertOne(doc);
+            insertados++;
+          }
+        }
+      } catch (e: any) {
+        errores.push(`Fila ${nro}: ${e.message}`);
+      }
+    }
+
+    res.json({ success: true, insertados, actualizados, errores: errores.length > 0 ? errores : undefined });
+  }
 });
 
 app.post('/api/contact', async (req, res) => {

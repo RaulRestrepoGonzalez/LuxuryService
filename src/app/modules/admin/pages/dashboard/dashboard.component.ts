@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, ViewChildren, QueryList, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, ViewChildren, QueryList, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from 'src/app/core/services/api.service';
@@ -119,7 +119,6 @@ const STATUS_LABELS: Record<string, string> = {
       <a routerLink="/admin/dashboard" routerLinkActive="active">Dashboard</a>
       <a routerLink="/admin/citas" routerLinkActive="active">Citas</a>
       <a routerLink="/admin/inventario" routerLinkActive="active">Inventario</a>
-      <a routerLink="/admin/servicios" routerLinkActive="active">Servicios</a>
       <a routerLink="/admin/importar" routerLinkActive="active">Importar</a>
       <a routerLink="/admin/email-settings" routerLinkActive="active">Email</a>
     </nav>
@@ -325,7 +324,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private charts: any[] = [];
   private analyticsRaw: any = {};
 
-  constructor(private api: ApiService) {}
+  constructor(private api: ApiService, private cdr: ChangeDetectorRef) {}
 
   get margen(): string {
     const total = this.ingresos + this.egresos;
@@ -380,18 +379,23 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit() {
     if (typeof window !== 'undefined') {
-      this.api.get('/admin/dashboard/stats').subscribe((res: any) => {
-        this.ingresos = res.ingresos;
-        this.egresos = res.egresos;
+      this.api.get('/admin/dashboard/stats').subscribe({
+        next: (res: any) => { this.ingresos = res.ingresos; this.egresos = res.egresos; this.cdr.detectChanges(); },
+        error: () => console.error('[Dashboard] Error al cargar stats')
       });
-      this.api.get('/admin/dashboard/analytics').subscribe((res: any) => {
-        this.analyticsRaw = res;
-        this.analytics = res;
-        this.stats = { totalClients: res.totalClients, totalAppointments: res.totalAppointments, totalServices: res.totalServices };
-        this.renderCharts();
+      this.api.get('/admin/dashboard/analytics').subscribe({
+        next: (res: any) => {
+          this.analyticsRaw = res;
+          this.analytics = res;
+          this.stats = { totalClients: res.totalClients, totalAppointments: res.totalAppointments, totalServices: res.totalServices };
+          this.cdr.detectChanges();
+          this.renderCharts();
+        },
+        error: () => console.error('[Dashboard] Error al cargar analytics')
       });
-      this.api.get('/admin/dashboard/product-sales').subscribe((res: any) => {
-        this.productStats = res.productStats || [];
+      this.api.get('/admin/dashboard/product-sales').subscribe({
+        next: (res: any) => { this.productStats = res.productStats || []; this.cdr.detectChanges(); },
+        error: () => console.error('[Dashboard] Error al cargar product-sales')
       });
     }
   }
