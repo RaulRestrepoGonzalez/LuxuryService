@@ -38,6 +38,10 @@
     <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'">🏍️ Moto</button>
   </div>
 
+  <div class="svc-search">
+    <input type="text" class="svc-search-input" placeholder="Buscar servicio…" [(ngModel)]="searchTerm" />
+  </div>
+
   @if (activeFilter !== 'Todos') {
     <div class="svc-active-bar">
       <span>Mostrando: <strong>{{ activeFilter }}</strong></span>

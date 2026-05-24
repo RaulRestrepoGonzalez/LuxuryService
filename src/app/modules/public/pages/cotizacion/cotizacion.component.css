@@ -293,15 +293,27 @@
   text-align: center;
 }
 
-.cot-bottom {
-  text-align: center;
-  padding: 2rem 1.5rem;
+.cot-agendar-btn {
+  display: block;
   margin-top: 1rem;
+  padding: 0.65rem 1rem;
+  background: #ff2b2b;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-align: center;
+  border-radius: 4px;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
-.cot-bottom p { margin: 0; font-size: 0.9rem; color: #555; }
-.cot-bottom a { color: #ff2b2b; font-weight: 700; text-decoration: none; }
-.cot-bottom a:hover { text-decoration: underline; }
+.cot-agendar-btn:hover {
+  background: #e02424;
+  transform: translateY(-1px);
+  color: #fff;
+}
 
 @media (max-width: 768px) {
   .cot-columns { grid-template-columns: 1fr; }

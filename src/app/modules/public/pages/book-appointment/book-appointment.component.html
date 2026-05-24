@@ -49,7 +49,7 @@
         <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'">🏍️ Moto</button>
       </div>
       <div class="book-search">
-        <input type="text" class="book-search-input" placeholder="Buscar servicio…" [(ngModel)]="searchServicio" />
+        <input type="text" class="book-search-input" placeholder="Buscar servicio…" [(ngModel)]="searchServicio" [ngModelOptions]="{standalone: true}" />
       </div>
       <div class="service-picks">
         @for (s of filteredServicios; track s.id) {
@@ -71,7 +71,7 @@
         </div>
         @if (showProductSelection) {
           <div class="book-search">
-            <input type="text" class="book-search-input" placeholder="Buscar producto…" [(ngModel)]="searchProducto" />
+            <input type="text" class="book-search-input" placeholder="Buscar producto…" [(ngModel)]="searchProducto" [ngModelOptions]="{standalone: true}" />
           </div>
           <div class="product-picks">
             @for (p of filteredProductos; track p.id) {
