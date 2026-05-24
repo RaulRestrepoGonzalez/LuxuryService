@@ -303,23 +303,34 @@ app.get('/api/appointments/calendar', async (req, res) => {
 });
 
 app.post('/api/appointments', auth, async (req, res) => {
-  const { servicioId, fecha, horario, tipoVehiculo = 'auto' } = req.body;
+  const { servicioId, fecha, horario, tipoVehiculo = 'auto', productoId, productoNombre, productoPrecio = 0 } = req.body;
   if (!(HORARIOS as readonly string[]).includes(horario)) return res.status(400).json({ error: 'Horario inválido' });
   const existing = await getDb().collection('citas').findOne({ fecha, horario, servicio_id: new ObjectId(servicioId), estado: { $ne: 'cancelada' } });
   if (existing) return res.status(409).json({ error: 'Horario ocupado' });
   const servicio = await getDb().collection('servicios').findOne({ _id: new ObjectId(servicioId) });
   if (!servicio) return res.status(404).json({ error: 'Servicio no encontrado' });
 
+  let producto: any = null;
+  if (productoId) {
+    producto = await getDb().collection('productos').findOne({ _id: new ObjectId(productoId) });
+    if (!producto) return res.status(404).json({ error: 'Producto no encontrado' });
+  }
+
   const precioBase = tipoVehiculo === 'camioneta'
     ? (servicio.precio_camioneta || servicio.precio_base || 0)
     : (servicio.precio_auto || servicio.precio_base || 0);
+  const precioProducto = producto?.precio || Number(productoPrecio) || 0;
   const bookingFee = 10000;
-  const precioTotal = precioBase + bookingFee;
+  const precioTotal = precioBase + precioProducto + bookingFee;
+  const productoNombreFinal = producto?.nombre || productoNombre || '';
   const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const descripcionPago = productoNombreFinal
+    ? `${servicio.nombre} + ${productoNombreFinal} - Luxury Service`
+    : `${servicio.nombre} - Luxury Service`;
 
   const checkout = await createCheckout({
     amount: precioTotal,
-    description: `${servicio.nombre} - Luxury Service`,
+    description: descripcionPago,
     returnUrl: `${baseUrl}/app/mis-citas`,
     webhookUrl: `${baseUrl}/api/payments/webhook`,
     customerEmail: req.user!.email,
@@ -328,36 +339,51 @@ app.post('/api/appointments', auth, async (req, res) => {
   const checkoutUrl = checkout.checkoutUrl;
   const reference = checkout.reference;
 
-  await getDb().collection('citas').insertOne({
+  const citaData: Record<string, any> = {
     usuario_id: new ObjectId(req.user!.id), servicio_id: new ObjectId(servicioId),
     fecha, horario, tipoVehiculo, estado: 'pendiente_pago', precio_base: precioBase,
     booking_fee: bookingFee, precio_total: precioTotal,
     payment_reference: checkout.reference, created_at: new Date()
-  });
+  };
+  if (producto) {
+    citaData.producto_id = new ObjectId(producto._id);
+    citaData.producto_nombre = producto.nombre;
+    citaData.producto_precio = producto.precio;
+  }
 
-  await getDb().collection('pagos').insertOne({
+  await getDb().collection('citas').insertOne(citaData);
+
+  const pagoData: Record<string, any> = {
     usuario_id: new ObjectId(req.user!.id), email: req.user!.email,
     referencia: checkout.reference, monto: precioTotal,
-    servicio_nombre: servicio.nombre, fecha, horario,
+    servicio_nombre: `${servicio.nombre}${productoNombreFinal ? ' + ' + productoNombreFinal : ''}`,
+    fecha, horario,
     estado: 'pendiente', checkout_url: checkout.checkoutUrl,
     created_at: new Date()
-  });
+  };
+  if (producto) {
+    pagoData.producto_id = new ObjectId(producto._id);
+    pagoData.producto_nombre = producto.nombre;
+  }
+
+  await getDb().collection('pagos').insertOne(pagoData);
 
   const qrBase64 = await QRCode.toDataURL(checkoutUrl, { width: 300, margin: 2 });
+
+  // Store QR in pagos for later email after payment
+  const qrClean = qrBase64.replace(/^data:image\/png;base64,/, '');
+  await getDb().collection('pagos').updateOne(
+    { referencia: checkout.reference },
+    { $set: { qr_base64: qrClean } }
+  );
 
   res.json({
     success: true, message: 'Cita agendada. Realiza el pago para confirmar.',
     payment: { url: checkoutUrl, reference, amount: precioTotal, qr: qrBase64 }
   });
 
-  const qrClean = qrBase64.replace(/^data:image\/png;base64,/, '');
+  // In-app notification only (NO email ticket until payment confirmed)
   notificarCitaAgendada(req.user!.id, req.user!.email, servicio.nombre, fecha, horario, reference).catch(e => console.error('Error notificando:', e.message));
-  enviarTicketCita({
-    to: req.user!.email, nombre: req.user!.email.split('@')[0],
-    servicio: servicio.nombre, fecha, horario,
-    precioTotal, reference,
-    checkoutUrl, qrBase64: qrClean,
-  }).catch(e => console.error('Error enviando email:', e.message));
 });
 
 app.post('/api/payments/webhook', async (req, res) => {
@@ -375,14 +401,28 @@ app.post('/api/payments/webhook', async (req, res) => {
     );
     const pago = await getDb().collection('pagos').findOne({ referencia: payload.reference });
     if (pago) {
+      const cita = await getDb().collection('citas').findOne({ payment_reference: payload.reference });
       try {
-        await enviarConfirmacionPago({
+        const qrData = pago.qr_base64 || '';
+        const productoNombre = pago.producto_nombre || '';
+        const servicioConProducto = productoNombre
+          ? `${pago.servicio_nombre} + ${productoNombre}`
+          : pago.servicio_nombre;
+        const checkoutUrl = pago.checkout_url || '';
+        const qrFinal = qrData || (checkoutUrl
+          ? (await QRCode.toDataURL(checkoutUrl, { width: 300, margin: 2 })).replace(/^data:image\/png;base64,/, '')
+          : '');
+        await enviarTicketCita({
           to: pago.email, nombre: pago.email.split('@')[0],
-          servicio: pago.servicio_nombre, fecha: pago.fecha,
-          horario: pago.horario, reference: payload.reference,
+          servicio: servicioConProducto, fecha: pago.fecha,
+          horario: pago.horario, precioTotal: pago.monto,
+          reference: payload.reference,
+          checkoutUrl: checkoutUrl,
+          qrBase64: qrFinal,
+          producto: productoNombre,
         });
       } catch (err: any) {
-        console.error('Error enviando confirmación:', err.message);
+        console.error('Error enviando ticket post-pago:', err.message);
       }
     }
   } else if (payload.status === 'DECLINED') {

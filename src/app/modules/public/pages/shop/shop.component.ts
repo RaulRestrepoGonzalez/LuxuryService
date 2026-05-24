@@ -1,10 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { ApiService } from 'src/app/core/services/api.service';
 import { AuthService } from 'src/app/core/services/auth.service';
 import { productImage } from 'src/app/shared/constants/catalog-images';
-import { FALLBACK_PRODUCTOS, groupByCategoriaProductos } from 'src/app/shared/constants/productos.data';
 
 export interface Producto {
   id: string;
@@ -24,38 +24,69 @@ export interface Producto {
   templateUrl: './shop.component.html',
   styleUrl: './shop.component.css'
 })
-export class ShopComponent implements OnInit {
+export class ShopComponent implements OnInit, OnDestroy {
   productos: Producto[] = [];
   filtered: Producto[] = [];
+  destacados: Producto[] = [];
   loading = true;
+  error = '';
   purchasing: string | null = null;
   activeCategory = 'Todos';
   categories: string[] = ['Todos'];
   toast = '';
   toastVisible = false;
+  private refreshSub: Subscription | null = null;
+  private scrollInterval: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private api: ApiService, public auth: AuthService) {
-    const fb = groupByCategoriaProductos(FALLBACK_PRODUCTOS);
-    this.categories = ['Todos', ...fb.categorias];
-    this.productos = FALLBACK_PRODUCTOS;
-    this.filtered = FALLBACK_PRODUCTOS;
-    this.loading = false;
-  }
+  constructor(
+    private api: ApiService,
+    public auth: AuthService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
     if (typeof window === 'undefined') return;
     this.loadProducts();
+    this.refreshSub = this.api.refresh$.subscribe(({ key, value }) => {
+      if (key === '/products') {
+        this.productos = value as Producto[];
+        this.destacados = this.productos.slice(0, 8);
+        this.buildCategories();
+        this.applyFilter();
+        this.cdr.markForCheck();
+      }
+    });
+    this.startAutoScroll();
+  }
+
+  ngOnDestroy() {
+    this.refreshSub?.unsubscribe();
+    this.stopAutoScroll();
   }
 
   loadProducts() {
-    this.api.get<Producto[]>('/products').subscribe({
+    this.loading = true;
+    this.error = '';
+    this.api.getFresh<Producto[]>('/products').subscribe({
       next: res => {
         this.productos = res;
-        const cats = [...new Set(res.map(p => p.categoria).filter(Boolean))] as string[];
-        this.categories = ['Todos', ...cats];
+        this.destacados = this.productos.slice(0, 8);
+        this.buildCategories();
         this.applyFilter();
+        this.loading = false;
+        this.cdr.markForCheck();
+      },
+      error: err => {
+        this.error = err?.status === 0 ? 'No se pudo conectar con el servidor' : 'Error al cargar productos';
+        this.loading = false;
+        this.cdr.markForCheck();
       }
     });
+  }
+
+  private buildCategories() {
+    const cats = [...new Set(this.productos.map(p => p.categoria).filter(Boolean))] as string[];
+    this.categories = ['Todos', ...cats];
   }
 
   filterCategory(cat: string) {
@@ -73,6 +104,28 @@ export class ShopComponent implements OnInit {
 
   formatPrice(n: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+  }
+
+  private startAutoScroll() {
+    if (typeof window === 'undefined') return;
+    const el = () => document.querySelector('.featured-carousel');
+    this.scrollInterval = setInterval(() => {
+      const c = el();
+      if (!c || c.matches(':hover')) return;
+      const maxScroll = c.scrollWidth - c.clientWidth;
+      if (c.scrollLeft >= maxScroll - 10) {
+        c.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        c.scrollBy({ left: c.clientWidth, behavior: 'smooth' });
+      }
+    }, 4000);
+  }
+
+  private stopAutoScroll() {
+    if (this.scrollInterval) {
+      clearInterval(this.scrollInterval);
+      this.scrollInterval = null;
+    }
   }
 
   comprar(p: Producto) {

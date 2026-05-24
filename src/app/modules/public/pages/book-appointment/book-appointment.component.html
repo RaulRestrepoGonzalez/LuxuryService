@@ -9,9 +9,12 @@
         <p class="payment-sub">Realiza el pago para confirmar tu reserva</p>
         <div class="payment-details">
           <div class="payment-row"><span>Servicio</span><strong>{{ selectedService?.nombre }} ({{ tipoVehiculo === 'auto' ? 'Automóvil' : 'Camioneta' }})</strong></div>
+          @if (selectedProduct) {
+            <div class="payment-row"><span>Producto</span><strong>{{ selectedProduct.nombre }}</strong></div>
+          }
           <div class="payment-row"><span>Fecha</span><strong>{{ appointmentForm.get('fecha')?.value }}</strong></div>
           <div class="payment-row"><span>Horario</span><strong>{{ selectedHorarioLabel() }}</strong></div>
-          <div class="payment-row"><span>Subtotal</span><strong>{{ formatPrice((payment.amount - 10000)) }}</strong></div>
+          <div class="payment-row"><span>Subtotal</span><strong>{{ formatPrice(payment.amount - 10000) }}</strong></div>
           <div class="payment-row"><span>Recargo reserva</span><strong>+ $10,000</strong></div>
           <div class="payment-row payment-total"><span>Total</span><strong>{{ formatPrice(payment.amount) }}</strong></div>
         </div>
@@ -44,8 +47,11 @@
         <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'">🚗 Automóvil</button>
         <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'">🚙 Camioneta</button>
       </div>
+      <div class="book-search">
+        <input type="text" class="book-search-input" placeholder="Buscar servicio…" [(ngModel)]="searchServicio" />
+      </div>
       <div class="service-picks">
-        @for (s of servicios; track s.id) {
+        @for (s of filteredServicios; track s.id) {
           <label class="service-pick" [class.selected]="appointmentForm.get('servicioId')?.value === s.id">
             <input type="radio" formControlName="servicioId" [value]="s.id" />
             <span class="service-pick-name">{{ s.nombre }}</span>
@@ -57,7 +63,37 @@
 
     @if (appointmentForm.get('servicioId')?.value) {
       <section class="book-panel">
-        <h3><span class="book-step">2</span> Selecciona la fecha</h3>
+        <h3><span class="book-step">2</span> ¿Deseas agregar un producto?</h3>
+        <div class="product-choice">
+          <button type="button" class="product-choice-btn" [class.active]="showProductSelection" (click)="toggleProductSelection(true)">Sí</button>
+          <button type="button" class="product-choice-btn" [class.active]="!showProductSelection && selectedProduct === null" (click)="toggleProductSelection(false)">No</button>
+        </div>
+        @if (showProductSelection) {
+          <div class="book-search">
+            <input type="text" class="book-search-input" placeholder="Buscar producto…" [(ngModel)]="searchProducto" />
+          </div>
+          <div class="product-picks">
+            @for (p of filteredProductos; track p.id) {
+              <label class="product-pick" [class.selected]="selectedProduct?.id === p.id">
+                <input type="radio" name="producto" [checked]="selectedProduct?.id === p.id" (change)="selectProduct(p)" />
+                <img [src]="img(p)" [alt]="p.nombre" loading="lazy" width="50" height="38" class="product-pick-img" />
+                <span class="product-pick-name">{{ p.nombre }}</span>
+                <span class="product-pick-price">{{ formatPrice(p.precio) }}</span>
+              </label>
+            }
+          </div>
+        }
+        @if (selectedProduct) {
+          <div class="product-selected-badge">
+            Producto seleccionado: <strong>{{ selectedProduct.nombre }}</strong> — {{ formatPrice(selectedProduct.precio) }}
+          </div>
+        }
+      </section>
+    }
+
+    @if (appointmentForm.get('servicioId')?.value) {
+      <section class="book-panel">
+        <h3><span class="book-step">3</span> Selecciona la fecha</h3>
         <div class="calendar">
           <div class="calendar-nav">
             <button type="button" class="cal-nav-btn" (click)="prevMonth()">‹</button>
@@ -90,7 +126,7 @@
 
     @if (appointmentForm.get('fecha')?.value) {
       <section class="book-panel">
-        <h3><span class="book-step">3</span> Elige el horario</h3>
+        <h3><span class="book-step">4</span> Elige el horario</h3>
         @if (loadingSlots) {
           <p class="book-hint">Cargando horarios...</p>
         } @else if (horarios.length === 0) {
@@ -119,8 +155,14 @@
       <div class="book-fee-notice">
         <div class="book-price-breakdown">
           <span>Servicio ({{ tipoVehiculo === 'auto' ? 'Automóvil' : 'Camioneta' }})</span>
-          <span>{{ formatPrice(precioActual) }}</span>
+          <span>{{ formatPrice(precioServicio) }}</span>
         </div>
+        @if (selectedProduct) {
+          <div class="book-price-breakdown">
+            <span>{{ selectedProduct.nombre }}</span>
+            <span>{{ formatPrice(selectedProduct.precio) }}</span>
+          </div>
+        }
         <div class="book-price-breakdown">
           <span>Recargo por reserva en línea</span>
           <span>+ $10,000</span>

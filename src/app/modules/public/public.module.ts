@@ -9,8 +9,9 @@ import { BookAppointmentComponent } from './pages/book-appointment/book-appointm
 import { AuthComponent } from './pages/auth/auth.component';
 import { LoginComponent } from './pages/login/login.component';
 import { RegisterComponent } from './pages/register/register.component';
+import { CotizacionComponent } from './pages/cotizacion/cotizacion.component';
 
 @NgModule({
-  imports: [CommonModule, PublicRoutingModule, ReactiveFormsModule, HomeComponent, ServicesCatalogComponent, ShopComponent, BookAppointmentComponent, AuthComponent, LoginComponent, RegisterComponent]
+  imports: [CommonModule, PublicRoutingModule, ReactiveFormsModule, HomeComponent, ServicesCatalogComponent, ShopComponent, BookAppointmentComponent, AuthComponent, LoginComponent, RegisterComponent, CotizacionComponent]
 })
 export class PublicModule { }

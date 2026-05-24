@@ -7,10 +7,28 @@
     <span class="svc-iva-badge">PRECIOS 2026 · IVA INCLUIDO</span>
   </header>
 
-  <div class="svc-filters">
-    <button type="button" class="svc-filter-chip" [class.active]="activeFilter === 'Todos'" (click)="activeFilter = 'Todos'">Todos</button>
+  <div class="svc-filters-row">
     @for (cat of categorias; track cat) {
-      <button type="button" class="svc-filter-chip" [class.active]="activeFilter === cat" (click)="activeFilter = cat">{{ cat }}</button>
+      <div class="svc-filter-wrap" (mouseenter)="hoveredPill = cat" (mouseleave)="hoveredPill = null">
+        <button type="button" class="svc-filter-btn" [class.active]="activeFilter === cat" (click)="setActiveCategory(cat)">
+          <span class="svc-filter-icon">{{ meta(cat).icon }}</span>
+          <span class="svc-filter-label">{{ cat }}</span>
+        </button>
+        @if (hoveredPill === cat) {
+          <div class="svc-filter-dropdown" (mouseenter)="hoveredPill = cat" (mouseleave)="hoveredPill = null">
+            <div class="svc-dd-header">
+              <strong>{{ cat }}</strong>
+              <span>{{ meta(cat).tagline }}</span>
+            </div>
+            @for (s of grouped[cat]; track s.id) {
+              <a class="svc-dd-item" [routerLink]="['/agendar-cita']" [queryParams]="{ servicio: s.id }" (click)="$event.stopPropagation()">
+                <span class="svc-dd-name">{{ s.nombre }}</span>
+                <span class="svc-dd-price">{{ formatPrice(precioActual(s)) }}</span>
+              </a>
+            }
+          </div>
+        }
+      </div>
     }
   </div>
 
@@ -19,10 +37,17 @@
     <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'">🚙 Camioneta</button>
   </div>
 
-  <div class="svc-categories">
+  @if (activeFilter !== 'Todos') {
+    <div class="svc-active-bar">
+      <span>Mostrando: <strong>{{ activeFilter }}</strong></span>
+      <button type="button" class="svc-ver-todos" (click)="showAll()">Ver todos</button>
+    </div>
+  }
+
+  <div class="svc-lists">
     @for (cat of filterCats(); track cat) {
-      <section class="svc-category-block">
-        <div class="svc-category-banner" [class.accent-red]="meta(cat).accent === 'red'" [class.accent-black]="meta(cat).accent === 'black'">
+      <section class="svc-list-block">
+        <div class="svc-list-banner">
           <div class="svc-banner-text">
             <h2>{{ cat }}</h2>
             <span>{{ meta(cat).tagline }} · {{ totalInCategory(cat) }} servicios</span>
@@ -30,39 +55,35 @@
           <span class="svc-iva-badge-small">IVA INCLUIDO</span>
         </div>
 
-        <div class="svc-cards-grid">
+        <div class="svc-list">
           @for (s of grouped[cat]; track s.id) {
-            <article class="svc-card" [class.expanded]="hoveredCard === s.id" (mouseenter)="hoveredCard = s.id" (mouseleave)="hoveredCard = null">
-              <div class="svc-card-img-wrap">
-                <img [src]="img(s)" [alt]="s.nombre" loading="lazy" width="400" height="300" />
-                <div class="svc-card-overlay">
-                  <span class="svc-card-cta-hint">Ver detalle →</span>
-                </div>
+            <div class="svc-list-item" [class.expanded]="hoveredCard === s.id" (mouseenter)="hoveredCard = s.id" (mouseleave)="hoveredCard = null">
+              <div class="svc-list-front">
+                <span class="svc-list-name">{{ s.nombre }}</span>
+                <span class="svc-list-price">{{ formatPrice(precioActual(s)) }}</span>
               </div>
 
-              <div class="svc-card-front">
-                <h3>{{ s.nombre }}</h3>
-              </div>
-
-              <div class="svc-card-back">
-                <p class="svc-card-desc">{{ s.descripcion }}</p>
+              <div class="svc-list-detail">
+                @if (s.descripcion) {
+                  <p class="svc-list-desc">{{ s.descripcion }}</p>
+                }
 
                 @if (s.items?.length) {
-                  <ul class="svc-card-items">
+                  <ul class="svc-list-items">
                     @for (item of s.items; track item) {
                       <li>{{ item }}</li>
                     }
                   </ul>
                 }
 
-                <div class="svc-prices-dual">
-                  <div class="svc-price-line">
-                    <span class="svc-price-label">Auto</span>
-                    <span class="svc-price">{{ formatPrice(precioAuto(s)) }}</span>
+                <div class="svc-list-prices">
+                  <div class="svc-list-price-row">
+                    <span class="svc-price-label">Automóvil</span>
+                    <span class="svc-price-val">{{ formatPrice(precioAuto(s)) }}</span>
                   </div>
-                  <div class="svc-price-line">
+                  <div class="svc-list-price-row">
                     <span class="svc-price-label">Camioneta</span>
-                    <span class="svc-price svc-price-red">{{ formatPrice(precioCamioneta(s)) }}</span>
+                    <span class="svc-price-val svc-price-red">{{ formatPrice(precioCamioneta(s)) }}</span>
                   </div>
                 </div>
 
@@ -76,7 +97,7 @@
                   </a>
                 }
               </div>
-            </article>
+            </div>
           }
         </div>
       </section>

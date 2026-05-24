@@ -42,7 +42,7 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
-  margin-top: 1.25rem;
+  margin: 1.25rem 0 2.25rem;
 }
 
 .catalog-chip {

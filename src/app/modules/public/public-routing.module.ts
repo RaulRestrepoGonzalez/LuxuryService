@@ -7,10 +7,12 @@ import { BookAppointmentComponent } from './pages/book-appointment/book-appointm
 import { AuthComponent } from './pages/auth/auth.component';
 import { LoginComponent } from './pages/login/login.component';
 import { RegisterComponent } from './pages/register/register.component';
+import { CotizacionComponent } from './pages/cotizacion/cotizacion.component';
 
 const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'servicios', component: ServicesCatalogComponent },
+  { path: 'cotizar', component: CotizacionComponent },
   { path: 'tienda', component: ShopComponent },
   { path: 'agendar-cita', component: BookAppointmentComponent },
   { path: 'acceso', component: AuthComponent },

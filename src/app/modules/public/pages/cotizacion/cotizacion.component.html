@@ -1,0 +1,89 @@
+<div class="cot-page">
+  <header class="cot-hero">
+    <p class="cot-hero-eyebrow">Cotiza antes de decidir</p>
+    <h1><em>COTIZACIÓN</em></h1>
+    <p class="cot-hero-desc">Selecciona servicios y productos para ver el precio total con IVA incluido</p>
+  </header>
+
+  <div class="cot-tipo-toggle">
+    <button type="button" class="cot-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="cambiarVehiculo('auto')">🚗 Automóvil</button>
+    <button type="button" class="cot-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="cambiarVehiculo('camioneta')">🚙 Camioneta</button>
+  </div>
+
+  @if (loading) {
+    <div class="cot-loading">Cargando…</div>
+  } @else {
+    <div class="cot-body">
+      <div class="cot-columns">
+        <div class="cot-options">
+          <div class="cot-search">
+            <input type="text" class="cot-search-input" placeholder="Buscar servicios o productos…" [(ngModel)]="searchTerm" />
+          </div>
+          <h2 class="cot-section-title">Servicios</h2>
+          @for (cat of categoriasServicios; track cat) {
+            <details class="cot-group" open>
+              <summary class="cot-group-title">{{ cat }}</summary>
+              <div class="cot-group-items">
+                @for (item of serviciosPorCategoria(cat); track item.id) {
+                  <label class="cot-item">
+                    <input type="checkbox" [(ngModel)]="item.seleccionado" />
+                    <span class="cot-item-name">{{ item.nombre }}</span>
+                    <span class="cot-item-price">{{ formatPrice(item.precio) }}</span>
+                  </label>
+                }
+              </div>
+            </details>
+          }
+
+          @if (categoriasProductos.length) {
+            <h2 class="cot-section-title" style="margin-top:2rem">Productos</h2>
+            @for (cat of categoriasProductos; track cat) {
+              <details class="cot-group" open>
+                <summary class="cot-group-title">{{ cat }}</summary>
+                <div class="cot-group-items">
+                  @for (item of productosPorCategoria(cat); track item.id) {
+                    <label class="cot-item">
+                      <input type="checkbox" [(ngModel)]="item.seleccionado" />
+                      <span class="cot-item-name">{{ item.nombre }}</span>
+                      <span class="cot-item-price">{{ formatPrice(item.precio) }}</span>
+                    </label>
+                  }
+                </div>
+              </details>
+            }
+          }
+        </div>
+
+        <div class="cot-resumen">
+          <h2 class="cot-section-title">Resumen</h2>
+          <div class="cot-resumen-card">
+            @if (seleccionados.length === 0) {
+              <p class="cot-resumen-empty">Selecciona servicios o productos para ver el total</p>
+            } @else {
+              <div class="cot-resumen-items">
+                @for (item of seleccionados; track item.id) {
+                  <div class="cot-resumen-row">
+                    <div class="cot-resumen-info">
+                      <span class="cot-resumen-tag" [class.tag-servicio]="item.tipo === 'servicio'" [class.tag-producto]="item.tipo === 'producto'">{{ item.tipo === 'servicio' ? 'Srv' : 'Prod' }}</span>
+                      <span class="cot-resumen-name">{{ item.nombre }}</span>
+                    </div>
+                    <span class="cot-resumen-price">{{ formatPrice(item.precio) }}</span>
+                  </div>
+                }
+              </div>
+              <div class="cot-resumen-total">
+                <span>Total {{ tipoVehiculo === 'auto' ? 'Automóvil' : 'Camioneta' }}</span>
+                <span class="cot-resumen-total-val">{{ formatPrice(total) }}</span>
+              </div>
+              <p class="cot-resumen-iva">* Precios con IVA incluido</p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="cot-bottom">
+    <p>¿Listo para agendar? <a routerLink="/agendar-cita">Agenda tu cita →</a></p>
+  </div>
+</div>

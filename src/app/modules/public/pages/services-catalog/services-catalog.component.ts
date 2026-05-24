@@ -2,14 +2,13 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ApiService } from 'src/app/core/services/api.service';
-import { serviceImage } from 'src/app/shared/constants/catalog-images';
 import { Servicio, FALLBACK_SERVICIOS, groupByCategoria } from 'src/app/shared/constants/servicios.data';
 
-const CATEGORIA_META: Record<string, { accent: 'red' | 'black'; tagline: string }> = {
-  'Servicios Básicos': { accent: 'red', tagline: 'Lavado, encerado y grafitado' },
-  'Combos': { accent: 'red', tagline: 'Paquetes con mejor precio' },
-  'Servicios Detailing': { accent: 'black', tagline: 'Embellecimiento premium' },
-  'Servicios Anticorrosivos': { accent: 'red', tagline: 'Protección y hidroblasting' },
+const CATEGORIA_META: Record<string, { icon: string; tagline: string }> = {
+  'Servicios Básicos': { icon: '🚗', tagline: 'Lavado, encerado y grafitado' },
+  'Combos': { icon: '📦', tagline: 'Paquetes con mejor precio' },
+  'Servicios Detailing': { icon: '✨', tagline: 'Embellecimiento premium' },
+  'Servicios Anticorrosivos': { icon: '🛡️', tagline: 'Protección y hidroblasting' },
 };
 
 @Component({
@@ -24,6 +23,8 @@ export class ServicesCatalogComponent implements OnInit {
   grouped: Record<string, Servicio[]> = {};
   activeFilter = 'Todos';
   hoveredCard: string | null = null;
+  hoveredPill: string | null = null;
+
   tipoVehiculo: 'auto' | 'camioneta' = 'auto';
 
   readonly brandName = 'Luxury Service Manga M&S';
@@ -54,7 +55,7 @@ export class ServicesCatalogComponent implements OnInit {
   }
 
   meta(cat: string) {
-    return CATEGORIA_META[cat] ?? { accent: 'black' as const, tagline: 'Servicios profesionales' };
+    return CATEGORIA_META[cat] ?? { icon: '🔧', tagline: 'Servicios profesionales' };
   }
 
   filterCats(): string[] {
@@ -62,7 +63,13 @@ export class ServicesCatalogComponent implements OnInit {
     return this.categorias.filter(c => c === this.activeFilter);
   }
 
-  img(s: Servicio) { return serviceImage(s.icono, s.imagen_url); }
+  setActiveCategory(cat: string) {
+    this.activeFilter = cat;
+  }
+
+  showAll() {
+    this.activeFilter = 'Todos';
+  }
 
   formatPrice(n: number) {
     if (!n) return '—';

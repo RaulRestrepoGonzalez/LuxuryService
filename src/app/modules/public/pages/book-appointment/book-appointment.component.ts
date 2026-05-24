@@ -1,22 +1,33 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiService } from 'src/app/core/services/api.service';
 import { AuthService } from 'src/app/core/services/auth.service';
 import { FALLBACK_SERVICIOS } from 'src/app/shared/constants/servicios.data';
+import { productImage } from 'src/app/shared/constants/catalog-images';
 
 interface HorarioSlot { value: string; label: string; }
 const DEFAULT_SLOTS: HorarioSlot[] = [
   { value: '10:00', label: '10:00 a.m.' },
   { value: '14:00', label: '2:00 p.m.' }
 ];
-const CACHE_TTL = 120_000;
+
+interface ProductoItem {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  stock: number;
+  categoria?: string;
+  icono?: string;
+  imagen_url?: string;
+}
 
 @Component({
   selector: 'app-book-appointment',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule],
   templateUrl: './book-appointment.component.html',
   styleUrl: './book-appointment.component.css'
 })
@@ -36,6 +47,12 @@ export class BookAppointmentComponent implements OnInit {
   loadingCalendar = false;
 
   payment: { url: string; reference: string; amount: number; qr: string } | null = null;
+
+  productos: ProductoItem[] = [];
+  showProductSelection = false;
+  selectedProduct: ProductoItem | null = null;
+  searchServicio = '';
+  searchProducto = '';
 
   private bookedCache = new Map<string, Set<string>>();
   private slotCache = new Map<string, HorarioSlot[]>();
@@ -100,6 +117,11 @@ export class BookAppointmentComponent implements OnInit {
       error: () => console.error('[Booking] Error cargando servicios')
     });
     this.appointmentForm.get('servicioId')?.valueChanges.subscribe(() => this.onServiceChange());
+
+    this.api.get<ProductoItem[]>('/products').subscribe({
+      next: res => this.productos = res.filter(p => p.stock > 0),
+      error: () => {}
+    });
   }
 
   onServiceChange() {
@@ -109,8 +131,41 @@ export class BookAppointmentComponent implements OnInit {
       this.payment = null;
       this.successMsg = '';
       this.errorMsg = '';
+      this.showProductSelection = false;
+      this.selectedProduct = null;
     }
     this.loadMonthBookings();
+  }
+
+  private matchSearch(text: string, query: string): boolean {
+    const q = query.trim();
+    if (!q) return true;
+    const norm = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '');
+    const words = norm(q).split(/\s+/).filter(w => w.length > 0);
+    const haystack = norm(text);
+    return words.some(w => w.length >= 2 && haystack.includes(w));
+  }
+
+  get filteredServicios(): any[] {
+    return this.servicios.filter((s: any) =>
+      this.matchSearch(s.nombre + ' ' + (s.descripcion || '') + ' ' + (s.categoria || ''), this.searchServicio)
+    );
+  }
+
+  get filteredProductos(): ProductoItem[] {
+    return this.productos.filter(p =>
+      this.matchSearch(p.nombre + ' ' + (p.descripcion || '') + ' ' + (p.categoria || ''), this.searchProducto)
+    );
+  }
+
+  toggleProductSelection(show: boolean) {
+    this.showProductSelection = show;
+    if (!show) this.selectedProduct = null;
+  }
+
+  selectProduct(p: ProductoItem) {
+    this.selectedProduct = this.selectedProduct?.id === p.id ? null : p;
   }
 
   private cacheKey(sid: string, y: number, m: number) {
@@ -260,7 +315,7 @@ export class BookAppointmentComponent implements OnInit {
     return this.servicios.find((s: any) => s.id === lookupId) || FALLBACK_SERVICIOS.find(s => s.id === id);
   }
 
-  get precioActual(): number {
+  get precioServicio(): number {
     const s = this.selectedService;
     if (!s) return 0;
     return this.tipoVehiculo === 'auto'
@@ -268,9 +323,19 @@ export class BookAppointmentComponent implements OnInit {
       : (s.precio_camioneta ?? s.precio_base);
   }
 
+  get precioProducto(): number {
+    return this.selectedProduct?.precio ?? 0;
+  }
+
+  get precioActual(): number {
+    return this.precioServicio + this.precioProducto;
+  }
+
   get totalConRecargo(): number {
     return this.precioActual + 10000;
   }
+
+  img(p: ProductoItem) { return productImage(p.icono, p.imagen_url); }
 
   submit() {
     if (!this.auth.isLoggedIn()) {
@@ -294,15 +359,20 @@ export class BookAppointmentComponent implements OnInit {
       const realId = this.resolveRealId(servicioId);
       if (realId) servicioId = realId;
     }
-    const payload = {
+    const payload: Record<string, any> = {
       servicioId,
       fecha: this.appointmentForm.get('fecha')?.value,
       horario: this.appointmentForm.get('horario')?.value,
       tipoVehiculo: this.tipoVehiculo,
-      precio: this.precioActual,
+      precio: this.precioServicio,
+      productoPrecio: this.precioProducto,
       recargoReserva: 10000,
       total: this.totalConRecargo
     };
+    if (this.selectedProduct) {
+      payload['productoId'] = this.selectedProduct.id;
+      payload['productoNombre'] = this.selectedProduct.nombre;
+    }
     this.api.post<any>('/appointments', payload).subscribe({
       next: res => {
         this.submitting = false;

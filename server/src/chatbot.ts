@@ -86,6 +86,10 @@ export async function buildChatbotReply(message: string): Promise<string> {
     return `Todos nuestros precios tienen tarifa AUTO y CAMIONETA. Ejemplo Lavado General Express: Auto $45.000 · Camioneta $50.000. Ver /servicios`;
   }
 
+  if (matchAny(lower, ['cotizacion', 'cotizar', 'presupuesto'])) {
+    return `¡Claro! Te ayudo a cotizar. 🚗\n\nEn la página /cotizar puedes:\n• Seleccionar uno o varios servicios\n• Agregar productos (aceite, filtros, etc.)\n• Elegir entre Automóvil o Camioneta\n• Ver el total con IVA incluido al instante\n\nEjemplos de cotización:\n• "cambio de aceite y filtro"\n• "4 llantas y alineación"\n• "lavado general + encerado"\n\nDime qué necesitas y te doy los precios exactos.`;
+  }
+
   const catalog = await getCatalog();
 
   if (matchAny(lower, ['precio', 'cuesta', 'vale', 'costo', 'cuanto', 'tarifa', 'cotiz'])) {

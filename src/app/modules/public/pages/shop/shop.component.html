@@ -1,7 +1,11 @@
 <div class="catalog-page page-light">
   <h2 class="catalog-section-title">
-    <span class="slash">/</span> PRODUCTOS DE TIENDA <span class="slash">/</span>
+    <span class="slash">/</span> PRODUCTOS <span class="slash">/</span>
   </h2>
+
+  @if (error && productos.length === 0) {
+    <div class="catalog-error">{{ error }}</div>
+  }
 
   <div class="catalog-filters">
     @for (cat of categories; track cat) {
@@ -11,7 +15,26 @@
     }
   </div>
 
-  @if (filtered.length === 0) {
+  @if (destacados.length > 0) {
+    <section class="featured-section">
+      <h3 class="featured-title">Productos destacados</h3>
+      <div class="featured-carousel">
+        @for (p of destacados; track p.id) {
+          <article class="featured-card" (click)="filterCategory(p.categoria || 'Todos')">
+            <img [src]="img(p)" [alt]="p.nombre" loading="lazy" width="200" height="150" />
+            <div class="featured-card-body">
+              <h4>{{ p.nombre }}</h4>
+              <span class="featured-card-price">{{ formatPrice(p.precio) }}</span>
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+  }
+
+  @if (loading) {
+    <div class="catalog-loading">Cargando productos…</div>
+  } @else if (filtered.length === 0) {
     <div class="catalog-empty">No hay productos en esta categoría</div>
   } @else {
     <div class="catalog-grid">

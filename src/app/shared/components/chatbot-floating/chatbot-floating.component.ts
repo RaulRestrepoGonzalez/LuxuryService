@@ -8,6 +8,7 @@ const QUICK_REPLIES: Record<string, string> = {
   precios: 'Te muestro precios actualizados de servicios y productos.',
   horarios: 'Citas disponibles: 10:00 a.m. y 2:00 p.m.',
   servicios: 'Consulta nuestros servicios y precios.',
+  cotizacion: 'Te ayudo a cotizar. Puedes combinar servicios y productos en /cotizar. Ej: "cotizar cambio de aceite y 4 llantas"',
 };
 
 @Component({
@@ -22,7 +23,7 @@ export class ChatbotFloatingComponent implements OnInit {
   messages: { text: string; from: 'user' | 'bot' }[] = [];
   newMessage = '';
   typing = false;
-  suggestions = ['Precios', 'Horarios', 'Servicios', 'Productos', 'Agendar cita'];
+  suggestions = ['Precios', 'Cotización', 'Horarios', 'Servicios', 'Productos', 'Agendar cita'];
   private replyCache = new Map<string, string>();
 
   constructor(
@@ -84,7 +85,14 @@ export class ChatbotFloatingComponent implements OnInit {
   }
 
   useSuggestion(s: string) {
-    this.send(s === 'Precios' ? '¿Cuáles son los precios?' : s === 'Horarios' ? 'horarios' : s === 'Servicios' ? 'servicios' : s === 'Productos' ? 'productos' : '¿Cómo agendar una cita?');
+    this.send(
+      s === 'Precios' ? '¿Cuáles son los precios?' :
+      s === 'Cotización' ? 'cotizacion' :
+      s === 'Horarios' ? 'horarios' :
+      s === 'Servicios' ? 'servicios' :
+      s === 'Productos' ? 'productos' :
+      '¿Cómo agendar una cita?'
+    );
   }
 
   private scheduleScroll() {

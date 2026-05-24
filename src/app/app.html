@@ -3,7 +3,8 @@
   <nav class="site-nav">
     <a routerLink="/" routerLinkActive="nav-active" [routerLinkActiveOptions]="{exact:true}">Inicio</a>
     <a routerLink="/servicios" routerLinkActive="nav-active">Servicios</a>
-    <a routerLink="/tienda" routerLinkActive="nav-active">Tienda</a>
+    <a routerLink="/cotizar" routerLinkActive="nav-active">Cotizar</a>
+    <a routerLink="/tienda" routerLinkActive="nav-active">Productos</a>
     <a routerLink="/agendar-cita" routerLinkActive="nav-active">Agendar cita</a>
     @if (auth.currentUser$ | async; as user) {
       <a routerLink="/client/mis-citas" routerLinkActive="nav-active">Mis citas</a>
