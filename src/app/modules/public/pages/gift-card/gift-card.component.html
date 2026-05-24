@@ -1,0 +1,60 @@
+<section class="gc-hero">
+  <div class="gc-hero-bg"></div>
+  <div class="gc-hero-overlay"></div>
+  <div class="gc-hero-content">
+    <p class="gc-hero-eyebrow">REGALA UNA EXPERIENCIA</p>
+    <h1>GIFT CARD</h1>
+    <p class="gc-hero-desc">Sorprende a quien más quieres con el mejor cuidado automotriz. Elige el monto y ellos deciden cuándo canjearlo.</p>
+  </div>
+</section>
+
+<section class="gc-options">
+  <div class="gc-options-inner">
+    @for (opcion of options; track opcion.value) {
+      <article class="gc-card" [style.--gc-accent]="opcion.color">
+        <div class="gc-card-badge">{{ opcion.label }}</div>
+        <div class="gc-card-top">
+          <div class="gc-card-amount">{{ formatPrice(opcion.value) }}</div>
+        </div>
+        <div class="gc-card-body">
+          <p class="gc-card-desc">{{ opcion.desc }}</p>
+          <span class="gc-card-highlight">{{ opcion.highlight }}</span>
+        </div>
+        <div class="gc-card-footer">
+          @if (auth.isLoggedIn()) {
+            <button type="button" class="gc-btn" (click)="comprar(opcion)">
+              Comprar gift card
+            </button>
+          } @else {
+            <a routerLink="/acceso" class="gc-btn gc-btn-outline">
+              Accede para comprar
+            </a>
+          }
+        </div>
+      </article>
+    }
+  </div>
+</section>
+
+<section class="gc-info">
+  <div class="gc-info-inner">
+    <h2><span class="slash">/</span> CÓMO FUNCIONA <span class="slash">/</span></h2>
+    <div class="gc-steps">
+      <div class="gc-step">
+        <span class="gc-step-num">1</span>
+        <h3>Elige el monto</h3>
+        <p>Selecciona entre $80.000, $140.000 o $200.000</p>
+      </div>
+      <div class="gc-step">
+        <span class="gc-step-num">2</span>
+        <h3>Recibe el código</h3>
+        <p>Te enviamos el código digital por correo</p>
+      </div>
+      <div class="gc-step">
+        <span class="gc-step-num">3</span>
+        <h3>Canjea cuando quieras</h3>
+        <p>El destinatario lo usa para cualquier servicio o producto</p>
+      </div>
+    </div>
+  </div>
+</section>

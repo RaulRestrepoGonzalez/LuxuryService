@@ -8,11 +8,13 @@ import { AuthComponent } from './pages/auth/auth.component';
 import { LoginComponent } from './pages/login/login.component';
 import { RegisterComponent } from './pages/register/register.component';
 import { CotizacionComponent } from './pages/cotizacion/cotizacion.component';
+import { GiftCardComponent } from './pages/gift-card/gift-card.component';
 
 const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'servicios', component: ServicesCatalogComponent },
   { path: 'cotizar', component: CotizacionComponent },
+  { path: 'tarjeta-regalo', component: GiftCardComponent },
   { path: 'tienda', component: ShopComponent },
   { path: 'agendar-cita', component: BookAppointmentComponent },
   { path: 'acceso', component: AuthComponent },

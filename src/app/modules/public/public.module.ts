@@ -10,8 +10,9 @@ import { AuthComponent } from './pages/auth/auth.component';
 import { LoginComponent } from './pages/login/login.component';
 import { RegisterComponent } from './pages/register/register.component';
 import { CotizacionComponent } from './pages/cotizacion/cotizacion.component';
+import { GiftCardComponent } from './pages/gift-card/gift-card.component';
 
 @NgModule({
-  imports: [CommonModule, PublicRoutingModule, ReactiveFormsModule, HomeComponent, ServicesCatalogComponent, ShopComponent, BookAppointmentComponent, AuthComponent, LoginComponent, RegisterComponent, CotizacionComponent]
+  imports: [CommonModule, PublicRoutingModule, ReactiveFormsModule, HomeComponent, ServicesCatalogComponent, ShopComponent, BookAppointmentComponent, AuthComponent, LoginComponent, RegisterComponent, CotizacionComponent, GiftCardComponent]
 })
 export class PublicModule { }
