@@ -23,6 +23,13 @@ export class GiftCardComponent {
 
   options: GiftCardOption[] = [
     {
+      value: 50000,
+      label: 'Express',
+      desc: 'Ideal para un lavado express o un detalle rápido',
+      highlight: 'Lavado Express',
+      color: '#2e7d32'
+    },
+    {
       value: 80000,
       label: 'Clásica',
       desc: 'Perfecto para un lavado premium o un detalle básico',

@@ -22,16 +22,16 @@
           </div>
           <h2 class="cot-section-title">Servicios</h2>
           @for (cat of categoriasServicios; track cat) {
-            <details class="cot-group" open>
+            <details class="cot-group" [class.cot-group--local]="categoriaEsLocal(cat)" open>
               <summary class="cot-group-title">{{ cat }}</summary>
               <div class="cot-group-items">
-                @for (item of serviciosPorCategoria(cat); track item.id) {
-                  @if (item.cotizarLocal) {
-                    <div class="cot-item cot-item--local">
-                      <span class="cot-item-name">{{ item.nombre }}</span>
-                      <span class="cot-item-local">Cotizar en local</span>
-                    </div>
-                  } @else {
+                @if (categoriaEsLocal(cat)) {
+                  <div class="cot-local-msg">
+                    <span class="cot-local-icon">🛠️</span>
+                    <p class="cot-local-text">Estos servicios se cotizan directamente en nuestro local.<br>¡Visítanos y te asesoramos!</p>
+                  </div>
+                } @else {
+                  @for (item of serviciosPorCategoria(cat); track item.id) {
                     <label class="cot-item">
                       <input type="checkbox" [(ngModel)]="item.seleccionado" />
                       <span class="cot-item-name">{{ item.nombre }}</span>

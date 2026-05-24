@@ -176,6 +176,15 @@ export class CotizacionComponent implements OnInit {
     });
   }
 
+  categoriaEsLocal(cat: string): boolean {
+    const items = this.items.filter(i => i.tipo === 'servicio');
+    const enCat = items.filter(i => {
+      const s = this.buscaServicio(i.id);
+      return s?.categoria === cat;
+    });
+    return enCat.length > 0 && enCat.every(i => i.cotizarLocal);
+  }
+
   formatPrice(n: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
   }

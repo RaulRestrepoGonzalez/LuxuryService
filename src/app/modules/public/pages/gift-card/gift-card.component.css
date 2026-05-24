@@ -70,8 +70,8 @@
   max-width: 1100px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
 }
 
 .gc-card {
@@ -248,14 +248,20 @@
   line-height: 1.5;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
+  .gc-options-inner {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
   .gc-options-inner {
     grid-template-columns: 1fr;
-    max-width: 400px;
+    max-width: 360px;
   }
   .gc-steps {
     grid-template-columns: 1fr;
-    max-width: 400px;
+    max-width: 360px;
     margin: 0 auto;
   }
 }
