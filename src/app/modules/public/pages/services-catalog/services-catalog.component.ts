@@ -12,6 +12,7 @@ const CATEGORIA_META: Record<string, { icon: string; tagline: string }> = {
   'Servicios Anticorrosivos': { icon: '🛡️', tagline: 'Protección y hidroblasting' },
   'Pintura': { icon: '🎨', tagline: 'Pintura, corrección y protección' },
   'Latonería': { icon: '🔧', tagline: 'Enderezada, golpes y carrocería' },
+  'Mecánica': { icon: '⚙️', tagline: 'Frenos, motor, suspensión y más' },
 };
 
 @Component({
