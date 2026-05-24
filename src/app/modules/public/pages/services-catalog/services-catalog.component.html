@@ -20,7 +20,7 @@
               <strong>{{ cat }}</strong>
               <span>{{ meta(cat).tagline }}</span>
             </div>
-            @for (s of grouped[cat]; track s.id) {
+            @for (s of filteredGrouped[cat]; track s.id) {
               <a class="svc-dd-item" [routerLink]="['/agendar-cita']" [queryParams]="{ servicio: s.id }" (click)="$event.stopPropagation()">
                 <span class="svc-dd-name">{{ s.nombre }}</span>
                 <span class="svc-dd-price">{{ formatPrice(precioActual(s)) }}</span>
@@ -35,6 +35,7 @@
   <div class="svc-tipo-toggle">
     <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'">🚗 Automóvil</button>
     <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'">🚙 Camioneta</button>
+    <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'">🏍️ Moto</button>
   </div>
 
   @if (activeFilter !== 'Todos') {
@@ -56,7 +57,7 @@
         </div>
 
         <div class="svc-list">
-          @for (s of grouped[cat]; track s.id) {
+          @for (s of filteredGrouped[cat]; track s.id) {
             <div class="svc-list-item" [class.expanded]="hoveredCard === s.id" (mouseenter)="hoveredCard = s.id" (mouseleave)="hoveredCard = null">
               <div class="svc-list-front">
                 <span class="svc-list-name">{{ s.nombre }}</span>
@@ -84,6 +85,10 @@
                   <div class="svc-list-price-row">
                     <span class="svc-price-label">Camioneta</span>
                     <span class="svc-price-val svc-price-red">{{ formatPrice(precioCamioneta(s)) }}</span>
+                  </div>
+                  <div class="svc-list-price-row">
+                    <span class="svc-price-label">Moto</span>
+                    <span class="svc-price-val">{{ formatPrice(precioMoto(s)) }}</span>
                   </div>
                 </div>
 

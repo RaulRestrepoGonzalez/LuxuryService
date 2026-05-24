@@ -46,6 +46,7 @@
       <div class="svc-tipo-toggle">
         <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'">🚗 Automóvil</button>
         <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'">🚙 Camioneta</button>
+        <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'">🏍️ Moto</button>
       </div>
       <div class="book-search">
         <input type="text" class="book-search-input" placeholder="Buscar servicio…" [(ngModel)]="searchServicio" />

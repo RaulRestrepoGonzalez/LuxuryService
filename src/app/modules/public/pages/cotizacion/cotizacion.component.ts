@@ -32,7 +32,7 @@ interface CotizacionItem {
   styleUrl: './cotizacion.component.css'
 })
 export class CotizacionComponent implements OnInit {
-  tipoVehiculo: 'auto' | 'camioneta' = 'auto';
+  tipoVehiculo: 'auto' | 'camioneta' | 'moto' = 'auto';
   servicios: Servicio[] = [];
   productos: Producto[] = [];
   items: CotizacionItem[] = [];
@@ -106,17 +106,23 @@ export class CotizacionComponent implements OnInit {
   }
 
   private precioActual(s: Servicio) {
-    return this.tipoVehiculo === 'auto'
-      ? (s.precio_auto ?? s.precio_base)
-      : (s.precio_camioneta ?? s.precio_base);
+    if (this.tipoVehiculo === 'auto') return s.precio_auto ?? s.precio_base;
+    if (this.tipoVehiculo === 'camioneta') return s.precio_camioneta ?? s.precio_base;
+    return s.precio_moto ?? s.precio_base;
   }
 
-  cambiarVehiculo(t: 'auto' | 'camioneta') {
+  cambiarVehiculo(t: 'auto' | 'camioneta' | 'moto') {
     this.tipoVehiculo = t;
     for (const item of this.items) {
       if (item.tipo === 'servicio') {
         const s = this.servicios.find(sv => sv.id === item.id);
-        if (s) item.precio = this.precioActual(s);
+        if (s) {
+          item.precio = this.precioActual(s);
+          // Deselect services not available for moto
+          if (t === 'moto' && (s.precio_moto == null || s.precio_moto <= 0)) {
+            item.seleccionado = false;
+          }
+        }
       }
     }
   }
@@ -136,7 +142,7 @@ export class CotizacionComponent implements OnInit {
       s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '');
     const words = norm(q).split(/\s+/).filter(w => w.length > 0);
     const haystack = norm(text);
-    return words.some(w => w.length >= 2 && haystack.includes(w));
+    return words.some(w => w.length >= 1 && haystack.includes(w));
   }
 
   private buscaServicio(id: string): Servicio | undefined {
@@ -151,8 +157,10 @@ export class CotizacionComponent implements OnInit {
     return this.items.filter(i => {
       if (i.tipo !== 'servicio') return false;
       const s = this.buscaServicio(i.id);
-      if (!this.matchSearch(i.nombre + ' ' + (s?.descripcion || '') + ' ' + (s?.categoria || ''))) return false;
-      return s?.categoria === cat;
+      if (!s) return false;
+      if (this.tipoVehiculo === 'moto' && (s.precio_moto == null || s.precio_moto <= 0)) return false;
+      if (!this.matchSearch(i.nombre + ' ' + (s.descripcion || '') + ' ' + (s.categoria || ''))) return false;
+      return s.categoria === cat;
     });
   }
 

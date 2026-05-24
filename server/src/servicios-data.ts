@@ -8,6 +8,7 @@ export interface ServicioSeed {
   items?: string[];
   precio_auto: number;
   precio_camioneta: number;
+  precio_moto?: number;
   duracion_minutos: number;
   agendable: boolean;
   icono: string;

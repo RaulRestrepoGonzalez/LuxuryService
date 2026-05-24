@@ -33,8 +33,8 @@ interface ProductoItem {
 })
 export class BookAppointmentComponent implements OnInit {
   appointmentForm: FormGroup;
-  servicios = FALLBACK_SERVICIOS.map(s => ({ id: s.id, nombre: s.nombre, precio_auto: s.precio_auto, precio_camioneta: s.precio_camioneta, precio_base: s.precio_base }));
-  tipoVehiculo: 'auto' | 'camioneta' = 'auto';
+  servicios = FALLBACK_SERVICIOS.map(s => ({ id: s.id, nombre: s.nombre, precio_auto: s.precio_auto, precio_camioneta: s.precio_camioneta, precio_moto: s.precio_moto, precio_base: s.precio_base }));
+  tipoVehiculo: 'auto' | 'camioneta' | 'moto' = 'auto';
   horarios: HorarioSlot[] = [];
   loadingSlots = false;
   submitting = false;
@@ -144,13 +144,14 @@ export class BookAppointmentComponent implements OnInit {
       s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '');
     const words = norm(q).split(/\s+/).filter(w => w.length > 0);
     const haystack = norm(text);
-    return words.some(w => w.length >= 2 && haystack.includes(w));
+    return words.some(w => w.length >= 1 && haystack.includes(w));
   }
 
   get filteredServicios(): any[] {
-    return this.servicios.filter((s: any) =>
-      this.matchSearch(s.nombre + ' ' + (s.descripcion || '') + ' ' + (s.categoria || ''), this.searchServicio)
-    );
+    return this.servicios.filter((s: any) => {
+      if (this.tipoVehiculo === 'moto' && (s.precio_moto == null || s.precio_moto <= 0)) return false;
+      return this.matchSearch(s.nombre + ' ' + (s.descripcion || '') + ' ' + (s.categoria || ''), this.searchServicio);
+    });
   }
 
   get filteredProductos(): ProductoItem[] {
@@ -320,7 +321,7 @@ export class BookAppointmentComponent implements OnInit {
     if (!s) return 0;
     return this.tipoVehiculo === 'auto'
       ? (s.precio_auto ?? s.precio_base)
-      : (s.precio_camioneta ?? s.precio_base);
+      : this.tipoVehiculo === 'moto' ? (s.precio_moto ?? s.precio_base) : (s.precio_camioneta ?? s.precio_base);
   }
 
   get precioProducto(): number {

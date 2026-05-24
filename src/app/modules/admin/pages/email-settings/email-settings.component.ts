@@ -67,8 +67,8 @@ import { ApiService } from 'src/app/core/services/api.service';
         <div class="status-row">
           <span class="status-label">Estado</span>
           <span class="status-value">
-            <span class="badge" [class.ok]="status.configurado" [class.warn]="!status.configurado">
-              {{ status.configurado ? '✅ Configurado' : '❌ No configurado' }}
+            <span class="badge" [class.ok]="status.verificado" [class.warn]="!status.verificado">
+              {{ status.verificado ? '✅ Verificado' : status.configurado ? '⚠️ No verificado' : '❌ No configurado' }}
             </span>
           </span>
         </div>
@@ -82,7 +82,11 @@ import { ApiService } from 'src/app/core/services/api.service';
         </div>
         <div class="status-row">
           <span class="status-label">Modo</span>
-          <span class="status-value">{{ status.modoSimulado ? 'Simulado (cola MongoDB)' : 'Producción (SMTP)' }}</span>
+          <span class="status-value">{{ status.modo }}</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Cola pendientes</span>
+          <span class="status-value">{{ status.colaPendientes ? '✅ Activa' : '❌ Inactiva' }}</span>
         </div>
         <div class="status-row">
           <span class="status-label">Emails pendientes</span>

@@ -25,7 +25,17 @@ export class ServicesCatalogComponent implements OnInit {
   hoveredCard: string | null = null;
   hoveredPill: string | null = null;
 
-  tipoVehiculo: 'auto' | 'camioneta' = 'auto';
+  tipoVehiculo: 'auto' | 'camioneta' | 'moto' = 'auto';
+
+  get filteredGrouped(): Record<string, Servicio[]> {
+    if (this.tipoVehiculo !== 'moto') return this.grouped;
+    const out: Record<string, Servicio[]> = {};
+    for (const [cat, list] of Object.entries(this.grouped)) {
+      const filtered = list.filter(s => s.precio_moto != null && s.precio_moto > 0);
+      if (filtered.length) out[cat] = filtered;
+    }
+    return out;
+  }
 
   readonly brandName = 'Luxury Service Manga M&S';
 
@@ -59,8 +69,9 @@ export class ServicesCatalogComponent implements OnInit {
   }
 
   filterCats(): string[] {
-    if (this.activeFilter === 'Todos') return this.categorias;
-    return this.categorias.filter(c => c === this.activeFilter);
+    const cats = this.activeFilter === 'Todos' ? this.categorias : this.categorias.filter(c => c === this.activeFilter);
+    const g = this.filteredGrouped;
+    return cats.filter(c => g[c]?.length);
   }
 
   setActiveCategory(cat: string) {
@@ -78,9 +89,14 @@ export class ServicesCatalogComponent implements OnInit {
 
   precioAuto(s: Servicio) { return s.precio_auto ?? s.precio_base; }
   precioCamioneta(s: Servicio) { return s.precio_camioneta ?? s.precio_base; }
-  precioActual(s: Servicio) { return this.tipoVehiculo === 'auto' ? this.precioAuto(s) : this.precioCamioneta(s); }
+  precioMoto(s: Servicio) { return s.precio_moto ?? s.precio_base; }
+  precioActual(s: Servicio) {
+    if (this.tipoVehiculo === 'auto') return this.precioAuto(s);
+    if (this.tipoVehiculo === 'camioneta') return this.precioCamioneta(s);
+    return this.precioMoto(s);
+  }
 
   totalInCategory(cat: string) {
-    return this.grouped[cat]?.length ?? 0;
+    return this.filteredGrouped[cat]?.length ?? 0;
   }
 }

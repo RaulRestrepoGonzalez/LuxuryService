@@ -6,6 +6,7 @@ export interface Servicio {
   precio_base: number;
   precio_auto: number;
   precio_camioneta: number;
+  precio_moto?: number;
   categoria?: string;
   subcategoria?: string;
   items?: string[];

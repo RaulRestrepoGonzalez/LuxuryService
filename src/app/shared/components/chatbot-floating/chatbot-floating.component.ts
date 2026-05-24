@@ -3,12 +3,18 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ChatbotService } from 'src/app/core/services/chatbot.service';
 
-const QUICK_REPLIES: Record<string, string> = {
-  hola: '¡Hola! Pregúntame precios, servicios, productos u horarios (10:00 a.m. / 2:00 p.m.).',
-  precios: 'Te muestro precios actualizados de servicios y productos.',
-  horarios: 'Citas disponibles: 10:00 a.m. y 2:00 p.m.',
-  servicios: 'Consulta nuestros servicios y precios.',
-  cotizacion: 'Te ayudo a cotizar. Puedes combinar servicios y productos en /cotizar. Ej: "cotizar cambio de aceite y 4 llantas"',
+const QUICK_REPLIES: Record<string, (v: string | null) => string | null> = {
+  hola: v => v
+    ? `¡Hola de nuevo! Tienes seleccionado **${v === 'auto' ? 'Automóvil' : v === 'camioneta' ? 'Camioneta' : 'Moto'}**. Pregúntame por servicios, cotización, horarios (10:00 a.m. y 2:00 p.m.) o cómo agendar.`
+    : '¡Hola! ¿Qué tipo de vehículo tienes? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto',
+  precios: v => v
+    ? null
+    : 'Para consultar precios primero dime: ¿Automóvil, Camioneta o Moto?',
+  horarios: () => 'Citas disponibles: 10:00 a.m. y 2:00 p.m.',
+  servicios: v => v ? null : '¿Qué tipo de vehículo tienes? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto',
+  cotizacion: v => v
+    ? null
+    : 'Te ayudo a cotizar. ¿Qué tipo de vehículo? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto',
 };
 
 @Component({
@@ -23,7 +29,8 @@ export class ChatbotFloatingComponent implements OnInit {
   messages: { text: string; from: 'user' | 'bot' }[] = [];
   newMessage = '';
   typing = false;
-  suggestions = ['Precios', 'Cotización', 'Horarios', 'Servicios', 'Productos', 'Agendar cita'];
+  vehiculo: 'auto' | 'camioneta' | 'moto' | null = null;
+  suggestions = ['Automóvil', 'Camioneta', 'Moto', 'Cotización', 'Horarios', 'Servicios', 'Productos', 'Agendar cita'];
   private replyCache = new Map<string, string>();
 
   constructor(
@@ -35,7 +42,7 @@ export class ChatbotFloatingComponent implements OnInit {
   ngOnInit() {
     this.messages.push({
       from: 'bot',
-      text: '¡Hola! Soy tu asesor Luxury Service. Pregúntame lo que necesites: precios, servicios, productos, horarios o cómo agendar. Respuesta rápida garantizada.'
+      text: '¡Hola! Soy tu asesor Luxury Service. ¿Qué tipo de vehículo tienes? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto'
     });
   }
 
@@ -47,7 +54,14 @@ export class ChatbotFloatingComponent implements OnInit {
     this.newMessage = '';
     this.messages.push({ text: userMsg, from: 'user' });
 
-    const cacheKey = userMsg.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').trim();
+    const lower = userMsg.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+
+    // Detect vehicle type from message
+    if (lower.includes('automovil') || lower === 'auto') { this.vehiculo = 'auto'; }
+    else if (lower.includes('camioneta')) { this.vehiculo = 'camioneta'; }
+    else if (lower.includes('moto') || lower.includes('motocicleta')) { this.vehiculo = 'moto'; }
+
+    const cacheKey = (this.vehiculo || '') + '|' + lower.trim();
     const cached = this.replyCache.get(cacheKey);
     if (cached) {
       this.messages.push({ text: cached, from: 'bot' });
@@ -55,19 +69,25 @@ export class ChatbotFloatingComponent implements OnInit {
       return;
     }
 
-    const quick = QUICK_REPLIES[userMsg.toLowerCase().split(' ')[0]];
-    if (quick && userMsg.length < 12) {
-      this.replyCache.set(cacheKey, quick);
-      this.messages.push({ text: quick, from: 'bot' });
-      this.scheduleScroll();
-      return;
+    // Quick replies with vehicle awareness
+    const quickKey = userMsg.toLowerCase().split(' ')[0];
+    const quickFn = QUICK_REPLIES[quickKey];
+    if (quickFn && userMsg.length < 12) {
+      const quickReply = quickFn(this.vehiculo);
+      if (quickReply) {
+        this.replyCache.set(cacheKey, quickReply);
+        this.messages.push({ text: quickReply, from: 'bot' });
+        this.scheduleScroll();
+        return;
+      }
+      // quickFn returned null → send to API for a rich response
     }
 
     this.typing = true;
     this.cdr.detectChanges();
     this.scheduleScroll();
 
-    this.chatbot.sendMessage(userMsg).subscribe({
+    this.chatbot.sendMessage(userMsg, this.vehiculo ?? undefined).subscribe({
       next: res => {
         this.replyCache.set(cacheKey, res.reply);
         this.typing = false;
@@ -85,14 +105,17 @@ export class ChatbotFloatingComponent implements OnInit {
   }
 
   useSuggestion(s: string) {
-    this.send(
-      s === 'Precios' ? '¿Cuáles son los precios?' :
-      s === 'Cotización' ? 'cotizacion' :
-      s === 'Horarios' ? 'horarios' :
-      s === 'Servicios' ? 'servicios' :
-      s === 'Productos' ? 'productos' :
-      '¿Cómo agendar una cita?'
-    );
+    const map: Record<string, string> = {
+      'Automóvil': 'automovil',
+      'Camioneta': 'camioneta',
+      'Moto': 'moto',
+      'Cotización': 'cotizacion',
+      'Horarios': 'horarios',
+      'Servicios': 'servicios',
+      'Productos': 'productos',
+      'Agendar cita': '¿Cómo agendar una cita?',
+    };
+    this.send(map[s] || s);
   }
 
   private scheduleScroll() {

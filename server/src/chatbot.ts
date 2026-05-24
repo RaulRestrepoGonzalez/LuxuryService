@@ -4,7 +4,7 @@ export const HORARIOS_LABEL = ['10:00 a.m.', '2:00 p.m.'] as const;
 export const HORARIOS = ['10:00', '14:00'] as const;
 
 interface CatalogCache {
-  services: { nombre: string; descripcion: string; precio_base: number; precio_auto?: number; precio_camioneta?: number; duracion_minutos: number; categoria?: string }[];
+  services: { nombre: string; descripcion: string; precio_base: number; precio_auto?: number; precio_camioneta?: number; precio_moto?: number; duracion_minutos: number; categoria?: string }[];
   products: { nombre: string; descripcion: string; precio: number; stock: number; categoria?: string }[];
   loadedAt: number;
 }
@@ -12,12 +12,14 @@ interface CatalogCache {
 let cache: CatalogCache | null = null;
 const CACHE_TTL = 300_000;
 
+type Vehiculo = 'auto' | 'camioneta' | 'moto';
+
 async function getCatalog(): Promise<CatalogCache> {
   if (cache && Date.now() - cache.loadedAt < CACHE_TTL) return cache;
   const db = getDb();
   const [services, products] = await Promise.all([
-    db.collection('servicios').find({ activo: true }).project({ nombre: 1, descripcion: 1, precio_base: 1, precio_auto: 1, precio_camioneta: 1, duracion_minutos: 1, categoria: 1 }).toArray(),
-    db.collection('productos').find().project({ nombre: 1, descripcion: 1, precio: 1, stock: 1, categoria: 1 }).toArray()
+    db.collection('servicios').find({ activo: true }).project({ nombre: 1, descripcion: 1, precio_base: 1, precio_auto: 1, precio_camioneta: 1, precio_moto: 1, duracion_minutos: 1, categoria: 1 }).toArray(),
+    db.collection('productos').find({ nombre: { $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i } }).project({ nombre: 1, descripcion: 1, precio: 1, stock: 1, categoria: 1 }).toArray()
   ]);
   cache = {
     services: services as CatalogCache['services'],
@@ -41,21 +43,42 @@ function cop(n: number) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 }
 
-function precioLine(s: { nombre: string; precio_auto?: number; precio_camioneta?: number; precio_base: number }) {
-  const auto = s.precio_auto ?? s.precio_base;
-  const cam = s.precio_camioneta ?? s.precio_base;
-  return `• ${s.nombre}: Auto ${cop(auto)} | Camioneta ${cop(cam)}`;
-}
-
 function matchAny(text: string, words: string[]) {
   return words.some(w => text.includes(w));
 }
 
-export async function buildChatbotReply(message: string): Promise<string> {
+function labelVehiculo(v: Vehiculo): string {
+  if (v === 'auto') return 'Automóvil';
+  if (v === 'camioneta') return 'Camioneta';
+  return 'Moto';
+}
+
+function precioSegun(s: { precio_base: number; precio_auto?: number; precio_camioneta?: number; precio_moto?: number }, v?: Vehiculo): number {
+  if (v === 'auto') return s.precio_auto ?? s.precio_base;
+  if (v === 'camioneta') return s.precio_camioneta ?? s.precio_base;
+  if (v === 'moto') return s.precio_moto ?? s.precio_base;
+  return s.precio_base;
+}
+
+function serviciosCompatibles(services: CatalogCache['services'], v?: Vehiculo) {
+  if (v !== 'moto') return services;
+  return services.filter(s => s.precio_moto != null && s.precio_moto > 0);
+}
+
+export async function buildChatbotReply(message: string, vehiculo?: Vehiculo): Promise<string> {
   const lower = message.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  const v = vehiculo;
+  const label = v ? labelVehiculo(v) : null;
 
   if (matchAny(lower, ['hola', 'buenas', 'hey', 'saludos', 'buenos'])) {
-    return `¡Hola! Soy el asistente de Luxury Service. Puedo ayudarte con precios de servicios y productos, horarios (10:00 a.m. y 2:00 p.m.), agendar citas y promociones. ¿Qué te gustaría saber?`;
+    const base = '¡Hola! Soy el asistente de Luxury Service.';
+    if (!v) return base + ' ¿Qué tipo de vehículo tienes? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto';
+    return base + ` Veo que tienes ${label}. Pregúntame por servicios, cotización, horarios (10:00 a.m. y 2:00 p.m.) o cómo agendar.`;
+  }
+
+  if (matchAny(lower, ['automovil', 'camioneta', 'moto', 'motocicleta', 'auto'])) {
+    const tipo = lower.includes('camioneta') ? 'camioneta' : lower.includes('moto') ? 'moto' : 'auto';
+    return `¡Perfecto! Has seleccionado **${labelVehiculo(tipo)}**. Puedo ayudarte con:\n• Servicios disponibles\n• Cotización con precios\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar cita\n\n¿Qué deseas consultar?`;
   }
 
   if (matchAny(lower, ['horario', 'hora', 'cuando', 'disponib', '10', '2 pm', '14'])) {
@@ -79,23 +102,26 @@ export async function buildChatbotReply(message: string): Promise<string> {
   }
 
   if (matchAny(lower, ['gracias', 'perfecto', 'ok', 'listo', 'genial'])) {
-    return '¡Con gusto! Estoy aquí si necesitas precios, servicios, productos u horarios. Luxury Service a tu disposición.';
-  }
-
-  if (matchAny(lower, ['camioneta', 'suv', 'pickup'])) {
-    return `Todos nuestros precios tienen tarifa AUTO y CAMIONETA. Ejemplo Lavado General Express: Auto $45.000 · Camioneta $50.000. Ver /servicios`;
+    return `¡Con gusto! Estoy aquí si necesitas algo más. Luxury Service a tu disposición.`;
   }
 
   if (matchAny(lower, ['cotizacion', 'cotizar', 'presupuesto'])) {
-    return `¡Claro! Te ayudo a cotizar. 🚗\n\nEn la página /cotizar puedes:\n• Seleccionar uno o varios servicios\n• Agregar productos (aceite, filtros, etc.)\n• Elegir entre Automóvil o Camioneta\n• Ver el total con IVA incluido al instante\n\nEjemplos de cotización:\n• "cambio de aceite y filtro"\n• "4 llantas y alineación"\n• "lavado general + encerado"\n\nDime qué necesitas y te doy los precios exactos.`;
+    if (!v) return 'Para cotizar necesito saber: ¿tu vehículo es Automóvil, Camioneta o Moto?';
+    const catalog = await getCatalog();
+    const disponibles = serviciosCompatibles(catalog.services, v);
+    const svcLines = disponibles.map(s => `• ${s.nombre}: ${cop(precioSegun(s, v))}`).join('\n');
+    const prodLines = catalog.products.slice(0, 8).map(p => `• ${p.nombre}: ${cop(p.precio)}`).join('\n');
+    return `COTIZACIÓN para ${label} (IVA incluido):\n\nSERVICIOS:\n${svcLines}\n\nPRODUCTOS:\n${prodLines}\n\nCotiza más en /cotizar`;
   }
 
   const catalog = await getCatalog();
 
-  if (matchAny(lower, ['precio', 'cuesta', 'vale', 'costo', 'cuanto', 'tarifa', 'cotiz'])) {
-    const svcLines = catalog.services.slice(0, 12).map(s => precioLine(s)).join('\n');
-    const prodLines = catalog.products.slice(0, 6).map(p => `• ${p.nombre}: ${cop(p.precio)}${p.stock <= 0 ? ' (agotado)' : ''}`).join('\n');
-    return `Precios 2026 (IVA incluido):\n\nSERVICIOS:\n${svcLines}\n\nPRODUCTOS:\n${prodLines}\n\nVer tarifario completo en /servicios`;
+  if (matchAny(lower, ['precio', 'cuesta', 'vale', 'costo', 'cuanto', 'tarifa'])) {
+    if (!v) return 'Para consultar precios primero dime: ¿Automóvil, Camioneta o Moto?';
+    const disponibles = serviciosCompatibles(catalog.services, v);
+    const svcLines = disponibles.slice(0, 12).map(s => `• ${s.nombre}: ${cop(precioSegun(s, v))}`).join('\n');
+    const prodLines = catalog.products.slice(0, 6).map(p => `• ${p.nombre}: ${cop(p.precio)}`).join('\n');
+    return `Precios para ${label} (IVA incluido):\n\nSERVICIOS:\n${svcLines}\n\nPRODUCTOS:\n${prodLines}\n\nVer tarifario completo en /servicios`;
   }
 
   if (matchAny(lower, ['producto', 'tienda', 'comprar', 'stock', 'aceite', 'filtro', 'cera', 'aromat'])) {
@@ -106,47 +132,67 @@ export async function buildChatbotReply(message: string): Promise<string> {
     return `Catálogo de productos:\n\n${lines}`;
   }
 
+  if (matchAny(lower, ['servicio', 'manten', 'estetica', 'catalogo'])) {
+    const disponibles = serviciosCompatibles(catalog.services, v);
+    let out = `SERVICIOS LUXURY SERVICE MANGA M&S${v ? ` (${label})` : ''}:\n`;
+    const visited = new Set<string>();
+    for (const s of disponibles) {
+      if (visited.has(s.categoria || '')) continue;
+      visited.add(s.categoria || '');
+      const items = disponibles.filter(x => (x.categoria || 'Otros') === (s.categoria || 'Otros'));
+      out += `\n${(s.categoria || 'OTROS').toUpperCase()}:\n`;
+      out += items.slice(0, 6).map(x => {
+        const p = v ? cop(precioSegun(x, v)) : '';
+        return `• ${x.nombre}${p ? ': ' + p : ''}`;
+      }).join('\n');
+      if (items.length > 6) out += `\n... y ${items.length - 6} más`;
+    }
+    out += '\n\nVer detalle en /servicios';
+    return out;
+  }
+
   if (matchAny(lower, ['lavado', 'hidroblast', 'chasis', 'vapor', 'wd40', 'combo', 'encerado', 'grafit'])) {
-    const items = catalog.services.filter(s => ['Servicios Básicos', 'Combos'].includes(s.categoria || ''));
-    return `TARIFARIO LAVADO Y COMBOS (IVA incluido):\n${items.map(s => precioLine(s)).join('\n')}`;
+    const disponibles = serviciosCompatibles(catalog.services, v);
+    const items = disponibles.filter(s => ['Servicios Básicos', 'Combos'].includes(s.categoria || ''));
+    const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
+    return `LAVADO Y COMBOS${v ? ` (${label})` : ''}:\n${lines.join('\n')}`;
   }
   if (matchAny(lower, ['alineacion', 'balanceo', 'llanta', 'suspension', 'faro'])) {
-    const items = catalog.services.filter(s => s.categoria === 'Alineación y Balanceo');
-    return `ALINEACIÓN Y BALANCEO:\n${items.map(s => `• ${s.nombre}: ${cop(s.precio_base)}`).join('\n')}`;
+    const disponibles = serviciosCompatibles(catalog.services, v);
+    const items = disponibles.filter(s => s.categoria === 'Alineación y Balanceo');
+    const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
+    return `ALINEACIÓN Y BALANCEO:\n${lines.join('\n')}`;
   }
   if (matchAny(lower, ['freno', 'pastilla', 'banda', 'liquido de freno'])) {
-    const items = catalog.services.filter(s => s.categoria === 'Mantenimiento de Frenos');
-    return `MANTENIMIENTO DE FRENOS:\n${items.map(s => `• ${s.nombre}: ${cop(s.precio_base)}`).join('\n')}`;
+    const disponibles = serviciosCompatibles(catalog.services, v);
+    const items = disponibles.filter(s => s.categoria === 'Mantenimiento de Frenos');
+    const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
+    return `MANTENIMIENTO DE FRENOS:\n${lines.join('\n')}`;
   }
   if (matchAny(lower, ['lubric', 'aceite', 'filtro'])) {
-    const items = catalog.services.filter(s => s.categoria === 'Lubricación');
-    return `LUBRICACIÓN:\n${items.map(s => `• ${s.nombre}: ${cop(s.precio_base)}`).join('\n')}`;
+    const disponibles = serviciosCompatibles(catalog.services, v);
+    const items = disponibles.filter(s => s.categoria === 'Lubricación');
+    const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
+    return `LUBRICACIÓN:\n${lines.join('\n')}`;
   }
   if (matchAny(lower, ['detailing', 'pulido', 'ceramico', 'nano', 'rayon', 'farola', 'tapicer', 'luxury'])) {
-    const items = catalog.services.filter(s => s.categoria === 'Servicios Detailing');
-    return `DETAILING (IVA incluido):\n${items.map(s => precioLine(s)).join('\n')}`;
+    const disponibles = serviciosCompatibles(catalog.services, v);
+    const items = disponibles.filter(s => s.categoria === 'Servicios Detailing');
+    const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
+    return `DETAILING${v ? ` (${label})` : ''}:\n${lines.join('\n')}`;
   }
   if (matchAny(lower, ['anticorrosiv', 'cabina', 'pintura', 'agua caliente'])) {
-    const items = catalog.services.filter(s => s.categoria === 'Servicios Anticorrosivos');
-    return `ANTICORROSIVOS:\n${items.map(s => precioLine(s)).join('\n')}`;
-  }
-  if (matchAny(lower, ['servicio', 'manten', 'estetica', 'catalogo'])) {
-    const byCat: Record<string, typeof catalog.services> = {};
-    for (const s of catalog.services) {
-      const c = s.categoria || 'Otros';
-      (byCat[c] ??= []).push(s);
-    }
-    let out = 'CATÁLOGO LUXURY SERVICE MANGA M&S:\n';
-    for (const [cat, items] of Object.entries(byCat)) {
-      out += `\n${cat.toUpperCase()}:\n${items.slice(0, 4).map(s => `• ${s.nombre}: ${cop(s.precio_base)}`).join('\n')}\n`;
-    }
-    return out + '\nVer detalle en /servicios';
+    const disponibles = serviciosCompatibles(catalog.services, v);
+    const items = disponibles.filter(s => s.categoria === 'Servicios Anticorrosivos');
+    const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
+    return `ANTICORROSIVOS:\n${lines.join('\n')}`;
   }
 
   for (const s of catalog.services) {
     const key = s.nombre.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
     if (lower.includes(key.split(' ')[0]) || lower.includes(key)) {
-      return `${s.nombre}: ${cop(s.precio_base)} · ${s.duracion_minutos} minutos.\n${s.descripcion}\n\n¿Agendamos tu cita? Horarios: 10:00 a.m. o 2:00 p.m.`;
+      const p = v ? cop(precioSegun(s, v)) : '';
+      return `${s.nombre}${p ? ': ' + p : ''} · ${s.duracion_minutos} minutos.\n${s.descripcion}\n\n¿Agendamos tu cita? Horarios: 10:00 a.m. o 2:00 p.m.`;
     }
   }
 
@@ -157,7 +203,9 @@ export async function buildChatbotReply(message: string): Promise<string> {
     }
   }
 
-  return `Puedo ayudarte con:\n• Precios de servicios y productos\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Cómo agendar una cita\n• Promociones y notificaciones\n\nEjemplo: "¿Cuánto cuesta el cambio de aceite?" o "precios de productos"`;
+  const base = 'Puedo ayudarte con:\n• Servicios';
+  if (!v) return base + '\n• Primero dime: ¿Automóvil, Camioneta o Moto?';
+  return base + '\n• Cotización con precios\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Cómo agendar una cita\n\nEjemplo: "¿Qué servicios tienen?"';
 }
 
 export function invalidateChatbotCache() {

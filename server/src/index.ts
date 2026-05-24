@@ -6,7 +6,7 @@ import { connectDb, getDb, ObjectId, toApiId, toApiList } from './db.js';
 import { buildChatbotReply, HORARIOS, invalidateChatbotCache, initChatbotCache } from './chatbot.js';
 import { notificarCitaAgendada, notificarBienvenidaCliente } from './notifications.js';
 import { createCheckout, processWebhook } from './payments.js';
-import { enviarTicketCita, enviarConfirmacionPago, enviarNotificacionGeneral, getEmailStatus, reenviarEmailsPendientes, ensureTransporter } from './email.js';
+import { enviarTicketCita, enviarConfirmacionPago, enviarNotificacionGeneral, getEmailStatus, reenviarEmailsPendientes, ensureTransporter, verificarConfiguracion, iniciarColaPendientes, enviarCorreoPrueba } from './email.js';
 import QRCode from 'qrcode';
 import { createHash } from 'crypto';
 import multer from 'multer';
@@ -250,7 +250,14 @@ app.get('/api/services/catalog', async (_req, res) => {
 });
 
 app.get('/api/products', async (_req, res) => {
-  const docs = await getDb().collection('productos').find({ activo: { $ne: false } }).toArray();
+  const docs = await getDb().collection('productos')
+    .find({
+      activo: { $ne: false },
+      nombre: {
+        $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i
+      }
+    })
+    .toArray();
   res.json(toApiList(docs as Record<string, unknown>[]));
 });
 
@@ -935,7 +942,7 @@ app.post('/api/contact', async (req, res) => {
 });
 
 app.post('/api/chatbot', async (req, res) => {
-  const reply = await buildChatbotReply(String(req.body.message || ''));
+  const reply = await buildChatbotReply(String(req.body.message || ''), req.body.vehiculo);
   res.json({ reply });
 });
 
@@ -966,20 +973,15 @@ app.post('/api/admin/retry-emails', auth, adminRequired, async (_req, res) => {
 });
 
 app.post('/api/admin/test-email', auth, adminRequired, async (_req, res) => {
-  const status = getEmailStatus();
-  if (!status.configurado) {
-    return res.status(400).json({ error: 'SMTP no configurado. Revisa server/.env', status });
-  }
   try {
-    await enviarNotificacionGeneral({
-      to: ADMIN_EMAIL,
-      nombre: 'Admin',
-      asunto: '🔧 Prueba de configuración SMTP - Luxury Service',
-      titulo: 'Prueba exitosa',
-      mensaje: `Este es un email de prueba desde Luxury Service. Si recibes esto, la configuración SMTP funciona correctamente.\n\nHost: ${status.host}\nFrom: ${status.from}\nHora: ${new Date().toISOString()}`
-    });
-    res.json({ success: true, message: 'Email de prueba enviado a ' + ADMIN_EMAIL, status });
+    const sent = await enviarCorreoPrueba(ADMIN_EMAIL);
+    if (sent) {
+      res.json({ success: true, message: `Email de prueba enviado a ${ADMIN_EMAIL}. Revisa tu bandeja de entrada o SPAM.` });
+    } else {
+      res.json({ success: true, message: `Email de prueba encolado como pendiente. Se reintentará automáticamente. Destino: ${ADMIN_EMAIL}` });
+    }
   } catch (err: any) {
+    const status = getEmailStatus();
     res.status(500).json({ error: 'Error enviando email de prueba: ' + err.message, status });
   }
 });
@@ -990,21 +992,14 @@ connectDb().then(async () => {
   await db.collection('citas').createIndex({ fecha: 1, servicio_id: 1 });
   await db.collection('notificaciones').createIndex({ usuario_id: 1, created_at: -1 });
   await db.collection('pending_emails').createIndex({ createdAt: 1 });
+  await db.collection('pending_emails').createIndex({ intentos: 1, proximoIntento: 1 });
   await db.collection('transacciones').createIndex({ tipo: 1, created_at: -1 });
   await db.collection('citas').createIndex({ usuario_id: 1, created_at: -1 });
   await db.collection('citas').createIndex({ usuario_id: 1, fecha: -1 });
   await db.collection('transacciones').createIndex({ referencia: 1 });
   await initChatbotCache();
-  await ensureTransporter();
-
-  const emailStatus = getEmailStatus();
-  if (emailStatus.configurado) {
-    console.log(`[EMAIL] Envío activo: ${emailStatus.host} (${emailStatus.from})`);
-  } else {
-    console.warn('[EMAIL] Sin SMTP configurado — modo envío directo al MX del destinatario.');
-    console.warn('[EMAIL] Configura SMTP_HOST, SMTP_USER y SMTP_PASS en server/.env para usar relay.');
-    console.warn('[EMAIL] Ejemplo Gmail: SMTP_HOST=smtp.gmail.com SMTP_PORT=587 con App Password');
-  }
+  await verificarConfiguracion();
+  iniciarColaPendientes();
 
   app.listen(PORT, () => {
     console.log(`API MongoDB → http://localhost:${PORT}/api`);

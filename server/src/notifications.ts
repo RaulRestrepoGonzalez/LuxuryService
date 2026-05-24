@@ -32,7 +32,9 @@ export async function notificarCitaAgendada(usuarioId: string, email: string, se
       asunto: `Cita agendada - ${servicioNombre} - Luxury Service`,
       titulo: 'Cita agendada',
       mensaje
-    }).catch(e => console.error('Error enviando email de cita:', e))
+    }).then(sent => {
+      if (!sent) console.log(`[NOTIF] Email de cita encolado como pendiente: ${email}`);
+    })
   ]);
 }
 
@@ -46,6 +48,8 @@ export async function notificarBienvenidaCliente(usuarioId: string, email: strin
       asunto: '¡Bienvenido a Luxury Service Manga!',
       titulo: 'Bienvenido a Luxury Service',
       mensaje
-    }).catch(e => console.error('Error enviando email de bienvenida:', e))
+    }).then(sent => {
+      if (!sent) console.log(`[NOTIF] Email de bienvenida encolado como pendiente: ${email}`);
+    })
   ]);
 }

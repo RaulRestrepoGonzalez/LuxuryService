@@ -8,6 +8,7 @@
   <div class="cot-tipo-toggle">
     <button type="button" class="cot-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="cambiarVehiculo('auto')">🚗 Automóvil</button>
     <button type="button" class="cot-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="cambiarVehiculo('camioneta')">🚙 Camioneta</button>
+    <button type="button" class="cot-tipo-btn" [class.active]="tipoVehiculo === 'moto'" (click)="cambiarVehiculo('moto')">🏍️ Moto</button>
   </div>
 
   @if (loading) {
