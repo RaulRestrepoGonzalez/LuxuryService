@@ -197,6 +197,29 @@
   white-space: nowrap;
 }
 
+.cot-item--local {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #f5f5f5;
+  background: #f9f9f9;
+}
+
+.cot-item--local .cot-item-name {
+  color: #888;
+}
+
+.cot-item-local {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: #888;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
 /* resumen */
 
 .cot-resumen {

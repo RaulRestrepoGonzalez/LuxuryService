@@ -22,6 +22,7 @@ interface CotizacionItem {
   precio: number;
   tipo: 'servicio' | 'producto';
   seleccionado: boolean;
+  cotizarLocal?: boolean;
 }
 
 @Component({
@@ -80,13 +81,13 @@ export class CotizacionComponent implements OnInit {
     const items: CotizacionItem[] = [];
     const cats = new Set<string>();
     for (const s of this.servicios) {
-      if (s.cotizar_local) continue;
       items.push({
         id: s.id,
         nombre: s.nombre,
         precio: this.precioActual(s),
         tipo: 'servicio',
-        seleccionado: false
+        seleccionado: false,
+        cotizarLocal: !!s.cotizar_local
       });
       if (s.categoria) cats.add(s.categoria);
     }
