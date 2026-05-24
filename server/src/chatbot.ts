@@ -61,8 +61,9 @@ function precioSegun(s: { precio_base: number; precio_auto?: number; precio_cami
 }
 
 function serviciosCompatibles(services: CatalogCache['services'], v?: Vehiculo) {
-  if (v !== 'moto') return services;
-  return services.filter(s => s.precio_moto != null && s.precio_moto > 0);
+  let filtered = services.filter((s: any) => !s.cotizar_local);
+  if (v === 'moto') filtered = filtered.filter((s: any) => s.precio_moto != null && s.precio_moto > 0);
+  return filtered;
 }
 
 export async function buildChatbotReply(message: string, vehiculo?: Vehiculo): Promise<string> {

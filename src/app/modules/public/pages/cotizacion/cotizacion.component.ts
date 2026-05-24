@@ -158,6 +158,7 @@ export class CotizacionComponent implements OnInit {
       if (i.tipo !== 'servicio') return false;
       const s = this.buscaServicio(i.id);
       if (!s) return false;
+      if (s.cotizar_local) return false;
       if (this.tipoVehiculo === 'moto' && (s.precio_moto == null || s.precio_moto <= 0)) return false;
       if (!this.matchSearch(i.nombre + ' ' + (s.descripcion || '') + ' ' + (s.categoria || ''))) return false;
       return s.categoria === cat;

@@ -15,6 +15,7 @@ interface Servicio {
   precio_camioneta: number;
   precio_base?: number;
   categoria?: string;
+  cotizar_local?: boolean;
 }
 
 const CATEGORIAS_VISIBLES = new Set([
@@ -71,7 +72,7 @@ export class HomeComponent implements OnInit {
         const categorias = res.categorias.filter(c => CATEGORIAS_VISIBLES.has(c));
         const grouped: Record<string, Servicio[]> = {};
         for (const c of categorias) {
-          grouped[c] = res.grouped[c] || [];
+          grouped[c] = (res.grouped[c] || []).filter(s => !s.cotizar_local);
         }
         if (categorias.length > 0) {
           this.tarifarioCategorias = categorias;

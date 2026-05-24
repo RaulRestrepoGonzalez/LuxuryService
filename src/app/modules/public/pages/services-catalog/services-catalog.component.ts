@@ -10,6 +10,8 @@ const CATEGORIA_META: Record<string, { icon: string; tagline: string }> = {
   'Combos': { icon: '📦', tagline: 'Paquetes con mejor precio' },
   'Servicios Detailing': { icon: '✨', tagline: 'Embellecimiento premium' },
   'Servicios Anticorrosivos': { icon: '🛡️', tagline: 'Protección y hidroblasting' },
+  'Pintura': { icon: '🎨', tagline: 'Pintura, corrección y protección' },
+  'Latonería': { icon: '🔧', tagline: 'Enderezada, golpes y carrocería' },
 };
 
 @Component({

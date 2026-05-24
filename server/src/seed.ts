@@ -35,6 +35,7 @@ async function seed() {
       imagen_url: s.imagen_url,
       color: '#ff2b2b',
       orden: s.orden,
+      cotizar_local: s.cotizar_local ?? false,
       created_at: new Date()
     }))
   );

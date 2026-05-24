@@ -21,9 +21,13 @@
               <span>{{ meta(cat).tagline }}</span>
             </div>
             @for (s of filteredGrouped[cat]; track s.id) {
-              <a class="svc-dd-item" [routerLink]="['/agendar-cita']" [queryParams]="{ servicio: s.id }" (click)="$event.stopPropagation()">
+              <a class="svc-dd-item" [routerLink]="s.cotizar_local ? null : ['/agendar-cita']" [queryParams]="s.cotizar_local ? {} : { servicio: s.id }" (click)="$event.stopPropagation()" [class.disabled]="s.cotizar_local">
                 <span class="svc-dd-name">{{ s.nombre }}</span>
-                <span class="svc-dd-price">{{ formatPrice(precioActual(s)) }}</span>
+                @if (s.cotizar_local) {
+                  <span class="svc-dd-cotizar">Cotizar en local</span>
+                } @else {
+                  <span class="svc-dd-price">{{ formatPrice(precioActual(s)) }}</span>
+                }
               </a>
             }
           </div>
@@ -65,7 +69,11 @@
             <div class="svc-list-item" [class.expanded]="hoveredCard === s.id" (mouseenter)="hoveredCard = s.id" (mouseleave)="hoveredCard = null">
               <div class="svc-list-front">
                 <span class="svc-list-name">{{ s.nombre }}</span>
-                <span class="svc-list-price">{{ formatPrice(precioActual(s)) }}</span>
+                @if (s.cotizar_local) {
+                  <span class="svc-list-cotizar">Cotizar en local</span>
+                } @else {
+                  <span class="svc-list-price">{{ formatPrice(precioActual(s)) }}</span>
+                }
               </div>
 
               <div class="svc-list-detail">
@@ -81,29 +89,36 @@
                   </ul>
                 }
 
-                <div class="svc-list-prices">
-                  <div class="svc-list-price-row">
-                    <span class="svc-price-label">Automóvil</span>
-                    <span class="svc-price-val">{{ formatPrice(precioAuto(s)) }}</span>
+                @if (s.cotizar_local) {
+                  <div class="svc-cotizar-nota">
+                    El valor de este servicio varía según el tipo y estado de la pintura del vehículo.
+                    <strong>Cotizar en el local.</strong>
                   </div>
-                  <div class="svc-list-price-row">
-                    <span class="svc-price-label">Camioneta</span>
-                    <span class="svc-price-val svc-price-red">{{ formatPrice(precioCamioneta(s)) }}</span>
+                } @else {
+                  <div class="svc-list-prices">
+                    <div class="svc-list-price-row">
+                      <span class="svc-price-label">Automóvil</span>
+                      <span class="svc-price-val">{{ formatPrice(precioAuto(s)) }}</span>
+                    </div>
+                    <div class="svc-list-price-row">
+                      <span class="svc-price-label">Camioneta</span>
+                      <span class="svc-price-val svc-price-red">{{ formatPrice(precioCamioneta(s)) }}</span>
+                    </div>
+                    <div class="svc-list-price-row">
+                      <span class="svc-price-label">Moto</span>
+                      <span class="svc-price-val">{{ formatPrice(precioMoto(s)) }}</span>
+                    </div>
                   </div>
-                  <div class="svc-list-price-row">
-                    <span class="svc-price-label">Moto</span>
-                    <span class="svc-price-val">{{ formatPrice(precioMoto(s)) }}</span>
-                  </div>
-                </div>
 
-                @if (s.iva_incluido) {
-                  <span class="svc-iva-tag">IVA incluido</span>
-                }
+                  @if (s.iva_incluido) {
+                    <span class="svc-iva-tag">IVA incluido</span>
+                  }
 
-                @if (s.agendable !== false) {
-                  <a class="svc-cta-btn" [routerLink]="['/agendar-cita']" [queryParams]="{ servicio: s.id }">
-                    Agendar →
-                  </a>
+                  @if (s.agendable !== false) {
+                    <a class="svc-cta-btn" [routerLink]="['/agendar-cita']" [queryParams]="{ servicio: s.id }">
+                      Agendar →
+                    </a>
+                  }
                 }
               </div>
             </div>

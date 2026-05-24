@@ -149,6 +149,7 @@ export class BookAppointmentComponent implements OnInit {
 
   get filteredServicios(): any[] {
     return this.servicios.filter((s: any) => {
+      if (s.cotizar_local) return false;
       if (this.tipoVehiculo === 'moto' && (s.precio_moto == null || s.precio_moto <= 0)) return false;
       return this.matchSearch(s.nombre + ' ' + (s.descripcion || '') + ' ' + (s.categoria || ''), this.searchServicio);
     });
