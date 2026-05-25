@@ -7,6 +7,7 @@ import { buildChatbotReply, HORARIOS, invalidateChatbotCache, initChatbotCache }
 import { notificarCitaAgendada, notificarBienvenidaCliente } from './notifications.js';
 import { createCheckout, processWebhook } from './payments.js';
 import { enviarTicketCita, enviarConfirmacionPago, enviarNotificacionGeneral, getEmailStatus, reenviarEmailsPendientes, ensureTransporter, verificarConfiguracion, iniciarColaPendientes, enviarCorreoPrueba } from './email.js';
+import { isFoodProduct } from './food-filter.js';
 import QRCode from 'qrcode';
 import crypto, { createHash } from 'crypto';
 import multer from 'multer';
@@ -325,6 +326,30 @@ app.post('/api/gift-cards/purchase', auth, async (req, res) => {
   });
 });
 
+app.get('/api/gift-cards/validate/:code', async (req, res) => {
+  const codigo = (req.params.code || '').trim().toUpperCase();
+  if (!codigo) return res.json({ valid: false, error: 'Código requerido' });
+  const gc = await getDb().collection('gift_cards').findOne({ codigo });
+  if (!gc) return res.json({ valid: false, error: 'Gift Card no encontrada' });
+  if (gc.estado !== 'activa') return res.json({ valid: false, error: gc.estado === 'canjeada' ? 'Esta Gift Card ya fue canjeada' : 'Gift Card no activa' });
+  res.json({ valid: true, monto: gc.monto, etiqueta: gc.etiqueta || '' });
+});
+
+app.post('/api/gift-cards/redeem', auth, async (req, res) => {
+  const { codigo, citaId } = req.body;
+  if (!codigo) return res.status(400).json({ error: 'Código requerido' });
+  const gc = await getDb().collection('gift_cards').findOne({ codigo: codigo.trim().toUpperCase() });
+  if (!gc) return res.status(404).json({ error: 'Gift Card no encontrada' });
+  if (gc.estado !== 'activa') return res.status(400).json({ error: 'Esta Gift Card no está disponible' });
+
+  await getDb().collection('gift_cards').updateOne(
+    { _id: gc._id },
+    { $set: { estado: 'canjeada', canjeada_at: new Date(), canjeado_por: new ObjectId(req.user!.id) } }
+  );
+
+  res.json({ success: true, monto: gc.monto });
+});
+
 function isValidObjectId(id: string): boolean {
   try { new ObjectId(id); return true; } catch { return false; }
 }
@@ -362,7 +387,7 @@ app.get('/api/appointments/calendar', async (req, res) => {
 });
 
 app.post('/api/appointments', auth, async (req, res) => {
-  const { servicioId, fecha, horario, tipoVehiculo = 'auto', productoId, productoNombre, productoPrecio = 0 } = req.body;
+  const { servicioId, fecha, horario, tipoVehiculo = 'auto', productoId, productoNombre, productoPrecio = 0, giftCardCode } = req.body;
   if (!(HORARIOS as readonly string[]).includes(horario)) return res.status(400).json({ error: 'Horario inválido' });
   const existing = await getDb().collection('citas').findOne({ fecha, horario, servicio_id: new ObjectId(servicioId), estado: { $ne: 'cancelada' } });
   if (existing) return res.status(409).json({ error: 'Horario ocupado' });
@@ -383,6 +408,64 @@ app.post('/api/appointments', auth, async (req, res) => {
   const precioTotal = precioBase + precioProducto + bookingFee;
   const productoNombreFinal = producto?.nombre || productoNombre || '';
   const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+  // Gift card payment flow
+  if (giftCardCode) {
+    const codigo = giftCardCode.trim().toUpperCase();
+    const gc = await getDb().collection('gift_cards').findOne({ codigo });
+    if (!gc) return res.status(400).json({ error: 'Gift Card no encontrada' });
+    if (gc.estado !== 'activa') return res.status(400).json({ error: gc.estado === 'canjeada' ? 'Esta Gift Card ya fue canjeada' : 'Gift Card no disponible' });
+    if (gc.monto < precioTotal) return res.status(400).json({ error: `El saldo de la Gift Card ($${gc.monto.toLocaleString('es-CO')}) no cubre el total ($${precioTotal.toLocaleString('es-CO')})` });
+
+    const citaData: Record<string, any> = {
+      usuario_id: new ObjectId(req.user!.id), servicio_id: new ObjectId(servicioId),
+      fecha, horario, tipoVehiculo, estado: 'confirmada', precio_base: precioBase,
+      booking_fee: bookingFee, precio_total: precioTotal,
+      metodo_pago: 'gift_card', gift_card_codigo: codigo,
+      created_at: new Date()
+    };
+    if (producto) {
+      citaData.producto_id = new ObjectId(producto._id);
+      citaData.producto_nombre = producto.nombre;
+      citaData.producto_precio = producto.precio;
+    }
+    await getDb().collection('citas').insertOne(citaData);
+
+    await getDb().collection('gift_cards').updateOne(
+      { _id: gc._id },
+      { $set: { estado: 'canjeada', canjeada_at: new Date(), canjeado_por: new ObjectId(req.user!.id) } }
+    );
+
+    const descripcionTransaccion = productoNombreFinal
+      ? `Cita ${servicio.nombre} + ${productoNombreFinal} (Gift Card ${codigo})`
+      : `Cita ${servicio.nombre} (Gift Card ${codigo})`;
+    await getDb().collection('transacciones').insertOne({
+      tipo: 'ingreso', monto: precioTotal,
+      descripcion: descripcionTransaccion,
+      fecha: new Date(), created_at: new Date()
+    });
+
+    try {
+      await enviarTicketCita({
+        to: req.user!.email, nombre: req.user!.email.split('@')[0],
+        servicio: productoNombreFinal ? `${servicio.nombre} + ${productoNombreFinal}` : servicio.nombre,
+        fecha, horario, precioTotal,
+        reference: codigo,
+        checkoutUrl: '',
+        qrBase64: '',
+        producto: productoNombreFinal,
+      });
+    } catch (err: any) {
+      console.error('Error enviando ticket gift card:', err.message);
+    }
+
+    return res.json({
+      success: true, message: '¡Cita confirmada con Gift Card!',
+      cita: { estado: 'confirmada', metodo_pago: 'gift_card' }
+    });
+  }
+
+  // Standard payment flow
   const descripcionPago = productoNombreFinal
     ? `${servicio.nombre} + ${productoNombreFinal} - Luxury Service`
     : `${servicio.nombre} - Luxury Service`;
@@ -429,7 +512,6 @@ app.post('/api/appointments', auth, async (req, res) => {
 
   const qrBase64 = await QRCode.toDataURL(checkoutUrl, { width: 300, margin: 2 });
 
-  // Store QR in pagos for later email after payment
   const qrClean = qrBase64.replace(/^data:image\/png;base64,/, '');
   await getDb().collection('pagos').updateOne(
     { referencia: checkout.reference },
@@ -441,7 +523,6 @@ app.post('/api/appointments', auth, async (req, res) => {
     payment: { url: checkoutUrl, reference, amount: precioTotal, qr: qrBase64 }
   });
 
-  // In-app notification only (NO email ticket until payment confirmed)
   notificarCitaAgendada(req.user!.id, req.user!.email, servicio.nombre, fecha, horario, reference).catch(e => console.error('Error notificando:', e.message));
 });
 
@@ -453,7 +534,16 @@ app.post('/api/payments/webhook', async (req, res) => {
     const tipoPago = await getDb().collection('pagos').findOne({ referencia: payload.reference });
 
     if (tipoPago?.tipo === 'gift_card') {
-      const codigo = `GC-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+      const letraMonto: Record<number, string> = { 50000: 'A', 80000: 'B', 140000: 'C', 200000: 'D' };
+      const letra = letraMonto[tipoPago?.monto] || 'X';
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const rand = (n: number) => Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      let codigo = '';
+      let intentos = 0;
+      do {
+        codigo = `${letra}${rand(4)}-${rand(5)}-${rand(5)}-${rand(4)}${letra}`;
+        intentos++;
+      } while (intentos < 10 && await getDb().collection('gift_cards').findOne({ codigo }));
       await getDb().collection('gift_cards').updateOne(
         { payment_reference: payload.reference },
         { $set: { estado: 'activa', codigo, activada_at: new Date(), payment_transaction: payload.transactionId } }
@@ -489,7 +579,7 @@ app.post('/api/payments/webhook', async (req, res) => {
                 <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#666">Código de regalo:</p>
                 <p style="margin:0;font-size:1.5rem;font-weight:900;letter-spacing:0.1em;color:#0a0a0a">${codigo}</p>
               </div>
-              <p style="color:#555;font-size:0.9rem">Comparte este código con la persona que recibirá el regalo. Puede canjearlo en nuestro local presentándolo.</p>
+              <p style="color:#555;font-size:0.9rem">Comparte este código con la persona que recibirá el regalo. Puede canjearlo al agendar una cita en nuestra web ingresando el código.</p>
               ${qrEmail}
               <hr style="border:none;border-top:1px solid #eee;margin:2rem 0">
               <p style="color:#888;font-size:0.75rem">Luxury Service — Cra. 19 #28-43, Local 3</p>
@@ -760,38 +850,45 @@ app.get('/api/admin/dashboard/export', auth, adminRequired, async (_req, res) =>
   const productos = await db.collection('productos').find().sort({ nombre: 1 }).toArray();
   const servicios = await db.collection('servicios').find().sort({ nombre: 1 }).toArray();
 
-  const ArchiverMod = (await import('archiver')) as any;
-  const archive = new ArchiverMod.ZipArchive({ zlib: { level: 6 } });
-  res.setHeader('Content-Type', 'application/zip');
-  res.setHeader('Content-Disposition', 'attachment; filename=luxury_datos.zip');
-  archive.pipe(res);
-
-  const csvEscape = (v: unknown) => {
+  const esc = (v: unknown) => {
     const s = String(v ?? '');
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
 
-  let buf = '\uFEFFfecha,tipo,monto,descripcion\n';
-  for (const r of transacciones) buf += `${csvEscape(r.fecha)},${csvEscape(r.tipo)},${csvEscape(r.monto)},${csvEscape(r.descripcion)}\n`;
-  archive.append(buf, { name: 'transacciones.csv' });
+  const cols = [
+    'Tabla', 'ID', 'Fecha', 'Horario', 'Estado',
+    'ClienteNombre', 'ClienteEmail', 'ServicioNombre', 'ServicioPrecio',
+    'TipoTransaccion', 'Monto', 'Descripcion',
+    'Nombre', 'Email', 'Rol', 'Registro',
+    'Categoria', 'Precio', 'Stock',
+    'PrecioAuto', 'PrecioCamioneta', 'DuracionMinutos'
+  ];
 
-  buf = '\uFEFFfecha,horario,estado,cliente_nombre,cliente_email,servicio_nombre,servicio_precio\n';
-  for (const r of citas) buf += `${csvEscape(r.fecha)},${csvEscape(r.horario)},${csvEscape(r.estado)},${csvEscape(r.cliente_nombre)},${csvEscape(r.cliente_email)},${csvEscape(r.servicio_nombre)},${csvEscape(r.servicio_precio)}\n`;
-  archive.append(buf, { name: 'citas.csv' });
+  let csv = '\uFEFF' + cols.join(',') + '\n';
 
-  buf = '\uFEFFid,nombre,email,rol,created_at\n';
-  for (const r of usuarios) buf += `${csvEscape(r._id)},${csvEscape(r.nombre)},${csvEscape(r.email)},${csvEscape(r.rol)},${csvEscape(r.created_at)}\n`;
-  archive.append(buf, { name: 'usuarios.csv' });
+  for (const r of transacciones) {
+    csv += `transacciones,,,,,,,,"${esc(r.tipo)}",${esc(r.monto)},"${esc(r.descripcion)}",,,,,,,,,,,,\n`;
+  }
 
-  buf = '\uFEFFid,nombre,categoria,precio,stock\n';
-  for (const r of productos) buf += `${csvEscape(r._id)},${csvEscape(r.nombre)},${csvEscape(r.categoria)},${csvEscape(r.precio)},${csvEscape(r.stock)}\n`;
-  archive.append(buf, { name: 'productos.csv' });
+  for (const r of citas) {
+    csv += `citas,,${esc(r.fecha)},${esc(r.horario)},${esc(r.estado)},"${esc(r.cliente_nombre)}","${esc(r.cliente_email)}","${esc(r.servicio_nombre)}",${esc(r.servicio_precio)},,,,,,,,,,,,,\n`;
+  }
 
-  buf = '\uFEFFid,nombre,categoria,precio_auto,precio_camioneta,duracion_minutos\n';
-  for (const r of servicios) buf += `${csvEscape(r._id)},${csvEscape(r.nombre)},${csvEscape(r.categoria)},${csvEscape(r.precio_auto)},${csvEscape(r.precio_camioneta)},${csvEscape(r.duracion_minutos)}\n`;
-  archive.append(buf, { name: 'servicios.csv' });
+  for (const r of usuarios) {
+    csv += `usuarios,${esc(r._id)},,,,,,,,,,"${esc(r.nombre)}","${esc(r.email)}",${esc(r.rol)},"${esc(r.created_at)}",,,,,,\n`;
+  }
 
-  await archive.finalize();
+  for (const r of productos) {
+    csv += `productos,${esc(r._id)},,,,,,,,,,"${esc(r.nombre)}",,,,"${esc(r.categoria)}",${esc(r.precio)},${esc(r.stock)},,,\n`;
+  }
+
+  for (const r of servicios) {
+    csv += `servicios,${esc(r._id)},,,,,,,,,,"${esc(r.nombre)}",,,,"${esc(r.categoria)}",,,${esc(r.precio_auto)},${esc(r.precio_camioneta)},${esc(r.duracion_minutos)}\n`;
+  }
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename=luxury_datos.csv');
+  res.send(csv);
 });
 
 /* ——— Admin: productos CRUD ——— */
@@ -858,6 +955,7 @@ app.delete('/api/admin/services/:id', auth, adminRequired, async (req, res) => {
 app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Debes subir un archivo' });
   const tipo = String(req.body.tipo || 'productos');
+  const excludeFood = req.body.excludeFood === 'true' || req.body.excludeFood === '1';
   const ext = req.file.originalname.toLowerCase().endsWith('.csv') ? 'csv' : 'xlsx';
 
   let rows: Record<string, string>[] = [];
@@ -915,6 +1013,7 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
     const allProductos = await db.collection('productos').find({ activo: { $ne: false } }).toArray();
 
     const excelServNombres = new Set<string>();
+    const excludedFood: string[] = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -928,6 +1027,8 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
 
       const valorVenta = Number(String(row.VALOR_VENTA || row.valor_venta || '0').replace(/[^0-9.]/g, '')) || 0;
       const existencia = Number(String(row.EXISTENCIA || row.existencia || '0').replace(/[^0-9.]/g, '')) || 0;
+      const proveedor = (row.PROVEEDOR || row.proveedor || '').trim();
+      const clase = (row.CLASE || row.clase || '').trim() || 'XTODOS';
 
       try {
         if (tipoItem === 'SERV') {
@@ -947,7 +1048,6 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
             }
             const nuevoMoto = Math.round(valorVenta * 0.9);
             if (match.precio_moto == null || match.precio_moto <= 0 || match.precio_moto !== nuevoMoto) {
-              // Only set moto price if it already exists and has changed, or if it's the first time
               if (match.precio_moto != null && match.precio_moto > 0 && match.precio_moto !== nuevoMoto) {
                 setFields.precio_moto = nuevoMoto;
                 changed = true;
@@ -957,7 +1057,6 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
               setFields.nombre = producto;
               changed = true;
             }
-
             if (changed) {
               await db.collection('servicios').updateOne({ _id: match._id }, { $set: setFields });
               actualizadosServ++;
@@ -968,6 +1067,12 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
             errores.push(`Fila ${nro} (SERV): "${producto}" no encontrado en BD`);
           }
         } else if (tipoItem === 'PROD') {
+          // Skip food items if filter is on
+          if (excludeFood && isFoodProduct(producto, proveedor)) {
+            excludedFood.push(producto);
+            continue;
+          }
+
           const match = fuzzyMatch(producto, allProductos);
           if (match) {
             const setFields: Record<string, any> = {};
@@ -984,7 +1089,6 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
               setFields.nombre = producto;
               changed = true;
             }
-
             if (changed) {
               await db.collection('productos').updateOne({ _id: match._id }, { $set: setFields });
               actualizadosProd++;
@@ -992,7 +1096,19 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
               sinCambiosProd.add(producto);
             }
           } else {
-            errores.push(`Fila ${nro} (PROD): "${producto}" no encontrado en BD`);
+            // Insert as new product
+            await db.collection('productos').insertOne({
+              nombre: producto,
+              descripcion: proveedor,
+              precio: valorVenta,
+              stock: existencia,
+              categoria: ['AUTOMOVIL', 'CAMIONETA', 'MOTO', 'XTODOS'].includes(clase) ? clase : 'XTODOS',
+              icono: 'inventory_2',
+              color: '#4285F4',
+              activo: true,
+              created_at: new Date()
+            });
+            insertadosProd++;
           }
         } else {
           errores.push(`Fila ${nro}: TIPO "${tipoItem}" no válido (use PROD o SERV)`);
@@ -1016,7 +1132,9 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
       success: true,
       servicios_actualizados: actualizadosServ,
       productos_actualizados: actualizadosProd,
+      productos_insertados: insertadosProd,
       servicios_desactivados: desactivados,
+      productos_excluidos: excludedFood.length > 0 ? excludedFood : undefined,
       sin_cambios_servicios: [...sinCambiosServ],
       sin_cambios_productos: [...sinCambiosProd],
       errores: errores.length > 0 ? errores : undefined
@@ -1034,8 +1152,13 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
 
       if (!row.nombre?.trim()) { errores.push(`Fila ${nro}: falta el nombre`); continue; }
 
+      const nombre = row.nombre.trim();
+
+      if (tipo === 'productos' && excludeFood && isFoodProduct(nombre, row.descripcion || row.proveedor || '')) {
+        continue;
+      }
+
       try {
-        const nombre = row.nombre.trim();
         const exists = await db.collection(collection).findOne({ nombre });
 
         if (tipo === 'servicios') {

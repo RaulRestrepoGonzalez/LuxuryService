@@ -14,36 +14,38 @@ import { ApiService } from 'src/app/core/services/api.service';
     .admin-nav a:hover { background: #f5f5f5; color: #0a0a0a; border-color: #bbb; }
     .admin-nav a.active { background: #ff2b2b; color: #fff; border-color: #ff2b2b; }
     .page-header { margin-bottom: 1.5rem; }
-    .page-header h2 { margin: 0; font-size: 1.5rem; color: #fff; font-weight: 800; }
-    .page-header p { margin: 0.2rem 0 0; font-size: 0.85rem; color: rgba(255,255,255,0.4); }
-    .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 1rem; padding: 1.25rem; margin-bottom: 1.25rem; }
-    .card h3 { margin: 0 0 0.75rem; font-size: 1rem; color: #fff; font-weight: 700; }
-    .status-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.88rem; }
+    .page-header h2 { margin: 0; font-size: 1.5rem; color: #111827; font-weight: 800; }
+    .page-header p { margin: 0.2rem 0 0; font-size: 0.85rem; color: #6b7280; }
+    .page-content { background: #f3f4f6; border-radius: 16px; padding: 2rem; }
+    .card { background: #fff; border-radius: 14px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 1.25rem; }
+    .card h3 { margin: 0 0 0.75rem; font-size: 1rem; color: #111827; font-weight: 700; }
+    .card p { margin: 0 0 0.5rem; font-size: 0.85rem; color: #6b7280; line-height: 1.5; }
+    .status-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
     .status-row:last-child { border-bottom: none; }
-    .status-label { color: rgba(255,255,255,0.45); min-width: 130px; }
-    .status-value { color: #fff; font-weight: 600; }
+    .status-label { color: #6b7280; min-width: 130px; }
+    .status-value { color: #111827; font-weight: 600; }
     .badge { display: inline-block; padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
-    .badge.ok { background: rgba(34,197,94,0.15); color: #22c55e; }
-    .badge.warn { background: rgba(255,43,43,0.15); color: #ff6b6b; }
+    .badge.ok { background: #f0fdf4; color: #16a34a; }
+    .badge.warn { background: #fef2f2; color: #dc2626; }
     .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
     .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.6rem 1.2rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: none; transition: opacity .2s, transform .15s; }
     .btn:hover { opacity: 0.9; transform: translateY(-1px); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-    .btn-primary { background: #ff2b2b; color: #fff; }
-    .btn-secondary { background: rgba(255,255,255,0.08); color: #ccc; border: 1px solid rgba(255,255,255,0.12); }
+    .btn-primary { background: #111827; color: #fff; }
+    .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
     .btn-success { background: #22c55e; color: #fff; }
     .msg { padding: 0.65rem 1rem; border-radius: 0.75rem; font-size: 0.85rem; margin-top: 0.75rem; }
-    .msg.success { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
-    .msg.error { background: rgba(255,43,43,0.12); color: #ff6b6b; border: 1px solid rgba(255,43,43,0.2); }
-    .msg.info { background: rgba(59,130,246,0.12); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
-    .empty-state { text-align: center; padding: 1.5rem; color: rgba(255,255,255,0.25); font-size: 0.85rem; }
+    .msg.success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .msg.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .msg.info { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+    .empty-state { text-align: center; padding: 1.5rem; color: #9ca3af; font-size: 0.85rem; }
     table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    th { text-align: left; padding: 0.5rem 0.65rem; color: rgba(255,255,255,0.35); font-weight: 600; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    td { padding: 0.5rem 0.65rem; color: rgba(255,255,255,0.7); border-bottom: 1px solid rgba(255,255,255,0.03); word-break: break-all; }
-    .setup-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 0.75rem; padding: 1rem; margin-top: 0.75rem; }
-    .setup-box code { display: block; background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.78rem; color: #f2c811; margin: 0.5rem 0; white-space: pre-wrap; }
+    th { text-align: left; padding: 0.5rem 0.65rem; color: #9ca3af; font-weight: 600; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.05em; border-bottom: 2px solid #e8e8e8; }
+    td { padding: 0.5rem 0.65rem; color: #374151; border-bottom: 1px solid #f0f0f0; word-break: break-all; }
+    .setup-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1rem; margin-top: 0.75rem; }
+    .setup-box code { display: block; background: #1f2937; padding: 0.75rem; border-radius: 0.5rem; font-size: 0.78rem; color: #f2c811; margin: 0.5rem 0; white-space: pre-wrap; }
     .setup-box ol { padding-left: 1.25rem; margin: 0.5rem 0; }
-    .setup-box li { font-size: 0.83rem; color: rgba(255,255,255,0.65); line-height: 1.7; }
+    .setup-box li { font-size: 0.83rem; color: #4b5563; line-height: 1.7; }
   `],
   template: `
     <nav class="admin-nav">
@@ -59,6 +61,7 @@ import { ApiService } from 'src/app/core/services/api.service';
       <p>Estado del servidor SMTP y gestión de correos pendientes</p>
     </div>
 
+    <div class="page-content">
     <div class="card">
       <h3>Estado SMTP</h3>
       @if (loading) {
@@ -114,11 +117,11 @@ import { ApiService } from 'src/app/core/services/api.service';
     @if (!status.configurado) {
       <div class="card">
         <h3>Cómo configurar SMTP</h3>
-        <p style="color:rgba(255,255,255,0.5);font-size:0.85rem;margin:0 0 0.5rem;">
+        <p style="color:#6b7280;font-size:0.85rem;margin:0 0 0.5rem;">
           Edita el archivo <code>server/.env</code> con las credenciales de un servicio SMTP gratuito:
         </p>
         <div class="setup-box">
-          <strong style="color:#fff;">Opción 1 — Outlook (tu correo actual)</strong>
+          <strong style="color:#111827;">Opción 1 — Outlook (tu correo actual)</strong>
           <code>SMTP_HOST=smtp-mail.outlook.com
 SMTP_PORT=587
 SMTP_USER=luxuryservicemss@outlook.com
@@ -126,16 +129,16 @@ SMTP_PASS=TU_CONTRASEÑA_DE_OUTLOOK
 SMTP_FROM=luxuryservicemss@outlook.com</code>
           <ol>
             <li>Usa tu contraseña normal de Outlook</li>
-            <li>Si tienes verificación en 2 pasos, genera una Contraseña de Aplicación en <a href="https://account.live.com/security" target="_blank" style="color:#60a5fa;">cuenta.live.com</a></li>
+            <li>Si tienes verificación en 2 pasos, genera una Contraseña de Aplicación en <a href="https://account.live.com/security" target="_blank" style="color:#3b82f6;">cuenta.live.com</a></li>
             <li>Guarda el archivo y reinicia el servidor</li>
           </ol>
         </div>
         <div class="setup-box" style="margin-top:0.75rem;">
-          <strong style="color:#fff;">Opción 2 — Gmail (App Password, 500 emails/día gratis)</strong>
+          <strong style="color:#111827;">Opción 2 — Gmail (App Password, 500 emails/día gratis)</strong>
           <ol>
             <li>Crea una cuenta Gmail o usa una existente</li>
-            <li>Activa verificación en 2 pasos: <a href="https://myaccount.google.com/security" target="_blank" style="color:#60a5fa;">myaccount.google.com/security</a></li>
-            <li>Genera App Password: <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:#60a5fa;">myaccount.google.com/apppasswords</a></li>
+            <li>Activa verificación en 2 pasos: <a href="https://myaccount.google.com/security" target="_blank" style="color:#3b82f6;">myaccount.google.com/security</a></li>
+            <li>Genera App Password: <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:#3b82f6;">myaccount.google.com/apppasswords</a></li>
             <li>Copia el password de 16 caracteres en SMTP_PASS</li>
           </ol>
           <code>SMTP_HOST=smtp.gmail.com
@@ -168,6 +171,7 @@ SMTP_FROM_NAME=Luxury Service Manga</code>
         </div>
       </div>
     }
+    </div>
   `
 })
 export class EmailSettingsComponent implements OnInit {

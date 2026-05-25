@@ -34,8 +34,8 @@ const STATUS_LABELS: Record<string, string> = {
     .admin-nav a.active { background: #ff2b2b; color: #fff; border-color: #ff2b2b; }
 
     .dash-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
-    .dash-header h2 { margin: 0; font-size: 1.5rem; color: #fff; font-weight: 800; }
-    .dash-sub { margin: 0.2rem 0 0; font-size: 0.85rem; color: rgba(255,255,255,0.4); }
+    .dash-header h2 { margin: 0; font-size: 1.5rem; color: #111827; font-weight: 800; }
+    .dash-sub { margin: 0.2rem 0 0; font-size: 0.85rem; color: #6b7280; }
 
     .dash-content { background: #f3f4f6; border-radius: 16px; padding: 2rem; }
 
@@ -274,14 +274,14 @@ const STATUS_LABELS: Record<string, string> = {
           <div class="export-card">
             <div class="export-icon">📄</div>
             <div class="export-body">
-              <h4>CSV (ZIP)</h4>
-              <p>5 archivos CSV separados por tabla, listos para Excel, Google Sheets o cualquier herramienta de análisis.</p>
+              <h4>CSV unificado</h4>
+              <p>Un solo archivo CSV con todas las tablas (transacciones, citas, usuarios, productos, servicios). Listo para Excel, Google Sheets o Power BI Online.</p>
               <div class="export-files">
-                <span>transacciones.csv</span><span>citas.csv</span><span>usuarios.csv</span><span>productos.csv</span><span>servicios.csv</span>
+                <span>Tabla (discriminador)</span><span>Transacciones</span><span>Citas</span><span>Usuarios</span><span>Productos</span><span>Servicios</span>
               </div>
             </div>
             <button class="export-btn csv-btn" (click)="exportCsv()" [disabled]="exporting">
-              @if (exporting === 'csv') { Generando… } @else { Descargar ZIP }
+              @if (exporting === 'csv') { Generando… } @else { Descargar CSV }
             </button>
           </div>
           <div class="export-card">

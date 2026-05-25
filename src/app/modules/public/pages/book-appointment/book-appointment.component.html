@@ -42,6 +42,33 @@
 
   <form [formGroup]="appointmentForm" (ngSubmit)="submit()" class="book-layout">
     <section class="book-panel">
+      <h3><span class="book-step">–</span> ¿Tienes una Gift Card?</h3>
+      <div class="gc-si-no">
+        <button type="button" class="gc-si-no-btn" [class.active]="showGiftCardInput" (click)="showGiftCardInput = true">Sí</button>
+        <button type="button" class="gc-si-no-btn" [class.active]="!showGiftCardInput && !usandoGiftCard" (click)="clearGiftCard()">No</button>
+      </div>
+      @if (showGiftCardInput) {
+        <div class="gc-code-row">
+          <input type="text" class="book-search-input" placeholder="Ej: ABCDE-FGHJ2-NPQRS-TUVW3" [(ngModel)]="giftCardCode" [ngModelOptions]="{standalone: true}" style="flex:1;min-width:0;text-transform:uppercase;font-family:monospace;letter-spacing:0.05em" />
+          <button type="button" class="gc-validate-btn" (click)="validateGiftCard()" [disabled]="!giftCardCode.trim() || validatingGiftCard">
+            {{ validatingGiftCard ? 'Validando…' : 'Validar' }}
+          </button>
+        </div>
+        @if (giftCardValid) {
+          @if (giftCardValid.valid) {
+            <div class="gc-valid-badge">
+              ✅ Gift Card {{ giftCardValid.etiqueta }} — <strong>{{ formatPrice(giftCardValid.monto!) }}</strong>
+              <button type="button" class="gc-clear-btn" (click)="clearGiftCard()" title="Quitar gift card">×</button>
+            </div>
+            <p class="gc-filter-hint">Mostrando solo servicios hasta {{ formatPrice(giftCardValid.monto!) }}</p>
+          } @else if (!errorMsg) {
+            <div class="gc-invalid-badge">❌ {{ giftCardValid.error || 'Gift Card inválida' }}</div>
+          }
+        }
+      }
+    </section>
+
+    <section class="book-panel">
       <h3><span class="book-step">1</span> Elige el servicio</h3>
       <div class="svc-tipo-toggle">
         <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'">🚗 Automóvil</button>
@@ -152,7 +179,7 @@
     @if (successMsg && !payment) { <div class="book-success">{{ successMsg }}</div> }
     @if (errorMsg) { <div class="book-error">{{ errorMsg }}</div> }
 
-    @if (appointmentForm.get('horario')?.value && !payment) {
+    @if (appointmentForm.get('horario')?.value && !payment && !successMsg) {
       <div class="book-fee-notice">
         <div class="book-price-breakdown">
           <span>Servicio ({{ tipoVehiculo === 'auto' ? 'Automóvil' : 'Camioneta' }})</span>
@@ -164,18 +191,31 @@
             <span>{{ formatPrice(selectedProduct.precio) }}</span>
           </div>
         }
-        <div class="book-price-breakdown">
-          <span>Recargo por reserva en línea</span>
-          <span>+ $10,000</span>
-        </div>
-        <div class="book-price-breakdown book-price-total">
-          <span>Total</span>
-          <span>{{ formatPrice(totalConRecargo) }}</span>
-        </div>
+        @if (usandoGiftCard) {
+          <div class="book-price-breakdown" style="color:#137333">
+            <span>💳 Pagado con Gift Card</span>
+            <span>– {{ formatPrice(totalConRecargo) }}</span>
+          </div>
+          <div class="book-price-breakdown book-price-total">
+            <span>Saldo restante</span>
+            <span>{{ formatPrice(giftCardValid!.monto! - totalConRecargo) }}</span>
+          </div>
+        } @else {
+          <div class="book-price-breakdown">
+            <span>Recargo por reserva en línea</span>
+            <span>+ $10,000</span>
+          </div>
+          <div class="book-price-breakdown book-price-total">
+            <span>Total</span>
+            <span>{{ formatPrice(totalConRecargo) }}</span>
+          </div>
+        }
       </div>
-      <p class="book-terms">⏱ Tienes <strong>10 minutos</strong> para completar el pago. Por el alto flujo de clientes, un espacio apartado sin pago es un ingreso que dejamos de percibir. Si no pagas a tiempo, la reserva expira automáticamente.</p>
+      @if (!usandoGiftCard) {
+        <p class="book-terms">⏱ Tienes <strong>10 minutos</strong> para completar el pago. Por el alto flujo de clientes, un espacio apartado sin pago es un ingreso que dejamos de percibir. Si no pagas a tiempo, la reserva expira automáticamente.</p>
+      }
       <button type="button" class="btn-hero-primary book-submit" [disabled]="submitting || !auth.isLoggedIn()" (click)="submit()">
-        {{ submitting ? 'Agendando...' : 'Confirmar cita y pagar' }}
+        {{ submitting ? 'Agendando...' : usandoGiftCard ? 'Confirmar cita con Gift Card' : 'Confirmar cita y pagar' }}
       </button>
     }
   </form>

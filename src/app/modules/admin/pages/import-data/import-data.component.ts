@@ -1,12 +1,13 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ApiService } from 'src/app/core/services/api.service';
 
 @Component({
   selector: 'app-import-data',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   styles: [`
     :host { display: block; padding: 1.5rem 0; }
     .admin-nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
@@ -14,8 +15,8 @@ import { ApiService } from 'src/app/core/services/api.service';
     .admin-nav a:hover { background: #f5f5f5; color: #0a0a0a; border-color: #bbb; }
     .admin-nav a.active { background: #ff2b2b; color: #fff; border-color: #ff2b2b; }
     .page-header { margin-bottom: 1.5rem; }
-    .page-header h2 { margin: 0; font-size: 1.5rem; color: #fff; font-weight: 800; }
-    .page-header p { margin: 0.2rem 0 0; font-size: 0.85rem; color: rgba(255,255,255,0.4); }
+    .page-header h2 { margin: 0; font-size: 1.5rem; color: #111827; font-weight: 800; }
+    .page-header p { margin: 0.2rem 0 0; font-size: 0.85rem; color: #6b7280; }
     .page-content { background: #f3f4f6; border-radius: 16px; padding: 2rem; }
 
     .card { background: #fff; border-radius: 14px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 1.5rem; }
@@ -54,6 +55,8 @@ import { ApiService } from 'src/app/core/services/api.service';
     .format-card h4 { margin: 0 0 0.25rem; font-size: 0.85rem; color: #111827; font-weight: 700; }
     .format-card code { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 0.5rem; white-space: pre-wrap; }
     .format-card small { font-size: 0.72rem; color: #9ca3af; display: block; }
+    .checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; font-size: 0.85rem; color: #374151; cursor: pointer; }
+    .checkbox-row input { width: 1rem; height: 1rem; accent-color: #111827; cursor: pointer; }
   `],
   template: `
     <nav class="admin-nav">
@@ -106,6 +109,11 @@ import { ApiService } from 'src/app/core/services/api.service';
         <h3>Subir archivo</h3>
         <p>Selecciona un archivo CSV (.csv) o Excel (.xlsx). Si un producto/servicio ya existe por nombre, se actualizará; si no, se creará.</p>
 
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="excludeFood" />
+          Excluir productos de cafetería (comidas, bebidas, cervezas, galletas, etc.)
+        </label>
+
         <div class="drop-zone" [class.dragover]="dragover" (dragover)="dragover = true" (dragleave)="dragover = false" (drop)="onDrop($event)" (click)="fileInput.click()">
           <div class="drop-zone-icon">📁</div>
           <p>Arrastra el archivo aquí o haz clic para seleccionar</p>
@@ -142,6 +150,7 @@ export class ImportDataComponent {
   file: File | null = null;
   dragover = false;
   subiendo = false;
+  excludeFood = true;
   resultado: { insertados: number; actualizados: number; errores?: string[] } | null = null;
 
   constructor(private api: ApiService) {}
@@ -171,6 +180,7 @@ export class ImportDataComponent {
     const fd = new FormData();
     fd.append('archivo', this.file);
     fd.append('tipo', this.tipo);
+    fd.append('excludeFood', this.excludeFood ? 'true' : 'false');
 
     this.api.post('/admin/import', fd).subscribe({
       next: (res: any) => {

@@ -465,3 +465,117 @@
   background: #fff8e1;
   border-radius: 4px;
 }
+
+.gc-si-no {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.gc-si-no-btn {
+  flex: 1;
+  padding: 0.65rem;
+  border: 2px solid #e0e0e0;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin: 0;
+}
+
+.gc-si-no-btn.active {
+  border-color: #ff2b2b;
+  background: rgba(255, 43, 43, 0.06);
+  color: #ff2b2b;
+}
+
+.gc-code-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.gc-code-row input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+}
+
+.gc-validate-btn {
+  padding: 0.55rem 1.25rem;
+  background: #0a0a0a;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+  margin: 0;
+}
+
+.gc-validate-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gc-valid-badge {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(52, 168, 83, 0.1);
+  border: 1px solid #34a853;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #137333;
+  font-weight: 600;
+}
+
+.gc-invalid-badge {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 43, 43, 0.1);
+  border: 1px solid #ff2b2b;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #c5221f;
+  font-weight: 600;
+}
+
+.gc-valid-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gc-clear-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #888;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s;
+}
+
+.gc-clear-btn:hover {
+  border-color: #c5221f;
+  color: #c5221f;
+}
+
+.gc-filter-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: #888;
+}

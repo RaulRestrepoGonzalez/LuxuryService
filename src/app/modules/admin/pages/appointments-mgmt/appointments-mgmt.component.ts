@@ -13,21 +13,23 @@ import { ApiService } from 'src/app/core/services/api.service';
     .admin-nav a { padding: 0.5rem 1.1rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; text-decoration: none; color: #555; background: #fff; transition: background .2s, color .2s; border: 1px solid #ddd; }
     .admin-nav a:hover { background: #f5f5f5; color: #0a0a0a; border-color: #bbb; }
     .admin-nav a.active { background: #ff2b2b; color: #fff; border-color: #ff2b2b; }
-    h2 { margin: 0 0 1.5rem; font-size: 1.5rem; color: #fff; font-weight: 800; }
+    h2 { margin: 0 0 1.5rem; font-size: 1.5rem; color: #111827; font-weight: 800; }
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    th { text-align: left; padding: 0.6rem 0.75rem; color: rgba(255,255,255,0.4); font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
-    td { padding: 0.6rem 0.75rem; color: rgba(255,255,255,0.85); border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
-    tr:hover td { background: rgba(255,255,255,0.02); }
-    select { padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.3); color: #fff; font-size: 0.78rem; outline: none; cursor: pointer; }
+    th { text-align: left; padding: 0.6rem 0.75rem; color: #6b7280; font-weight: 600; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    td { padding: 0.6rem 0.75rem; color: #374151; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    tr:hover td { background: #f9fafb; }
+    select { padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #d1d5db; background: #fff; color: #111827; font-size: 0.78rem; outline: none; cursor: pointer; }
     select:focus { border-color: #ff2b2b; }
-    select option { background: #1a1a1a; color: #fff; }
+    select option { background: #fff; color: #111827; }
     .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
-    .estado-pendiente { background: rgba(250,204,21,0.15); color: #facc15; }
-    .estado-confirmada { background: rgba(34,197,94,0.15); color: #22c55e; }
-    .estado-completada { background: rgba(59,130,246,0.15); color: #60a5fa; }
-    .estado-cancelada { background: rgba(239,68,68,0.15); color: #ef4444; }
-    .empty { color: rgba(255,255,255,0.3); text-align: center; padding: 3rem 0; font-size: 0.9rem; }
-    .cliente-info { font-size: 0.78rem; color: rgba(255,255,255,0.5); margin-top: 0.15rem; }
+    .estado-pendiente { background: rgba(250,204,21,0.15); color: #a16207; }
+    .estado-confirmada { background: rgba(34,197,94,0.15); color: #16a34a; }
+    .estado-completada { background: rgba(59,130,246,0.15); color: #2563eb; }
+    .estado-cancelada { background: rgba(239,68,68,0.15); color: #dc2626; }
+    .empty { color: #9ca3af; text-align: center; padding: 3rem 0; font-size: 0.9rem; }
+    .cliente-info { font-size: 0.78rem; color: #6b7280; margin-top: 0.15rem; }
+    .page-content { background: #f3f4f6; border-radius: 16px; padding: 2rem; }
+    .card { background: #fff; border-radius: 14px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
   `],
   template: `
     <nav class="admin-nav">
@@ -40,6 +42,8 @@ import { ApiService } from 'src/app/core/services/api.service';
 
     <h2>Gestión de Citas</h2>
 
+    <div class="page-content">
+    <div class="card">
     <table>
       <thead>
         <tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Estado</th><th>Cambiar</th></tr>
@@ -70,6 +74,8 @@ import { ApiService } from 'src/app/core/services/api.service';
     @if (citas.length === 0) {
       <div class="empty">No hay citas registradas</div>
     }
+    </div>
+    </div>
   `
 })
 export class AppointmentsMgmtComponent implements OnInit {

@@ -48,6 +48,11 @@ export class BookAppointmentComponent implements OnInit {
 
   payment: { url: string; reference: string; amount: number; qr: string } | null = null;
 
+  giftCardCode = '';
+  giftCardValid: { valid: boolean; monto?: number; etiqueta?: string; error?: string } | null = null;
+  validatingGiftCard = false;
+  showGiftCardInput = false;
+
   productos: ProductoItem[] = [];
   showProductSelection = false;
   selectedProduct: ProductoItem | null = null;
@@ -133,6 +138,8 @@ export class BookAppointmentComponent implements OnInit {
       this.errorMsg = '';
       this.showProductSelection = false;
       this.selectedProduct = null;
+      this.giftCardCode = '';
+      this.giftCardValid = null;
     }
     this.loadMonthBookings();
   }
@@ -151,6 +158,14 @@ export class BookAppointmentComponent implements OnInit {
     return this.servicios.filter((s: any) => {
       if (s.cotizar_local) return false;
       if (this.tipoVehiculo === 'moto' && (s.precio_moto == null || s.precio_moto <= 0)) return false;
+      if (this.usandoGiftCard) {
+        const precio = this.tipoVehiculo === 'auto'
+          ? (s.precio_auto ?? s.precio_base ?? 0)
+          : this.tipoVehiculo === 'moto'
+            ? (s.precio_moto ?? s.precio_base ?? 0)
+            : (s.precio_camioneta ?? s.precio_base ?? 0);
+        if (precio + 10000 > this.giftCardValid!.monto!) return false;
+      }
       return this.matchSearch(s.nombre + ' ' + (s.descripcion || '') + ' ' + (s.categoria || ''), this.searchServicio);
     });
   }
@@ -361,6 +376,12 @@ export class BookAppointmentComponent implements OnInit {
       const realId = this.resolveRealId(servicioId);
       if (realId) servicioId = realId;
     }
+    if (this.usandoGiftCard && this.totalConRecargo > this.giftCardValid!.monto!) {
+      this.errorMsg = `El total (${this.formatPrice(this.totalConRecargo)}) excede el saldo de la Gift Card (${this.formatPrice(this.giftCardValid!.monto!)}). Elige un servicio más económico o sin productos adicionales.`;
+      this.submitting = false;
+      return;
+    }
+
     const payload: Record<string, any> = {
       servicioId,
       fecha: this.appointmentForm.get('fecha')?.value,
@@ -371,6 +392,9 @@ export class BookAppointmentComponent implements OnInit {
       recargoReserva: 10000,
       total: this.totalConRecargo
     };
+    if (this.usandoGiftCard) {
+      payload['giftCardCode'] = this.giftCardCode.trim();
+    }
     if (this.selectedProduct) {
       payload['productoId'] = this.selectedProduct.id;
       payload['productoNombre'] = this.selectedProduct.nombre;
@@ -378,12 +402,22 @@ export class BookAppointmentComponent implements OnInit {
     this.api.post<any>('/appointments', payload).subscribe({
       next: res => {
         this.submitting = false;
-        this.successMsg = res.message || '¡Cita agendada!';
-        this.payment = res.payment || null;
-        this.slotCache.clear();
-        this.bookedCache.clear();
-        if (this.payment?.url) {
-          window.location.href = this.payment.url;
+        if (res.cita) {
+          this.successMsg = res.message || '¡Cita confirmada con Gift Card!';
+          this.appointmentForm.reset();
+          this.selectedProduct = null;
+          this.showProductSelection = false;
+          this.giftCardCode = '';
+          this.giftCardValid = null;
+          this.horarios = [];
+        } else {
+          this.successMsg = res.message || '¡Cita agendada!';
+          this.payment = res.payment || null;
+          this.slotCache.clear();
+          this.bookedCache.clear();
+          if (this.payment?.url) {
+            window.location.href = this.payment.url;
+          }
         }
       },
       error: err => {
@@ -391,6 +425,47 @@ export class BookAppointmentComponent implements OnInit {
         this.errorMsg = err?.error?.error || 'No se pudo agendar';
       }
     });
+  }
+
+  clearGiftCard() {
+    this.giftCardCode = '';
+    this.giftCardValid = null;
+    this.errorMsg = '';
+    this.showGiftCardInput = false;
+    this.appointmentForm.patchValue({ servicioId: '' });
+    this.horarios = [];
+    this.selectedProduct = null;
+    this.showProductSelection = false;
+  }
+
+  validateGiftCard() {
+    const code = this.giftCardCode.trim();
+    if (!code) return;
+    this.validatingGiftCard = true;
+    this.giftCardValid = null;
+    this.errorMsg = '';
+    this.api.get<{ valid: boolean; monto?: number; etiqueta?: string; error?: string }>(`/gift-cards/validate/${encodeURIComponent(code)}`).subscribe({
+      next: res => {
+        this.validatingGiftCard = false;
+        if (res.valid) {
+          this.giftCardValid = { valid: true, monto: res.monto, etiqueta: res.etiqueta };
+          this.appointmentForm.patchValue({ servicioId: '' });
+          this.horarios = [];
+          this.selectedProduct = null;
+          this.showProductSelection = false;
+        } else {
+          this.giftCardValid = { valid: false, error: res.error || 'Gift Card inválida' };
+        }
+      },
+      error: () => {
+        this.validatingGiftCard = false;
+        this.giftCardValid = { valid: false, error: 'Error al validar Gift Card' };
+      }
+    });
+  }
+
+  get usandoGiftCard(): boolean {
+    return this.giftCardValid?.valid === true;
   }
 
   payAgain() {
