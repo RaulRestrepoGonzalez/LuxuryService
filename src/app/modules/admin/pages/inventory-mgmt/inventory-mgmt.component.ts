@@ -12,47 +12,49 @@ import { ApiService } from 'src/app/core/services/api.service';
   styles: [`
     :host { display: block; padding: 1.5rem 0; }
     .admin-nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
-    .admin-nav a { padding: 0.5rem 1.1rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; text-decoration: none; color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.05); transition: background .2s, color .2s; border: 1px solid transparent; }
-    .admin-nav a:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .admin-nav a { padding: 0.5rem 1.1rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; text-decoration: none; color: #555; background: #fff; transition: background .2s, color .2s; border: 1px solid #ddd; }
+    .admin-nav a:hover { background: #f5f5f5; color: #0a0a0a; border-color: #bbb; }
     .admin-nav a.active { background: #ff2b2b; color: #fff; border-color: #ff2b2b; }
-    h2 { margin: 0 0 1.25rem; font-size: 1.3rem; color: #fff; font-weight: 800; }
+    h2 { margin: 0 0 1.25rem; font-size: 1.3rem; color: #0a0a0a; font-weight: 800; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
     @media (max-width: 1000px) { .grid-2 { grid-template-columns: 1fr; } }
-    .col { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 1rem; min-width: 0; }
+    .col { background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 1rem; min-width: 0; }
     .bar { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
     .bar button { padding: 0.4rem 1rem; border-radius: 999px; border: none; font-size: 0.75rem; font-weight: 700; cursor: pointer; background: #ff2b2b; color: #fff; transition: opacity .2s; white-space: nowrap; }
     .bar button:hover { opacity: .85; }
-    .bar button.sec { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
-    .bar button.sec:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .bar button.sec { background: #f0f0f0; color: #555; }
+    .bar button.sec:hover { background: #e0e0e0; color: #0a0a0a; }
     .scroll-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-    th { text-align: left; padding: 0.45rem 0.5rem; color: rgba(255,255,255,0.4); font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
-    td { padding: 0.4rem 0.5rem; color: rgba(255,255,255,0.85); border-bottom: 1px solid rgba(255,255,255,0.04); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
-    tr:hover td { background: rgba(255,255,255,0.02); }
-    .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: 0.65rem; font-weight: 600; white-space: nowrap; }
-    .badge-on { background: rgba(34,197,94,0.15); color: #22c55e; }
-    .badge-off { background: rgba(239,68,68,0.15); color: #ef4444; }
-    .badge-cat { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.5); }
-    .actions { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-    .actions button { padding: 0.2rem 0.45rem; border-radius: 5px; border: none; font-size: 0.62rem; font-weight: 600; cursor: pointer; transition: opacity .2s; white-space: nowrap; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { text-align: left; padding: 0.55rem 0.6rem; color: #888; font-weight: 700; border-bottom: 2px solid #e8e8e8; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+    td { padding: 0.5rem 0.6rem; color: #0a0a0a; border-bottom: 1px solid #f0f0f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+    tr:hover td { background: #fafafa; }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.68rem; font-weight: 600; white-space: nowrap; }
+    .badge-on { background: #dcfce7; color: #16a34a; }
+    .badge-off { background: #fef2f2; color: #dc2626; }
+    .badge-cat { background: #f5f5f5; color: #666; }
+    .actions { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+    .actions button { padding: 0.25rem 0.5rem; border-radius: 5px; border: 1px solid transparent; font-size: 0.65rem; font-weight: 700; cursor: pointer; transition: all .15s; white-space: nowrap; }
     .actions button:hover { opacity: .8; }
-    .btn-edit { background: rgba(59,130,246,0.15); color: #60a5fa; }
-    .btn-del { background: rgba(239,68,68,0.15); color: #ef4444; }
-    .btn-toggle-on { background: rgba(34,197,94,0.15); color: #22c55e; }
-    .btn-toggle-off { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5); }
-    .form-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem; font-size: 0.82rem; }
-    .form-card h3 { margin: 0 0 0.75rem; font-size: 0.9rem; color: #fff; }
+    .btn-edit { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+    .btn-edit:hover { background: #dbeafe; }
+    .btn-del { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+    .btn-del:hover { background: #fee2e2; }
+    .btn-toggle-on { background: #dcfce7; color: #16a34a; border-color: #bbf7d0; }
+    .btn-toggle-off { background: #f5f5f5; color: #888; border-color: #e5e5e5; }
+    .form-card { background: #fafafa; border: 1px solid #e8e8e8; border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem; font-size: 0.82rem; }
+    .form-card h3 { margin: 0 0 0.75rem; font-size: 0.9rem; color: #0a0a0a; }
     .form-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-    .form-row input, .form-row select { flex: 1; min-width: 100px; padding: 0.4rem 0.6rem; border-radius: 7px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: #fff; font-size: 0.75rem; outline: none; }
-    .form-row input:focus, .form-row select:focus { border-color: #ff2b2b; }
-    .form-row input::placeholder { color: rgba(255,255,255,0.25); }
+    .form-row input, .form-row select { flex: 1; min-width: 100px; padding: 0.45rem 0.65rem; border-radius: 6px; border: 1px solid #d0d0d0; background: #fff; color: #0a0a0a; font-size: 0.78rem; outline: none; }
+    .form-row input:focus, .form-row select:focus { border-color: #ff2b2b; box-shadow: 0 0 0 2px rgba(255,43,43,0.1); }
+    .form-row input::placeholder { color: #aaa; }
     .form-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-    .form-actions button { padding: 0.4rem 1rem; border-radius: 999px; border: none; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: opacity .2s; }
+    .form-actions button { padding: 0.45rem 1rem; border-radius: 999px; border: none; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: opacity .2s; }
     .form-actions .save { background: #ff2b2b; color: #fff; }
-    .form-actions .cancel { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+    .form-actions .cancel { background: #f0f0f0; color: #555; }
     .form-actions button:hover { opacity: .85; }
-    .empty { color: rgba(255,255,255,0.3); text-align: center; padding: 2rem 0; font-size: 0.8rem; }
-    select option { background: #1a1a1a; color: #fff; }
+    .empty { color: #aaa; text-align: center; padding: 2rem 0; font-size: 0.8rem; }
+    select option { background: #fff; color: #0a0a0a; }
   `],
   template: `
     <nav class="admin-nav">

@@ -1,22 +1,33 @@
 <header class="site-header">
-  <a routerLink="/" class="site-brand"><img src="/logo.png" alt="Luxury Service" class="site-logo" /></a>
-  <nav class="site-nav">
-    <a routerLink="/" routerLinkActive="nav-active" [routerLinkActiveOptions]="{exact:true}">Inicio</a>
-    <a routerLink="/servicios" routerLinkActive="nav-active">Servicios</a>
-    <a routerLink="/cotizar" routerLinkActive="nav-active">Cotizar</a>
-    <a routerLink="/tienda" routerLinkActive="nav-active">Productos</a>
-    <a routerLink="/tarjeta-regalo" routerLinkActive="nav-active">Gift Card</a>
-    <a routerLink="/agendar-cita" routerLinkActive="nav-active">Agendar cita</a>
+  <a routerLink="/" class="site-brand" (click)="closeMenu()"><img src="/logo.png" alt="Luxury Service" class="site-logo" /></a>
+  <button type="button" class="site-hamburger" (click)="toggleMenu()" [class.open]="menuOpen" aria-label="Menú">
+    <span></span><span></span><span></span>
+  </button>
+  <nav class="site-nav" [class.open]="menuOpen">
+    <div class="site-nav-group">
+      <a routerLink="/" routerLinkActive="nav-active" [routerLinkActiveOptions]="{exact:true}" (click)="closeMenu()">Inicio</a>
+      <a routerLink="/servicios" routerLinkActive="nav-active" (click)="closeMenu()">Servicios</a>
+      <a routerLink="/cotizar" routerLinkActive="nav-active" (click)="closeMenu()">Cotizar</a>
+      <a routerLink="/tienda" routerLinkActive="nav-active" (click)="closeMenu()">Productos</a>
+      <a routerLink="/tarjeta-regalo" routerLinkActive="nav-active" (click)="closeMenu()">Gift Card</a>
+      <a routerLink="/agendar-cita" routerLinkActive="nav-active" (click)="closeMenu()">Agendar cita</a>
+    </div>
     @if (auth.currentUser$ | async; as user) {
-      <a routerLink="/client/mis-citas" routerLinkActive="nav-active">Mis citas</a>
-      <a routerLink="/client/perfil" routerLinkActive="nav-active">{{ user.nombre }}</a>
-      <span class="site-nav-email">{{ user.email }}</span>
-      @if (auth.isAdmin()) {
-        <a routerLink="/admin/dashboard" class="site-nav-dashboard" routerLinkActive="nav-active-dash">Dashboard</a>
-        <a routerLink="/admin/importar" class="site-nav-import" routerLinkActive="nav-active-dash">Importar</a>
-      }
+      <div class="site-nav-group site-nav-group-user">
+        <a routerLink="/client/mis-citas" routerLinkActive="nav-active" (click)="closeMenu()">Mis citas</a>
+        <a routerLink="/client/perfil" routerLinkActive="nav-active" (click)="closeMenu()">{{ user.nombre }}</a>
+        <span class="site-nav-email">{{ user.email }}</span>
+        @if (auth.isAdmin()) {
+          <div class="site-nav-admin">
+            <a routerLink="/admin/dashboard" class="site-nav-dashboard" routerLinkActive="nav-active-dash" (click)="closeMenu()">Dashboard</a>
+            <a routerLink="/admin/importar" class="site-nav-import" routerLinkActive="nav-active-dash" (click)="closeMenu()">Importar</a>
+          </div>
+        }
+      </div>
     } @else {
-      <a routerLink="/acceso" class="site-nav-cta">Acceder</a>
+      <div class="site-nav-group site-nav-group-cta">
+        <a routerLink="/acceso" class="site-nav-cta" (click)="closeMenu()">Acceder</a>
+      </div>
     }
   </nav>
 </header>

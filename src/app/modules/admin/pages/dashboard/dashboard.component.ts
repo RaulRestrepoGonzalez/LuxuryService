@@ -29,8 +29,8 @@ const STATUS_LABELS: Record<string, string> = {
   styles: [`
     :host { display: block; padding: 1.5rem 0; }
     .admin-nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
-    .admin-nav a { padding: 0.5rem 1.1rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; text-decoration: none; color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.05); transition: background .2s, color .2s; border: 1px solid transparent; }
-    .admin-nav a:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .admin-nav a { padding: 0.5rem 1.1rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; text-decoration: none; color: #555; background: #fff; transition: background .2s, color .2s; border: 1px solid #ddd; }
+    .admin-nav a:hover { background: #f5f5f5; color: #0a0a0a; border-color: #bbb; }
     .admin-nav a.active { background: #ff2b2b; color: #fff; border-color: #ff2b2b; }
 
     .dash-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
