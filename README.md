@@ -45,14 +45,6 @@ cd server && npm run dev    # API :3000
 ng serve                    # Frontend :4200
 ```
 
-### Seed de datos de prueba
-
-```bash
-cd server && npm run seed
-# Crea: admin, 40+ servicios con precios 2026, 3 productos
-# Admin: admin@luxuryservice.co / Admin123!
-```
-
 ## Estructura del proyecto
 
 ```
