@@ -21,7 +21,11 @@
           <span class="gc-card-highlight">{{ opcion.highlight }}</span>
         </div>
         <div class="gc-card-footer">
-          @if (auth.isLoggedIn()) {
+          @if (paying) {
+            <button type="button" class="gc-btn" disabled style="opacity:0.6;cursor:default">
+              Procesando…
+            </button>
+          } @else if (auth.isLoggedIn()) {
             <button type="button" class="gc-btn" (click)="comprar(opcion)">
               Comprar gift card
             </button>
@@ -34,6 +38,22 @@
       </article>
     }
   </div>
+
+  @if (paymentError) {
+    <div class="gc-error">{{ paymentError }}</div>
+  }
+
+  @if (payment && !payment.url) {
+    <div class="gc-payment-info">
+      <h3>Pago de Gift Card</h3>
+      <p>Referencia: <strong>{{ payment.reference }}</strong></p>
+      <p>Valor: <strong>{{ formatPrice(payment.amount) }}</strong></p>
+      @if (payment.qr) {
+        <img [src]="payment.qr" alt="QR de pago" class="gc-qr" />
+      }
+      <p class="gc-payment-note">Escanea el código QR con tu banco para pagar</p>
+    </div>
+  }
 </section>
 
 <section class="gc-info">

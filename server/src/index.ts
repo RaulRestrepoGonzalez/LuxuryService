@@ -8,7 +8,7 @@ import { notificarCitaAgendada, notificarBienvenidaCliente } from './notificatio
 import { createCheckout, processWebhook } from './payments.js';
 import { enviarTicketCita, enviarConfirmacionPago, enviarNotificacionGeneral, getEmailStatus, reenviarEmailsPendientes, ensureTransporter, verificarConfiguracion, iniciarColaPendientes, enviarCorreoPrueba } from './email.js';
 import QRCode from 'qrcode';
-import { createHash } from 'crypto';
+import crypto, { createHash } from 'crypto';
 import multer from 'multer';
 import { parse as csvParse } from 'csv-parse/sync';
 
@@ -273,6 +273,58 @@ app.post('/api/purchase', auth, async (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/api/gift-cards/purchase', auth, async (req, res) => {
+  const { monto, etiqueta } = req.body;
+  const montosValidos = [50000, 80000, 140000, 200000];
+  if (!montosValidos.includes(monto)) return res.status(400).json({ error: 'Monto inválido' });
+
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const descripcion = `Gift Card ${etiqueta || ''} - $${monto.toLocaleString('es-CO')} - Luxury Service`.trim();
+
+  const checkout = await createCheckout({
+    amount: monto,
+    description: descripcion,
+    returnUrl: `${baseUrl}/app/tarjeta-regalo?ok=true`,
+    webhookUrl: `${baseUrl}/api/payments/webhook`,
+    customerEmail: req.user!.email,
+  });
+
+  const checkoutUrl = checkout.checkoutUrl;
+  const reference = checkout.reference;
+
+  await getDb().collection('gift_cards').insertOne({
+    usuario_id: new ObjectId(req.user!.id),
+    comprador_email: req.user!.email,
+    monto,
+    etiqueta: etiqueta || '',
+    estado: 'pendiente_pago',
+    payment_reference: reference,
+    created_at: new Date()
+  });
+
+  const pagoData: Record<string, any> = {
+    usuario_id: new ObjectId(req.user!.id), email: req.user!.email,
+    referencia: reference, monto,
+    descripcion,
+    estado: 'pendiente', checkout_url: checkoutUrl,
+    tipo: 'gift_card',
+    created_at: new Date()
+  };
+  await getDb().collection('pagos').insertOne(pagoData);
+
+  const qrBase64 = await QRCode.toDataURL(checkoutUrl, { width: 300, margin: 2 });
+  const qrClean = qrBase64.replace(/^data:image\/png;base64,/, '');
+  await getDb().collection('pagos').updateOne(
+    { referencia: reference },
+    { $set: { qr_base64: qrClean } }
+  );
+
+  res.json({
+    success: true, message: 'Compra de Gift Card iniciada. Realiza el pago para activarla.',
+    payment: { url: checkoutUrl, reference, amount: monto, qr: qrBase64 }
+  });
+});
+
 function isValidObjectId(id: string): boolean {
   try { new ObjectId(id); return true; } catch { return false; }
 }
@@ -314,7 +366,7 @@ app.post('/api/appointments', auth, async (req, res) => {
   if (!(HORARIOS as readonly string[]).includes(horario)) return res.status(400).json({ error: 'Horario inválido' });
   const existing = await getDb().collection('citas').findOne({ fecha, horario, servicio_id: new ObjectId(servicioId), estado: { $ne: 'cancelada' } });
   if (existing) return res.status(409).json({ error: 'Horario ocupado' });
-  const servicio = await getDb().collection('servicios').findOne({ _id: new ObjectId(servicioId) });
+  const servicio = await getDb().collection('servicios').findOne({ _id: new ObjectId(servicioId), activo: { $ne: false } });
   if (!servicio) return res.status(404).json({ error: 'Servicio no encontrado' });
 
   let producto: any = null;
@@ -398,43 +450,99 @@ app.post('/api/payments/webhook', async (req, res) => {
   if (!valid || !payload) return res.status(400).json({ error: 'Invalid webhook' });
 
   if (payload.status === 'APPROVED') {
-    await getDb().collection('citas').updateOne(
-      { payment_reference: payload.reference },
-      { $set: { estado: 'confirmada', payment_status: 'pagado', payment_transaction: payload.transactionId } }
-    );
-    await getDb().collection('pagos').updateOne(
-      { referencia: payload.reference },
-      { $set: { estado: 'pagado', transaction_id: payload.transactionId, pagado_at: new Date() } }
-    );
-    const pago = await getDb().collection('pagos').findOne({ referencia: payload.reference });
-    if (pago) {
-      const cita = await getDb().collection('citas').findOne({ payment_reference: payload.reference });
-      try {
-        const qrData = pago.qr_base64 || '';
-        const productoNombre = pago.producto_nombre || '';
-        const servicioConProducto = productoNombre
-          ? `${pago.servicio_nombre} + ${productoNombre}`
-          : pago.servicio_nombre;
-        const checkoutUrl = pago.checkout_url || '';
-        const qrFinal = qrData || (checkoutUrl
-          ? (await QRCode.toDataURL(checkoutUrl, { width: 300, margin: 2 })).replace(/^data:image\/png;base64,/, '')
-          : '');
-        await enviarTicketCita({
-          to: pago.email, nombre: pago.email.split('@')[0],
-          servicio: servicioConProducto, fecha: pago.fecha,
-          horario: pago.horario, precioTotal: pago.monto,
-          reference: payload.reference,
-          checkoutUrl: checkoutUrl,
-          qrBase64: qrFinal,
-          producto: productoNombre,
-        });
-      } catch (err: any) {
-        console.error('Error enviando ticket post-pago:', err.message);
+    const tipoPago = await getDb().collection('pagos').findOne({ referencia: payload.reference });
+
+    if (tipoPago?.tipo === 'gift_card') {
+      const codigo = `GC-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+      await getDb().collection('gift_cards').updateOne(
+        { payment_reference: payload.reference },
+        { $set: { estado: 'activa', codigo, activada_at: new Date(), payment_transaction: payload.transactionId } }
+      );
+      await getDb().collection('pagos').updateOne(
+        { referencia: payload.reference },
+        { $set: { estado: 'pagado', transaction_id: payload.transactionId, pagado_at: new Date() } }
+      );
+      const gc = await getDb().collection('gift_cards').findOne({ payment_reference: payload.reference });
+      if (gc) {
+        try {
+          const checkoutUrl = tipoPago?.checkout_url || '';
+          const qrData = tipoPago?.qr_base64 || '';
+          const qrFinal = qrData || (checkoutUrl
+            ? (await QRCode.toDataURL(checkoutUrl, { width: 300, margin: 2 })).replace(/^data:image\/png;base64,/, '')
+            : '');
+          const qrEmail = qrFinal
+            ? `<div style="text-align:center;margin:1.5rem 0">
+                 <img src="cid:qr" alt="QR de pago" style="width:200px;height:200px" />
+               </div>`
+            : '';
+          await enviarNotificacionGeneral({
+            to: gc.comprador_email,
+            nombre: gc.comprador_email.split('@')[0],
+            asunto: '🎁 Tu Gift Card Luxury Service está activa',
+            titulo: '🎁 Gift Card Activada',
+            mensaje: '',
+            htmlCustom: `
+              <h2 style="margin:0 0 1rem;font-size:1.2rem;color:#0a0a0a;">🎁 Gift Card Activada</h2>
+              <p style="color:#555;line-height:1.6;">Hola <strong>${gc.comprador_email.split('@')[0]}</strong>,</p>
+              <p style="color:#555;line-height:1.6;">Tu Gift Card <strong>${gc.etiqueta || ''}</strong> por <strong>$${gc.monto.toLocaleString('es-CO')}</strong> ya está activa y lista para usar.</p>
+              <div style="background:#f5f5f5;padding:1.5rem;text-align:center;border-radius:8px;margin:1.5rem 0">
+                <p style="margin:0 0 0.5rem;font-size:0.85rem;color:#666">Código de regalo:</p>
+                <p style="margin:0;font-size:1.5rem;font-weight:900;letter-spacing:0.1em;color:#0a0a0a">${codigo}</p>
+              </div>
+              <p style="color:#555;font-size:0.9rem">Comparte este código con la persona que recibirá el regalo. Puede canjearlo en nuestro local presentándolo.</p>
+              ${qrEmail}
+              <hr style="border:none;border-top:1px solid #eee;margin:2rem 0">
+              <p style="color:#888;font-size:0.75rem">Luxury Service — Cra. 19 #28-43, Local 3</p>
+            `,
+            qrBase64: qrFinal || undefined,
+          });
+        } catch (err: any) {
+          console.error('Error enviando email gift card:', err.message);
+        }
+      }
+    } else {
+      await getDb().collection('citas').updateOne(
+        { payment_reference: payload.reference },
+        { $set: { estado: 'confirmada', payment_status: 'pagado', payment_transaction: payload.transactionId } }
+      );
+      await getDb().collection('pagos').updateOne(
+        { referencia: payload.reference },
+        { $set: { estado: 'pagado', transaction_id: payload.transactionId, pagado_at: new Date() } }
+      );
+      const pago = await getDb().collection('pagos').findOne({ referencia: payload.reference });
+      if (pago) {
+        const cita = await getDb().collection('citas').findOne({ payment_reference: payload.reference });
+        try {
+          const qrData = pago.qr_base64 || '';
+          const productoNombre = pago.producto_nombre || '';
+          const servicioConProducto = productoNombre
+            ? `${pago.servicio_nombre} + ${productoNombre}`
+            : pago.servicio_nombre;
+          const checkoutUrl = pago.checkout_url || '';
+          const qrFinal = qrData || (checkoutUrl
+            ? (await QRCode.toDataURL(checkoutUrl, { width: 300, margin: 2 })).replace(/^data:image\/png;base64,/, '')
+            : '');
+          await enviarTicketCita({
+            to: pago.email, nombre: pago.email.split('@')[0],
+            servicio: servicioConProducto, fecha: pago.fecha,
+            horario: pago.horario, precioTotal: pago.monto,
+            reference: payload.reference,
+            checkoutUrl: checkoutUrl,
+            qrBase64: qrFinal,
+            producto: productoNombre,
+          });
+        } catch (err: any) {
+          console.error('Error enviando ticket post-pago:', err.message);
+        }
       }
     }
   } else if (payload.status === 'DECLINED') {
     await getDb().collection('pagos').updateOne(
       { referencia: payload.reference },
+      { $set: { estado: 'rechazado' } }
+    );
+    await getDb().collection('gift_cards').updateOne(
+      { payment_reference: payload.reference },
       { $set: { estado: 'rechazado' } }
     );
   }
@@ -778,10 +886,35 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
   const db = getDb();
 
   if (tipo === 'combinado') {
-    // Combined mode: reads PROVEEDOR, PRODUCTO, TIPO (PROD/SERV), CLASE, VALOR_VENTA, EXISTENCIA
-    let insertados = 0;
-    let actualizados = 0;
+    let actualizadosServ = 0;
+    let actualizadosProd = 0;
+    let insertadosServ = 0;
+    let insertadosProd = 0;
     const errores: string[] = [];
+    const sinCambiosServ = new Set<string>();
+    const sinCambiosProd = new Set<string>();
+
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').trim();
+
+    const fuzzyMatch = (name: string, candidates: any[]): any | null => {
+      const norm = normalize(name);
+      const words = norm.split(/\s+/).filter(Boolean);
+      for (const c of candidates) {
+        const cNorm = normalize(c.nombre);
+        if (cNorm === norm) return c;
+        const cWords = cNorm.split(/\s+/).filter(Boolean);
+        const overlap = words.filter(w => cWords.includes(w)).length;
+        if (overlap >= Math.min(words.length, cWords.length) * 0.4) return c;
+      }
+      return null;
+    };
+
+    // Load all existing services and products once
+    const allServicios = await db.collection('servicios').find({ activo: { $ne: false } }).toArray();
+    const allProductos = await db.collection('productos').find({ activo: { $ne: false } }).toArray();
+
+    const excelServNombres = new Set<string>();
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -790,61 +923,76 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
       if (!producto) { errores.push(`Fila ${nro}: falta PRODUCTO`); continue; }
 
       const tipoItem = (row.TIPO || row.tipo || '').trim();
-      const proveedor = (row.PROVEEDOR || row.proveedor || '').trim();
-      const clase = (row.CLASE || row.clase || '').trim();
+
+      if (tipoItem === 'SERV') excelServNombres.add(normalize(producto));
+
       const valorVenta = Number(String(row.VALOR_VENTA || row.valor_venta || '0').replace(/[^0-9.]/g, '')) || 0;
       const existencia = Number(String(row.EXISTENCIA || row.existencia || '0').replace(/[^0-9.]/g, '')) || 0;
 
       try {
         if (tipoItem === 'SERV') {
-          const collection = 'servicios';
-          const exists = await db.collection(collection).findOne({ nombre: producto });
-          const doc = {
-            nombre: producto,
-            descripcion: `Proveedor: ${proveedor}`,
-            categoria: clase === 'AUTOMOVIL' ? 'Servicios Básicos' : clase === 'CAMIONETA' ? 'Servicios Detailing' : 'General',
-            subcategoria: clase,
-            items: [],
-            precio_auto: valorVenta,
-            precio_camioneta: Math.round(valorVenta * 1.15),
-            precio_base: valorVenta,
-            iva_incluido: true,
-            duracion_minutos: 60,
-            agendable: true,
-            icono: 'auto_awesome',
-            imagen_url: '',
-            color: '#ff2b2b',
-            orden: 99,
-            activo: true,
-            created_at: new Date()
-          };
-          if (exists) {
-            await db.collection(collection).updateOne({ _id: exists._id }, { $set: doc });
-            actualizados++;
+          const match = fuzzyMatch(producto, allServicios);
+          if (match) {
+            const setFields: Record<string, any> = {};
+            let changed = false;
+            if (match.precio_auto !== valorVenta) {
+              setFields.precio_auto = valorVenta;
+              setFields.precio_base = valorVenta;
+              changed = true;
+            }
+            const nuevoCamioneta = Math.round(valorVenta * 1.15);
+            if (match.precio_camioneta !== nuevoCamioneta) {
+              setFields.precio_camioneta = nuevoCamioneta;
+              changed = true;
+            }
+            const nuevoMoto = Math.round(valorVenta * 0.9);
+            if (match.precio_moto == null || match.precio_moto <= 0 || match.precio_moto !== nuevoMoto) {
+              // Only set moto price if it already exists and has changed, or if it's the first time
+              if (match.precio_moto != null && match.precio_moto > 0 && match.precio_moto !== nuevoMoto) {
+                setFields.precio_moto = nuevoMoto;
+                changed = true;
+              }
+            }
+            if (match.nombre !== producto) {
+              setFields.nombre = producto;
+              changed = true;
+            }
+
+            if (changed) {
+              await db.collection('servicios').updateOne({ _id: match._id }, { $set: setFields });
+              actualizadosServ++;
+            } else {
+              sinCambiosServ.add(producto);
+            }
           } else {
-            await db.collection(collection).insertOne(doc);
-            insertados++;
+            errores.push(`Fila ${nro} (SERV): "${producto}" no encontrado en BD`);
           }
         } else if (tipoItem === 'PROD') {
-          const collection = 'productos';
-          const exists = await db.collection(collection).findOne({ nombre: producto });
-          const doc = {
-            nombre: producto,
-            descripcion: `Proveedor: ${proveedor}`,
-            categoria: clase || 'General',
-            precio: valorVenta,
-            stock: existencia,
-            icono: 'inventory_2',
-            color: '#4285F4',
-            activo: true,
-            created_at: new Date()
-          };
-          if (exists) {
-            await db.collection(collection).updateOne({ _id: exists._id }, { $set: doc });
-            actualizados++;
+          const match = fuzzyMatch(producto, allProductos);
+          if (match) {
+            const setFields: Record<string, any> = {};
+            let changed = false;
+            if (match.precio !== valorVenta) {
+              setFields.precio = valorVenta;
+              changed = true;
+            }
+            if (match.stock !== existencia) {
+              setFields.stock = existencia;
+              changed = true;
+            }
+            if (match.nombre !== producto) {
+              setFields.nombre = producto;
+              changed = true;
+            }
+
+            if (changed) {
+              await db.collection('productos').updateOne({ _id: match._id }, { $set: setFields });
+              actualizadosProd++;
+            } else {
+              sinCambiosProd.add(producto);
+            }
           } else {
-            await db.collection(collection).insertOne(doc);
-            insertados++;
+            errores.push(`Fila ${nro} (PROD): "${producto}" no encontrado en BD`);
           }
         } else {
           errores.push(`Fila ${nro}: TIPO "${tipoItem}" no válido (use PROD o SERV)`);
@@ -854,7 +1002,25 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
       }
     }
 
-    res.json({ success: true, insertados, actualizados, errores: errores.length > 0 ? errores : undefined });
+    // Mark services that are no longer in the Excel file as inactive
+    let desactivados = 0;
+    for (const s of allServicios) {
+      const sNorm = normalize(s.nombre);
+      if (!excelServNombres.has(sNorm)) {
+        await db.collection('servicios').updateOne({ _id: s._id }, { $set: { activo: false } });
+        desactivados++;
+      }
+    }
+
+    res.json({
+      success: true,
+      servicios_actualizados: actualizadosServ,
+      productos_actualizados: actualizadosProd,
+      servicios_desactivados: desactivados,
+      sin_cambios_servicios: [...sinCambiosServ],
+      sin_cambios_productos: [...sinCambiosProd],
+      errores: errores.length > 0 ? errores : undefined
+    });
 
   } else {
     const collection = tipo === 'servicios' ? 'servicios' : 'productos';
@@ -997,6 +1163,9 @@ connectDb().then(async () => {
   await db.collection('citas').createIndex({ usuario_id: 1, created_at: -1 });
   await db.collection('citas').createIndex({ usuario_id: 1, fecha: -1 });
   await db.collection('transacciones').createIndex({ referencia: 1 });
+  await db.collection('gift_cards').createIndex({ payment_reference: 1 });
+  await db.collection('gift_cards').createIndex({ codigo: 1 }, { unique: true, sparse: true });
+  await db.collection('gift_cards').createIndex({ usuario_id: 1 });
   await initChatbotCache();
   await verificarConfiguracion();
   iniciarColaPendientes();

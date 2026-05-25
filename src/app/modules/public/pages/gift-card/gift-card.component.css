@@ -248,6 +248,55 @@
   line-height: 1.5;
 }
 
+.gc-error {
+  max-width: 500px;
+  margin: 1rem auto 0;
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 4px;
+}
+
+.gc-payment-info {
+  max-width: 420px;
+  margin: 2rem auto 0;
+  padding: 1.5rem;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  text-align: center;
+}
+
+.gc-payment-info h3 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #0a0a0a;
+}
+
+.gc-payment-info p {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.gc-qr {
+  display: block;
+  margin: 1rem auto;
+  width: 200px;
+  height: 200px;
+}
+
+.gc-payment-note {
+  font-size: 0.75rem !important;
+  color: #888 !important;
+}
+
 @media (max-width: 900px) {
   .gc-options-inner {
     grid-template-columns: repeat(2, 1fr);

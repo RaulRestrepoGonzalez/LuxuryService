@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from 'src/app/core/services/auth.service';
+import { ApiService } from 'src/app/core/services/api.service';
 
 interface GiftCardOption {
   value: number;
@@ -9,6 +10,13 @@ interface GiftCardOption {
   desc: string;
   highlight: string;
   color: string;
+}
+
+interface PaymentResponse {
+  url: string;
+  reference: string;
+  amount: number;
+  qr: string;
 }
 
 @Component({
@@ -19,7 +27,14 @@ interface GiftCardOption {
   styleUrl: './gift-card.component.css'
 })
 export class GiftCardComponent {
-  constructor(public auth: AuthService) {}
+  paying = false;
+  payment: PaymentResponse | null = null;
+  paymentError = '';
+
+  constructor(
+    public auth: AuthService,
+    private api: ApiService
+  ) {}
 
   options: GiftCardOption[] = [
     {
@@ -57,7 +72,25 @@ export class GiftCardComponent {
       alert('Inicia sesión para comprar una tarjeta de regalo');
       return;
     }
-    alert(`Redirigiendo al pago de la Gift Card ${opcion.label} por ${this.formatPrice(opcion.value)}...`);
+    this.paying = true;
+    this.paymentError = '';
+    this.payment = null;
+    this.api.post<{ success: boolean; payment: PaymentResponse }>('/gift-cards/purchase', {
+      monto: opcion.value,
+      etiqueta: opcion.label
+    }).subscribe({
+      next: res => {
+        this.paying = false;
+        this.payment = res.payment;
+        if (res.payment?.url) {
+          window.location.href = res.payment.url;
+        }
+      },
+      error: err => {
+        this.paying = false;
+        this.paymentError = err?.error?.error || 'Error al iniciar el pago';
+      }
+    });
   }
 
   formatPrice(n: number) {
