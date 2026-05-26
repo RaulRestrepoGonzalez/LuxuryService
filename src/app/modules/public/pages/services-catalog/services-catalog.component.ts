@@ -6,13 +6,21 @@ import { ApiService } from 'src/app/core/services/api.service';
 import { Servicio, FALLBACK_SERVICIOS, groupByCategoria } from 'src/app/shared/constants/servicios.data';
 
 const CATEGORIA_META: Record<string, { icon: string; tagline: string }> = {
-  'Servicios Básicos': { icon: '🚗', tagline: 'Lavado, encerado y grafitado' },
+  'Lavado y Detailing': { icon: '🚗', tagline: 'Lavado general, motor, express y premium' },
   'Combos': { icon: '📦', tagline: 'Paquetes con mejor precio' },
-  'Servicios Detailing': { icon: '✨', tagline: 'Embellecimiento premium' },
-  'Servicios Anticorrosivos': { icon: '🛡️', tagline: 'Protección y hidroblasting' },
-  'Pintura': { icon: '🎨', tagline: 'Pintura, corrección y protección' },
-  'Latonería': { icon: '🔧', tagline: 'Enderezada, golpes y carrocería' },
-  'Mecánica': { icon: '⚙️', tagline: 'Frenos, motor, suspensión y más' },
+  'Detailing y Protección': { icon: '✨', tagline: 'Embellecimiento, sellado y nanocerámico' },
+  'Limpieza Profunda': { icon: '🧹', tagline: 'Tapicería, techos, pisos y cojinería' },
+  'Mantenimiento Básico': { icon: '🔧', tagline: 'Alineación, balanceo y rotación' },
+  'Polarizados': { icon: '🕶️', tagline: 'Película nanocerámica para vidrios' },
+  'Faros': { icon: '💡', tagline: 'Pulido y sellado de faros' },
+  'Rines': { icon: '⭕', tagline: 'Limpieza, descontaminación y sellado' },
+  'Hidroblasting': { icon: '💧', tagline: 'Hidrolavado y retoque profesional' },
+  'Protección': { icon: '🛡️', tagline: 'Anticorrosiva y sellamiento' },
+  'Diagnóstico': { icon: '🔍', tagline: 'Scaner electrónico e inyectores' },
+  'Adicionales': { icon: '➕', tagline: 'Insumos, domicilios y aplicaciones' },
+  'Latonería y Carrocería': { icon: '🔧', tagline: 'Enderezada, golpes y carrocería' },
+  'Pintura y Acabados': { icon: '🎨', tagline: 'Pintura, corrección y protección' },
+  'Mecánica General': { icon: '⚙️', tagline: 'Frenos, motor, suspensión y más' },
 };
 
 @Component({

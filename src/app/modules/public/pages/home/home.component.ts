@@ -18,8 +18,10 @@ interface Servicio {
 }
 
 const CATEGORIAS_VISIBLES = new Set([
-  'Servicios Básicos', 'Combos', 'Servicios Detailing',
-  'Servicios Anticorrosivos', 'Lavados', 'Protección y Acabados'
+  'Lavado y Detailing', 'Combos', 'Detailing y Protección',
+  'Limpieza Profunda', 'Mantenimiento Básico', 'Protección',
+  'Hidroblasting', 'Polarizados', 'Faros',
+  'Rines', 'Diagnóstico', 'Adicionales'
 ]);
 
 @Component({

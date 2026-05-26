@@ -934,6 +934,7 @@ app.post('/api/admin/services', auth, adminRequired, async (req, res) => {
     icono: icono || 'auto_awesome', imagen_url: imagen_url || '', color: '#ff2b2b',
     orden: orden || 99, activo: true, created_at: new Date()
   });
+  invalidateChatbotCache();
   res.json({ success: true });
 });
 
@@ -944,11 +945,13 @@ app.put('/api/admin/services/:id', auth, adminRequired, async (req, res) => {
   }
   if (req.body.precio_auto !== undefined) set['precio_base'] = req.body.precio_auto;
   await getDb().collection('servicios').updateOne({ _id: new ObjectId(req.params.id) }, { $set: set });
+  invalidateChatbotCache();
   res.json({ success: true });
 });
 
 app.delete('/api/admin/services/:id', auth, adminRequired, async (req, res) => {
   await getDb().collection('servicios').deleteOne({ _id: new ObjectId(req.params.id) });
+  invalidateChatbotCache();
   res.json({ success: true });
 });
 
@@ -1213,6 +1216,7 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
       }
     }
 
+    invalidateChatbotCache();
     res.json({ success: true, insertados, actualizados, errores: errores.length > 0 ? errores : undefined });
   }
 });
