@@ -137,9 +137,9 @@ export async function buildChatbotReply(message: string, vehiculo?: Vehiculo): P
     return '📍 **Luxury Service Manga** está en **Cartagena, Colombia**.\n\nPara la dirección exacta y coordenadas, contáctanos al agendar tu cita o escribe "contacto" para más información.';
   }
 
-  // ── 5. Contacto ──
-  if (matchPattern(lower, [/\b(contacto|telefono|whatsapp|correo|email|escribir|llamar|celular|wsp)\b/])) {
-    return '📬 **Contacto Luxury Service:**\n• Correo: privacidad@luxuryservice.co\n• Agenda en la web con tu correo\n• Recibirás notificaciones de tu cita y promociones\n\n¿Necesitas ayuda con algo más?';
+  // ── 5. Contacto / Comunicación ──
+  if (matchPattern(lower, [/\b(contacto|telefono|whatsapp|correo|email|escribir|llamar|celular|wsp|comunicar|hablar|contactarnos|asesor|atencion|ponerme en contacto|ayuda|comunico)\b/])) {
+    return '📬 **Comunícate con nosotros:**\n\n📞 **Teléfono:** +57 300 636 6429\n💬 **WhatsApp:** wa.me/573006366429\n\n✅ También puedes agendar directamente en la web con tu correo y te confirmamos todo por notificación.\n\n¿Necesitas ayuda con algo más?';
   }
 
   // ── 6. Horarios ──

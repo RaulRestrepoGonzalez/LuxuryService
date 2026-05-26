@@ -44,8 +44,8 @@ export class HomeComponent implements OnInit {
     telefono: '+57 (605) 234 5678',
     telefonoRaw: '+576052345678',
     email: 'contacto@luxuryservice.co',
-    whatsapp: '+57 300 000 0000',
-    whatsappRaw: '573000000000'
+    whatsapp: '+57 300 636 6429',
+    whatsappRaw: '573006366429'
   };
 
   constructor(private api: ApiService) {}
