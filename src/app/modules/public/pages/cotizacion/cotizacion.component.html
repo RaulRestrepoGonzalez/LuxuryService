@@ -80,7 +80,7 @@
                 }
               </div>
               <div class="cot-resumen-total">
-                <span>Total {{ tipoVehiculo === 'auto' ? 'Automóvil' : 'Camioneta' }}</span>
+                <span>Total {{ tipoVehiculo === 'auto' ? 'Automóvil' : tipoVehiculo === 'moto' ? 'Moto' : 'Camioneta' }}</span>
                 <span class="cot-resumen-total-val">{{ formatPrice(total) }}</span>
               </div>
               <p class="cot-resumen-iva">* Precios con IVA incluido</p>

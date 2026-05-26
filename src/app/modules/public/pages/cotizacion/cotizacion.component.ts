@@ -120,9 +120,14 @@ export class CotizacionComponent implements OnInit {
         const s = this.servicios.find(sv => sv.id === item.id);
         if (s) {
           item.precio = this.precioActual(s);
-          // Deselect services not available for moto
-          if (t === 'moto' && (s.precio_moto == null || s.precio_moto <= 0)) {
-            item.seleccionado = false;
+          // Deselect services not available for selected vehicle
+          if (t === 'moto') {
+            if (!/\b(moto(s)?|motocicleta)\b/i.test(s.nombre)) item.seleccionado = false;
+          } else {
+            const precio = t === 'auto'
+              ? (s.precio_auto ?? s.precio_base ?? 0)
+              : (s.precio_camioneta ?? s.precio_base ?? 0);
+            if (precio <= 0) item.seleccionado = false;
           }
         }
       }
@@ -161,7 +166,14 @@ export class CotizacionComponent implements OnInit {
       const s = this.buscaServicio(i.id);
       if (!s) return false;
       if (s.cotizar_local) return false;
-      if (this.tipoVehiculo === 'moto' && (s.precio_moto == null || s.precio_moto <= 0)) return false;
+      if (this.tipoVehiculo === 'moto') {
+        if (!/\b(moto(s)?|motocicleta)\b/i.test(s.nombre)) return false;
+      } else {
+        const precio = this.tipoVehiculo === 'auto'
+          ? (s.precio_auto ?? s.precio_base ?? 0)
+          : (s.precio_camioneta ?? s.precio_base ?? 0);
+        if (precio <= 0) return false;
+      }
       if (!this.matchSearch(i.nombre + ' ' + (s.descripcion || '') + ' ' + (s.categoria || ''))) return false;
       return s.categoria === cat;
     });

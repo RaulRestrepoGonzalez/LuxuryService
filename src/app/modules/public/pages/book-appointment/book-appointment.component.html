@@ -83,7 +83,7 @@
           <label class="service-pick" [class.selected]="appointmentForm.get('servicioId')?.value === s.id">
             <input type="radio" formControlName="servicioId" [value]="s.id" />
             <span class="service-pick-name">{{ s.nombre }}</span>
-            <span class="service-pick-price">{{ formatPrice(tipoVehiculo === 'auto' ? s.precio_auto : s.precio_camioneta) }}</span>
+            <span class="service-pick-price">{{ formatPrice(tipoVehiculo === 'auto' ? s.precio_auto : tipoVehiculo === 'moto' ? s.precio_moto : s.precio_camioneta) }}</span>
           </label>
         }
       </div>
@@ -182,7 +182,7 @@
     @if (appointmentForm.get('horario')?.value && !payment && !successMsg) {
       <div class="book-fee-notice">
         <div class="book-price-breakdown">
-          <span>Servicio ({{ tipoVehiculo === 'auto' ? 'Automóvil' : 'Camioneta' }})</span>
+          <span>Servicio ({{ tipoVehiculo === 'auto' ? 'Automóvil' : tipoVehiculo === 'moto' ? 'Moto' : 'Camioneta' }})</span>
           <span>{{ formatPrice(precioServicio) }}</span>
         </div>
         @if (selectedProduct) {

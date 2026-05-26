@@ -157,7 +157,14 @@ export class BookAppointmentComponent implements OnInit {
   get filteredServicios(): any[] {
     return this.servicios.filter((s: any) => {
       if (s.cotizar_local) return false;
-      if (this.tipoVehiculo === 'moto' && (s.precio_moto == null || s.precio_moto <= 0)) return false;
+      if (this.tipoVehiculo === 'moto') {
+        if (!/\b(moto(s)?|motocicleta)\b/i.test(s.nombre)) return false;
+      } else {
+        const precio = this.tipoVehiculo === 'auto'
+          ? (s.precio_auto ?? s.precio_base ?? 0)
+          : (s.precio_camioneta ?? s.precio_base ?? 0);
+        if (precio <= 0) return false;
+      }
       if (this.usandoGiftCard) {
         const precio = this.tipoVehiculo === 'auto'
           ? (s.precio_auto ?? s.precio_base ?? 0)

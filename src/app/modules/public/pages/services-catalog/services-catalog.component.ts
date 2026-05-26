@@ -45,7 +45,12 @@ export class ServicesCatalogComponent implements OnInit {
     for (const [cat, list] of Object.entries(this.grouped)) {
       let f = list;
       if (this.tipoVehiculo === 'moto') {
-        f = f.filter(s => s.precio_moto != null && s.precio_moto > 0);
+        f = f.filter(s => /\b(moto(s)?|motocicleta)\b/i.test(s.nombre));
+      } else {
+        const getPrecio = this.tipoVehiculo === 'auto'
+          ? (s: Servicio) => s.precio_auto ?? s.precio_base ?? 0
+          : (s: Servicio) => s.precio_camioneta ?? s.precio_base ?? 0;
+        f = f.filter(s => getPrecio(s) > 0);
       }
       if (this.searchTerm.trim()) {
         f = f.filter(s => this.matchSearch(s));
