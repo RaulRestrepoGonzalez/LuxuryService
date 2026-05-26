@@ -9,6 +9,7 @@
       <a routerLink="/agendar-cita" class="btn-hero-primary">Solicitar servicio</a>
       <a routerLink="/servicios" class="btn-hero-outline">Ver tarifario</a>
     </div>
+    <p class="hero-hours">Te esperamos de lunes a s&aacute;bado, de 8:00 a.m. a 6:00 p.m. &mdash; los domingos descansamos</p>
   </div>
 </section>
 
@@ -97,8 +98,8 @@
         <div class="contact-detail-row">
           <dt>Contacto</dt>
           <dd>
-            <a [href]="'tel:' + contacto.telefonoRaw">{{ contacto.telefono }}</a><br>
-            <a [href]="'mailto:' + contacto.email">{{ contacto.email }}</a>
+            <a [href]="'tel:' + contacto.telefonoRaw" class="contact-link">{{ contacto.telefono }}</a><br>
+            <a [href]="'mailto:' + contacto.email" class="contact-link">{{ contacto.email }}</a>
           </dd>
         </div>
         <div class="contact-detail-row">
@@ -108,23 +109,28 @@
       </dl>
     </div>
 
-    <div class="contact-form-panel">
-      <form [formGroup]="contactForm" (ngSubmit)="submitContact()">
-        <input type="text" formControlName="nombre" placeholder="Ingresa tu nombre completo*" />
-        <input type="tel" formControlName="telefono" placeholder="Ingresa tu teléfono*" />
-        <input type="email" formControlName="email" placeholder="Ingresa tu correo*" />
-        <textarea formControlName="mensaje" rows="4" placeholder="Escribe tu mensaje"></textarea>
-        @if (contactSuccess) {
-          <p class="contact-form-msg success">Mensaje enviado. Te contactaremos pronto.</p>
-        }
-        @if (contactError) {
-          <p class="contact-form-msg error">{{ contactError }}</p>
-        }
-        <button type="submit" class="contact-submit" [disabled]="contactForm.invalid || contactSending">
-          {{ contactSending ? 'Enviando...' : 'Agendar cita' }}
-        </button>
-      </form>
+    <div class="contact-buttons-panel">
+      <a [href]="'https://wa.me/' + contacto.whatsappRaw" target="_blank" rel="noopener" class="contact-btn-wa">
+        <svg class="contact-btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18.497 4.409a10 10 0 0 1 -10.36 16.828l-.223 -.098l-4.759 .849l-.11 .011a1 1 0 0 1 -.11 0l-.102 -.013l-.108 -.024l-.105 -.037l-.099 -.047l-.093 -.058l-.014 -.011l-.012 -.007l-.086 -.073l-.077 -.08l-.067 -.088l-.056 -.094l-.034 -.07l-.04 -.108l-.028 -.128l-.012 -.102a1 1 0 0 1 0 -.125l.012 -.1l.024 -.11l.045 -.122l1.433 -3.304l-.009 -.014a10 10 0 0 1 1.549 -12.454l.215 -.203a10 10 0 0 1 13.226 -.217m-8.997 3.09a1.5 1.5 0 0 0 -1.5 1.5v1a6 6 0 0 0 6 6h1a1.5 1.5 0 0 0 0 -3h-1l-.144 .007a1.5 1.5 0 0 0 -1.128 .697l-.042 .074l-.022 -.007a4.01 4.01 0 0 1 -2.435 -2.435l-.008 -.023l.075 -.041a1.5 1.5 0 0 0 .704 -1.272v-1a1.5 1.5 0 0 0 -1.5 -1.5" fill="#fff" opacity="0.75"/>
+        </svg>
+        <span class="contact-btn-text">
+          <strong>WhatsApp</strong>
+          <small>Respuesta inmediata</small>
+        </span>
+      </a>
+      <a [href]="'mailto:' + contacto.email" class="contact-btn-mail">
+        <svg class="contact-btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H3zm0 2h18v.5l-9 5.7L3 7.5V7zm0 2.5v7.5h18v-7.5l-9 5.7-9-5.7z" fill="#fff" opacity="0.75"/>
+        </svg>
+        <span class="contact-btn-text">
+          <strong>Correo electrónico</strong>
+          <small>{{ contacto.email }}</small>
+        </span>
+      </a>
     </div>
+
+
   </div>
 </section>
 

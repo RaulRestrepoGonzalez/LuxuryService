@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from 'src/app/core/services/api.service';
 import { HERO_IMAGE } from 'src/app/shared/constants/catalog-images';
 import { MARCAS_MULTIMARCAS } from 'src/app/shared/constants/marcas-multimarcas';
@@ -26,7 +25,7 @@ const CATEGORIAS_VISIBLES = new Set([
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, CommonModule, ReactiveFormsModule, SiteFooterComponent],
+  imports: [RouterLink, CommonModule, SiteFooterComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
@@ -42,22 +41,12 @@ export class HomeComponent implements OnInit {
     horario: 'Lunes - Sábado: 8:00 a.m. - 6:00 p.m. · Domingo: cerrado',
     telefono: '+57 (605) 234 5678',
     telefonoRaw: '+576052345678',
-    email: 'contacto@luxuryservice.co'
+    email: 'contacto@luxuryservice.co',
+    whatsapp: '+57 300 000 0000',
+    whatsappRaw: '573000000000'
   };
 
-  contactForm: FormGroup;
-  contactSending = false;
-  contactSuccess = false;
-  contactError = '';
-
-  constructor(private api: ApiService, private fb: FormBuilder) {
-    this.contactForm = this.fb.group({
-      nombre: ['', Validators.required],
-      telefono: ['', Validators.required],
-      email: ['', [Validators.required, Validators.email]],
-      mensaje: ['']
-    });
-  }
+  constructor(private api: ApiService) {}
 
   ngOnInit() {
     if (typeof window === 'undefined') return;
@@ -80,24 +69,6 @@ export class HomeComponent implements OnInit {
         }
       },
       error: () => {}
-    });
-  }
-
-  submitContact() {
-    if (this.contactForm.invalid) return;
-    this.contactSending = true;
-    this.contactError = '';
-    this.contactSuccess = false;
-    this.api.post('/contact', this.contactForm.value).subscribe({
-      next: () => {
-        this.contactSending = false;
-        this.contactSuccess = true;
-        this.contactForm.reset();
-      },
-      error: err => {
-        this.contactSending = false;
-        this.contactError = err?.error?.error || 'No se pudo enviar. Intenta de nuevo.';
-      }
     });
   }
 
