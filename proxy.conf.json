@@ -1,7 +1,8 @@
 {
   "/api": {
-    "target": "http://localhost:3000",
+    "target": "https://luxuryservice.onrender.com",
     "secure": false,
+    "changeOrigin": true,
     "logLevel": "warn"
   }
 }
