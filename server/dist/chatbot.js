@@ -3,6 +3,12 @@ export const HORARIOS_LABEL = ['10:00 a.m.', '2:00 p.m.'];
 export const HORARIOS = ['10:00', '14:00'];
 let cache = null;
 const CACHE_TTL = 300_000;
+function norm(text) {
+    return text.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+}
+function tokenize(text) {
+    return norm(text).split(/[^a-z0-9]+/).filter(Boolean);
+}
 async function getCatalog() {
     if (cache && Date.now() - cache.loadedAt < CACHE_TTL)
         return cache;
@@ -31,9 +37,6 @@ export async function initChatbotCache() {
 function cop(n) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 }
-function matchAny(text, words) {
-    return words.some(w => text.includes(w));
-}
 function labelVehiculo(v) {
     if (v === 'auto')
         return 'Automóvil';
@@ -51,139 +54,208 @@ function precioSegun(s, v) {
     return s.precio_base;
 }
 function serviciosCompatibles(services, v) {
-    if (v !== 'moto')
-        return services;
-    return services.filter(s => s.precio_moto != null && s.precio_moto > 0);
+    let filtered = services.filter((s) => !s.cotizar_local);
+    if (v === 'moto')
+        filtered = filtered.filter((s) => s.precio_moto != null && s.precio_moto > 0);
+    return filtered;
+}
+function detectarVehiculo(text) {
+    const t = norm(text);
+    if (/\b(camioneta|4x4|todo terreno|suv|troca|pickup)\b/.test(t))
+        return 'camioneta';
+    if (/\b(moto|motocicleta|picante|ciclomotor)\b/.test(t))
+        return 'moto';
+    if (/\b(auto|automovil|carro|vehiculo|sedan|hatchback|furgoneta|van|camioneta\b(?!.*\b(?:4x4|suv|troca|pickup)\b))/i.test(t))
+        return 'auto';
+    return null;
+}
+function matchPattern(text, patterns) {
+    return patterns.some(p => p.test(text));
+}
+function matchWords(text, words) {
+    const tokens = new Set(tokenize(text));
+    return words.some(w => tokens.has(w));
 }
 export async function buildChatbotReply(message, vehiculo) {
-    const lower = message.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-    const v = vehiculo;
+    const raw = message;
+    const lower = norm(raw);
+    const tokens = tokenize(raw);
+    const v = vehiculo || detectarVehiculo(raw) || undefined;
     const label = v ? labelVehiculo(v) : null;
-    if (matchAny(lower, ['hola', 'buenas', 'hey', 'saludos', 'buenos'])) {
-        const base = '¡Hola! Soy el asistente de Luxury Service.';
-        if (!v)
-            return base + ' ¿Qué tipo de vehículo tienes? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto';
-        return base + ` Veo que tienes ${label}. Pregúntame por servicios, cotización, horarios (10:00 a.m. y 2:00 p.m.) o cómo agendar.`;
-    }
-    if (matchAny(lower, ['automovil', 'camioneta', 'moto', 'motocicleta', 'auto'])) {
-        const tipo = lower.includes('camioneta') ? 'camioneta' : lower.includes('moto') ? 'moto' : 'auto';
-        return `¡Perfecto! Has seleccionado **${labelVehiculo(tipo)}**. Puedo ayudarte con:\n• Servicios disponibles\n• Cotización con precios\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar cita\n\n¿Qué deseas consultar?`;
-    }
-    if (matchAny(lower, ['horario', 'hora', 'cuando', 'disponib', '10', '2 pm', '14'])) {
-        return `Horarios de atención para citas:\n• 10:00 a.m.\n• 2:00 p.m.\n\nAgenda en la sección "Agendar cita". Los domingos no hay servicio.`;
-    }
-    if (matchAny(lower, ['agendar', 'cita', 'reserv', 'turno'])) {
-        return `Para agendar: entra con tu correo en "Acceder" (sin contraseña), elige servicio, fecha en el calendario y horario 10:00 a.m. o 2:00 p.m. Recibirás confirmación por notificación en tu cuenta.`;
-    }
-    if (matchAny(lower, ['promoc', 'descuent', 'oferta', 'notific'])) {
-        return `Al registrarte solo con tu correo recibirás notificaciones de promociones y confirmación cuando agendes una cita. Revisa tu perfil para ver avisos recientes.`;
-    }
-    if (matchAny(lower, ['ubicacion', 'donde', 'direccion', 'colombia', 'bogota', 'medellin'])) {
-        return 'Luxury Service opera en Colombia. Para dirección exacta y cobertura, contáctanos al agendar tu cita o escribe "contacto".';
-    }
-    if (matchAny(lower, ['contacto', 'telefono', 'whatsapp', 'correo', 'email'])) {
-        return 'Contacto: privacidad@luxuryservice.co · Agenda en la web con tu correo. Te enviamos notificaciones de tu cita y promociones.';
-    }
-    if (matchAny(lower, ['gracias', 'perfecto', 'ok', 'listo', 'genial'])) {
-        return `¡Con gusto! Estoy aquí si necesitas algo más. Luxury Service a tu disposición.`;
-    }
-    if (matchAny(lower, ['cotizacion', 'cotizar', 'presupuesto'])) {
-        if (!v)
-            return 'Para cotizar necesito saber: ¿tu vehículo es Automóvil, Camioneta o Moto?';
-        const catalog = await getCatalog();
-        const disponibles = serviciosCompatibles(catalog.services, v);
-        const svcLines = disponibles.map(s => `• ${s.nombre}: ${cop(precioSegun(s, v))}`).join('\n');
-        const prodLines = catalog.products.slice(0, 8).map(p => `• ${p.nombre}: ${cop(p.precio)}`).join('\n');
-        return `COTIZACIÓN para ${label} (IVA incluido):\n\nSERVICIOS:\n${svcLines}\n\nPRODUCTOS:\n${prodLines}\n\nCotiza más en /cotizar`;
-    }
     const catalog = await getCatalog();
-    if (matchAny(lower, ['precio', 'cuesta', 'vale', 'costo', 'cuanto', 'tarifa'])) {
+    // ── Detectar nombre de servicio en lenguaje natural ──
+    const svcNorm = catalog.services.map(s => ({
+        ...s,
+        _key: norm(s.nombre),
+        _tokens: tokenize(s.nombre)
+    }));
+    const matchServicioEnFrase = () => {
+        for (const s of svcNorm) {
+            if (lower.includes(s._key))
+                return s;
+            const fraseTokens = s._tokens.filter(t => t.length > 3);
+            if (fraseTokens.length > 0 && fraseTokens.every(t => lower.includes(t)))
+                return s;
+        }
+        return null;
+    };
+    const servEncontrado = matchServicioEnFrase();
+    // ── 1. Saludo ──
+    if (matchPattern(lower, [/^(hola|buenas|buen[ao]s|hey|saludos|que mas|q mas|buen dia)/])) {
+        const base = '¡Hola! Soy el asistente virtual de **Luxury Service Manga** 🚗✨';
         if (!v)
-            return 'Para consultar precios primero dime: ¿Automóvil, Camioneta o Moto?';
-        const disponibles = serviciosCompatibles(catalog.services, v);
-        const svcLines = disponibles.slice(0, 12).map(s => `• ${s.nombre}: ${cop(precioSegun(s, v))}`).join('\n');
-        const prodLines = catalog.products.slice(0, 6).map(p => `• ${p.nombre}: ${cop(p.precio)}`).join('\n');
-        return `Precios para ${label} (IVA incluido):\n\nSERVICIOS:\n${svcLines}\n\nPRODUCTOS:\n${prodLines}\n\nVer tarifario completo en /servicios`;
+            return base + '\n\n¿Qué tipo de vehículo tienes?\n• 🚗 **Automóvil**\n• 🚙 **Camioneta**\n• 🏍️ **Moto**\n\nTambién puedes preguntarme por servicios, precios u horarios.';
+        return base + `\n\nVeo que tienes **${label}**. ¿En qué puedo ayudarte?\n• Servicios disponibles\n• Precios y cotización\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar una cita`;
     }
-    if (matchAny(lower, ['producto', 'tienda', 'comprar', 'stock', 'aceite', 'filtro', 'cera', 'aromat'])) {
+    // ── 2. Despedida ──
+    if (matchPattern(lower, [/\b(adios|chao|bye|hasta luego|nos vemos|gracias por tu|eso seria todo)\b/])) {
+        return '¡Hasta luego! Gracias por contactarnos. En **Luxury Service** estamos para servirte. Vuelve cuando necesites 🚗✨';
+    }
+    // ── 3. Vehiculo ──
+    const vDetectado = detectarVehiculo(raw);
+    if (vDetectado && !vehiculo) {
+        return `¡Perfecto! Has seleccionado **${labelVehiculo(vDetectado)}**. Puedo ayudarte con:\n• Ver **servicios** disponibles\n• **Cotización** con precios\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n\n¿Qué deseas consultar?`;
+    }
+    // ── 4. Ubicacion ──
+    if (matchPattern(lower, [/\b(donde|ubicacion|direccion|como llegar|maps|estan ubicados)\b/])) {
+        return '📍 **Luxury Service Manga** está en **Cartagena, Colombia**.\n\nPara la dirección exacta y coordenadas, contáctanos al agendar tu cita o escribe "contacto" para más información.';
+    }
+    // ── 5. Contacto / Comunicación ──
+    if (matchPattern(lower, [/\b(contacto|telefono|whatsapp|correo|email|escribir|llamar|celular|wsp|comunicar|hablar|contactarnos|asesor|atencion|ponerme en contacto|ayuda|comunico)\b/])) {
+        return '📬 **Comunícate con nosotros:**\n\n📞 **Teléfono:** +57 300 636 6429\n💬 **WhatsApp:** wa.me/573006366429\n\n✅ También puedes agendar directamente en la web con tu correo y te confirmamos todo por notificación.\n\n¿Necesitas ayuda con algo más?';
+    }
+    // ── 6. Horarios ──
+    if (matchPattern(lower, [/\b(horario|hora|cuando atienden|a que hora|abren|cierra|disponib)\b/])) {
+        return '🕐 **Horarios de atención:**\n• **10:00 a.m.** — Primer turno\n• **2:00 p.m.** — Segundo turno\n\n📅 Agenda en la sección "Agendar cita". Domingos no hay servicio.\n\n¿Te gustaría agendar una cita?';
+    }
+    // ── 7. Agendar cita ──
+    if (matchPattern(lower, [/\b(agendar|quiero (una )?cita|reservar|apartar|turno|programar|registrar cita|pedir cita)\b/])) {
+        let out = '📅 **Para agendar una cita:**\n\n1. Entra con tu correo en **"Acceder"** (solo correo, sin contraseña)\n2. Elige el **servicio** que deseas\n3. Selecciona **fecha** en el calendario\n4. Escoge **horario**: 10:00 a.m. o 2:00 p.m.\n\nRecibirás confirmación por notificación en tu cuenta.';
+        if (servEncontrado) {
+            out = `📅 **Agendar: ${servEncontrado.nombre}**\n\nSigue estos pasos:\n1. Entra con tu correo en **"Acceder"**\n2. Selecciona **${servEncontrado.nombre}**\n3. Escoge fecha y horario\n4. Confirma y paga\n\nRecibirás confirmación.`;
+        }
+        return out;
+    }
+    // ── 8. Promociones ──
+    if (matchPattern(lower, [/\b(promoc|descuent|oferta|notificacion|beneficio|combo promocional)\b/])) {
+        return '🎉 **Promociones:**\n\nAl registrarte solo con tu correo recibirás **notificaciones de promociones** y **confirmación de citas**.\n\nRevisa tu perfil para ver avisos recientes. ¿Te gustaría saber más sobre algún servicio en especial?';
+    }
+    // ── 9. Agradecimiento ──
+    if (matchPattern(lower, [/\b(gracias|perfecto|ok|listo|genial|excelente|de acuerdo|muy bien|super|vale)\b/])) {
+        return '¡Con gusto! 😊 Estoy aquí para lo que necesites. **Luxury Service** a tu disposición.\n\n¿Hay algo más en que pueda ayudarte?';
+    }
+    // ── 10. Cotizacion ──
+    if (matchPattern(lower, [/\b(cotiza|presupuesto|cuanto (vale|cuesta|cobran|sale)|precio tiene|a como|tarifa|me cotiza|cotizacion)\b/])) {
+        if (!v)
+            return 'Para darte una cotización necesito saber: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
+        const disponibles = serviciosCompatibles(catalog.services, v);
+        let out = '';
+        if (servEncontrado) {
+            const p = cop(precioSegun(servEncontrado, v));
+            const dur = servEncontrado.duracion_minutos;
+            out = `📋 **${servEncontrado.nombre}**\n• Precio ${label}: **${p}**\n• Duración: ${dur} minutos\n• ${servEncontrado.descripcion}\n\n¿Agendamos tu cita?`;
+        }
+        else {
+            const svcLines = disponibles.map(s => `• **${s.nombre}**: ${cop(precioSegun(s, v))}`).join('\n');
+            const prodLines = catalog.products.slice(0, 8).map(p => `• ${p.nombre}: ${cop(p.precio)}`).join('\n');
+            out = `📋 **COTIZACIÓN para ${label}** (IVA incluido):\n\n🔧 **SERVICIOS:**\n${svcLines}\n\n🛒 **PRODUCTOS:**\n${prodLines}\n\n¿Te gustaría agendar alguno?`;
+        }
+        return out;
+    }
+    // ── 11. Precios ──
+    if (matchPattern(lower, [/\b(precio|cuesta|vale|costo|cuanto (sale|cobran|vale|dan)|tarifa|mejor precio)\b/]) || matchWords(lower, ['precio', 'costos', 'valores'])) {
+        if (!v)
+            return 'Para consultar precios primero dime: ¿🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
+        const disponibles = serviciosCompatibles(catalog.services, v);
+        if (servEncontrado) {
+            return `💰 **${servEncontrado.nombre}** para ${label}: **${cop(precioSegun(servEncontrado, v))}** · ${servEncontrado.duracion_minutos} min.\n${servEncontrado.descripcion}\n\n¿Te gustaría agendar?`;
+        }
+        const svcLines = disponibles.slice(0, 12).map(s => `• **${s.nombre}**: ${cop(precioSegun(s, v))}`).join('\n');
+        const prodLines = catalog.products.slice(0, 6).map(p => `• ${p.nombre}: ${cop(p.precio)}`).join('\n');
+        return `💰 **Precios para ${label}** (IVA incluido):\n\n🔧 **SERVICIOS:**\n${svcLines}\n\n🛒 **PRODUCTOS:**\n${prodLines}\n\nVer tarifario completo en /servicios`;
+    }
+    // ── 12. Servicios por categoria (lógica agrupada) ──
+    const CATEGORIA_MAP = [
+        [/\b(lavado|hidroblast|chasis|vapor|encerado|combo|express|general)\b/, 'Servicios Básicos,Combos'],
+        [/\b(alineacion|balanceo|llanta|suspension|faro|direccion|amortiguador)\b/, 'Alineación y Balanceo'],
+        [/\b(freno|pastilla|banda|liquido de freno|caliper|disco)\b/, 'Mantenimiento de Frenos'],
+        [/\b(lubric|cambio de aceite|cambio aceite|filtro|aceite|engrase)\b/, 'Lubricación'],
+        [/\b(detailing|pulido|ceramico|nano|rayon|farola|tapicer|luxury|detallado)\b/, 'Servicios Detailing'],
+        [/\b(anticorrosiv|cabina|pintura|agua caliente|cavidad)\b/, 'Servicios Anticorrosivos'],
+        [/\b(polarizado|polarizacion|vidrio|pelicula)\b/, 'Polarizados'],
+        [/\b(pintura|pintar|latoneria|latas|enderezada|chapista)\b/, 'Servicios de Pintura'],
+    ];
+    let catMatch = null;
+    for (const [pattern, cats] of CATEGORIA_MAP) {
+        if (pattern.test(lower)) {
+            catMatch = cats;
+            break;
+        }
+    }
+    if (catMatch) {
+        const disponibles = serviciosCompatibles(catalog.services, v);
+        const cats = catMatch.split(',');
+        const items = disponibles.filter(s => cats.includes(s.categoria || ''));
+        if (items.length === 0)
+            return `No encontré servicios de esa categoría${label ? ' para ' + label : ''}.`;
+        const lines = items.map(s => {
+            const p = v ? `: ${cop(precioSegun(s, v))}` : '';
+            return `• **${s.nombre}**${p}`;
+        });
+        return `🔧 **${items[0].categoria?.toUpperCase() || 'SERVICIOS'}**${label ? ` (${label})` : ''}:\n${lines.join('\n')}\n\n¿Te interesa alguno? Puedo darte más detalles.`;
+    }
+    // ── 13. Productos ──
+    if (matchPattern(lower, [/\b(producto|tienda|comprar|stock|quiero comprar|me interesa un producto|articulo)\b/])) {
         if (catalog.products.length === 0)
             return 'Por el momento no hay productos en tienda.';
-        const lines = catalog.products.map(p => `• ${p.nombre} — ${cop(p.precio)} — ${p.stock > 0 ? `${p.stock} disponibles` : 'agotado'}\n  ${p.descripcion}`).join('\n\n');
-        return `Catálogo de productos:\n\n${lines}`;
+        const prodEncontrado = catalog.products.find(p => lower.includes(norm(p.nombre)));
+        if (prodEncontrado) {
+            return `🛒 **${prodEncontrado.nombre}**: ${cop(prodEncontrado.precio)}\n${prodEncontrado.descripcion}\nStock: ${prodEncontrado.stock > 0 ? '✅ ' + prodEncontrado.stock + ' unidades' : '❌ Agotado'}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
+        }
+        const lines = catalog.products.map(p => `• **${p.nombre}** — ${cop(p.precio)} — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`).join('\n');
+        return `🛒 **Catálogo de productos:**\n\n${lines}\n\nCompra en la sección **Tienda** con tu correo registrado. ¿Algún producto en especial?`;
     }
-    if (matchAny(lower, ['servicio', 'manten', 'estetica', 'catalogo'])) {
+    // ── 14. Servicios general (catalogo completo) ──
+    if (matchPattern(lower, [/\b(servicio|catalogo|mantenimiento|que (servicios|hacen)|que ofrecen|estetica|menu|servicios tienen|trabajan)\b/])) {
         const disponibles = serviciosCompatibles(catalog.services, v);
-        let out = `SERVICIOS LUXURY SERVICE MANGA M&S${v ? ` (${label})` : ''}:\n`;
-        const visited = new Set();
+        let out = `📋 **SERVICIOS LUXURY SERVICE MANGA**${v ? ` (${label})` : ''}:\n`;
+        const categorias = new Map();
         for (const s of disponibles) {
-            if (visited.has(s.categoria || ''))
-                continue;
-            visited.add(s.categoria || '');
-            const items = disponibles.filter(x => (x.categoria || 'Otros') === (s.categoria || 'Otros'));
-            out += `\n${(s.categoria || 'OTROS').toUpperCase()}:\n`;
+            const cat = s.categoria || 'OTROS';
+            if (!categorias.has(cat))
+                categorias.set(cat, []);
+            categorias.get(cat).push(s);
+        }
+        for (const [cat, items] of categorias) {
+            out += `\n**${cat.toUpperCase()}:**\n`;
             out += items.slice(0, 6).map(x => {
-                const p = v ? cop(precioSegun(x, v)) : '';
-                return `• ${x.nombre}${p ? ': ' + p : ''}`;
+                const p = v ? `: ${cop(precioSegun(x, v))}` : '';
+                return `• ${x.nombre}${p}`;
             }).join('\n');
             if (items.length > 6)
                 out += `\n... y ${items.length - 6} más`;
         }
-        out += '\n\nVer detalle en /servicios';
+        out += '\n\n¿Te gustaría **cotizar** algún servicio o **agendar** una cita?';
         return out;
     }
-    if (matchAny(lower, ['lavado', 'hidroblast', 'chasis', 'vapor', 'wd40', 'combo', 'encerado', 'grafit'])) {
-        const disponibles = serviciosCompatibles(catalog.services, v);
-        const items = disponibles.filter(s => ['Servicios Básicos', 'Combos'].includes(s.categoria || ''));
-        const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
-        return `LAVADO Y COMBOS${v ? ` (${label})` : ''}:\n${lines.join('\n')}`;
+    // ── 15. Servicio específico detectado en frase natural ──
+    if (servEncontrado) {
+        const p = v ? cop(precioSegun(servEncontrado, v)) : '';
+        return `🔧 **${servEncontrado.nombre}**${p ? ': ' + p : ''}\n• Duración: ${servEncontrado.duracion_minutos} minutos\n• ${servEncontrado.descripcion}\n\n¿Agendamos tu cita? Horarios: 10:00 a.m. o 2:00 p.m.`;
     }
-    if (matchAny(lower, ['alineacion', 'balanceo', 'llanta', 'suspension', 'faro'])) {
-        const disponibles = serviciosCompatibles(catalog.services, v);
-        const items = disponibles.filter(s => s.categoria === 'Alineación y Balanceo');
-        const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
-        return `ALINEACIÓN Y BALANCEO:\n${lines.join('\n')}`;
-    }
-    if (matchAny(lower, ['freno', 'pastilla', 'banda', 'liquido de freno'])) {
-        const disponibles = serviciosCompatibles(catalog.services, v);
-        const items = disponibles.filter(s => s.categoria === 'Mantenimiento de Frenos');
-        const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
-        return `MANTENIMIENTO DE FRENOS:\n${lines.join('\n')}`;
-    }
-    if (matchAny(lower, ['lubric', 'aceite', 'filtro'])) {
-        const disponibles = serviciosCompatibles(catalog.services, v);
-        const items = disponibles.filter(s => s.categoria === 'Lubricación');
-        const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
-        return `LUBRICACIÓN:\n${lines.join('\n')}`;
-    }
-    if (matchAny(lower, ['detailing', 'pulido', 'ceramico', 'nano', 'rayon', 'farola', 'tapicer', 'luxury'])) {
-        const disponibles = serviciosCompatibles(catalog.services, v);
-        const items = disponibles.filter(s => s.categoria === 'Servicios Detailing');
-        const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
-        return `DETAILING${v ? ` (${label})` : ''}:\n${lines.join('\n')}`;
-    }
-    if (matchAny(lower, ['anticorrosiv', 'cabina', 'pintura', 'agua caliente'])) {
-        const disponibles = serviciosCompatibles(catalog.services, v);
-        const items = disponibles.filter(s => s.categoria === 'Servicios Anticorrosivos');
-        const lines = items.map(s => `• ${s.nombre}${v ? ': ' + cop(precioSegun(s, v)) : ''}`);
-        return `ANTICORROSIVOS:\n${lines.join('\n')}`;
-    }
-    for (const s of catalog.services) {
-        const key = s.nombre.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-        if (lower.includes(key.split(' ')[0]) || lower.includes(key)) {
-            const p = v ? cop(precioSegun(s, v)) : '';
-            return `${s.nombre}${p ? ': ' + p : ''} · ${s.duracion_minutos} minutos.\n${s.descripcion}\n\n¿Agendamos tu cita? Horarios: 10:00 a.m. o 2:00 p.m.`;
-        }
-    }
+    // ── 16. Producto específico detectado ──
     for (const p of catalog.products) {
-        const key = p.nombre.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-        if (lower.includes(key.split(' ')[0]) || key.split(' ').some(w => w.length > 4 && lower.includes(w))) {
-            return `${p.nombre}: ${cop(p.precio)}. ${p.descripcion}. Stock: ${p.stock > 0 ? p.stock + ' unidades' : 'agotado'}. Compra en Tienda con tu correo registrado.`;
+        const key = norm(p.nombre);
+        const tokens = tokenize(p.nombre).filter(t => t.length > 3);
+        if (lower.includes(key) || (tokens.length > 0 && tokens.every(t => lower.includes(t)))) {
+            return `🛒 **${p.nombre}**: ${cop(p.precio)}\n${p.descripcion}\nStock: ${p.stock > 0 ? '✅ ' + p.stock + ' unidades' : '❌ Agotado'}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
         }
     }
-    const base = 'Puedo ayudarte con:\n• Servicios';
+    // ── 17. Fallback ──
+    const base = '🤖 No entendí completamente tu mensaje. Puedo ayudarte con:\n• **Servicios** disponibles\n• **Cotización** y precios';
     if (!v)
-        return base + '\n• Primero dime: ¿Automóvil, Camioneta o Moto?';
-    return base + '\n• Cotización con precios\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Cómo agendar una cita\n\nEjemplo: "¿Qué servicios tienen?"';
+        return base + '\n• Primero dime: ¿🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
+    return base + '\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Productos** en tienda\n• **Contacto** y ubicación\n\nEjemplos: "¿Qué servicios tienen?", "Cuánto cuesta un lavado", "Quiero agendar una cita"';
 }
 export function invalidateChatbotCache() {
     cache = null;

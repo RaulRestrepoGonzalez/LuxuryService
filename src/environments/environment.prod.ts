@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://luxury-worker.su-cuenta.workers.dev/api'
+  apiUrl: (typeof window !== 'undefined' && (window as any).__env?.apiUrl) || 'https://api.luxuryservice.co/api'
 };

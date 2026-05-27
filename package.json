@@ -8,9 +8,11 @@
     "server:seed": "cd server && npm run seed",
     "dev": "npm run server & ng serve",
     "build": "ng build",
+    "build:pages": "ng build --configuration pages",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "serve:ssr:LuxuryService": "node dist/LuxuryService/server/server.mjs"
+    "serve:ssr:LuxuryService": "node dist/LuxuryService/server/server.mjs",
+    "pages:deploy": "npx wrangler pages deploy dist/LuxuryService/browser --branch production"
   },
   "private": true,
   "packageManager": "npm@11.12.1",

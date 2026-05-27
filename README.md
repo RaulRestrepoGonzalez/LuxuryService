@@ -5,10 +5,9 @@ Aplicación web para **detailing automotriz premium** en **Manga, Cartagena**. C
 ## Stack
 
 | Capa | Tecnología | Despliegue |
-|---|---|---|
+|---|---|---|---|
 | Frontend | Angular 21 + Chart.js 4 | Cloudflare Pages |
-| Backend API | Express 5 + MongoDB | Servidor propio / VPS |
-| Worker API | Hono + D1 (Cloudflare) | Cloudflare Workers |
+| Backend API | Express 5 + MongoDB Atlas | VPS / Railway / Render |
 | Pasarela de pago | Credibanco Checkout | API externa |
 | Correo | Nodemailer (SMTP con cola de reintentos) | Cualquier SMTP |
 
@@ -21,9 +20,7 @@ ng serve / Cloudflare Pages
        └── Credibanco Checkout (sesiones de pago)
 ```
 
-La app tiene **dos backends paralelos** con los mismos endpoints:
-- **`server/`** — Express + MongoDB, completo con migraciones, cola de emails, notificaciones
-- **`worker/`** — Hono + Cloudflare D1, versión serverless para producción
+El backend recomendado es **Express + MongoDB Atlas** (`server/`). El worker de Cloudflare (`worker/`) existe como alternativa serverless con D1 pero está limitado frente al Express completo.
 
 ## Requisitos
 
@@ -358,23 +355,49 @@ cd server && npx tsx src/migrate-images.ts     # Asignar imágenes Unsplash a pr
 cd server && npx tsx src/delete-food.ts        # Eliminar productos de comida/bebida
 ```
 
-## Despliegue a Cloudflare
+## Despliegue
+
+### Frontend → Cloudflare Pages
 
 ```bash
-# 1. Construir frontend
-ng build
+# 1. Construir para Pages (genera solo browser/)
+npm run build:pages
 
-# 2. Desplegar worker
-cd worker && npm run deploy
-
-# 3. Subir dist/ a Cloudflare Pages
-#    O desde la terminal:
-npx wrangler pages deploy dist/luxury-service/browser
+# 2. Desplegar a Cloudflare Pages
+npm run pages:deploy
+# O manualmente: npx wrangler pages deploy dist/LuxuryService/browser --branch production
 ```
 
-> ⚠️ Para el worker de Cloudflare, la integración de pagos y email
-> requiere implementar los mismos módulos (`payments.ts`, `email.ts`)
-> usando `fetch()` y servicios HTTP en lugar de librerías Node.js.
+### Backend → Express + MongoDB Atlas
+
+El backend Express se despliega en cualquier servicio que soporte Node.js (Railway, Render, Fly.io, VPS).
+
+```bash
+# 1. Compilar TypeScript
+cd server && npm run build
+
+# 2. Configurar variables de entorno
+# Copiar server/.env.example → server/.env y llenar:
+#   MONGODB_URI     → URI de MongoDB Atlas
+#   JWT_SECRET      → openssl rand -hex 32
+#   SMTP_*          → credenciales de correo
+#   BASE_URL        → https://luxuryservice.co
+
+# 3. Iniciar servidor
+node dist/index.js
+```
+
+> La variable `apiUrl` en producción se configura automáticamente desde `window.__env.apiUrl`
+> (definido en el dashboard de Pages) o por defecto apunta a `https://api.luxuryservice.co/api`.
+>
+> Para configurarlo en Cloudflare Pages: **Settings → Environment variables** → agregar
+> `__env` con valor `{"apiUrl":"https://tu-servidor.com/api"}`.
+
+### Worker (alternativo)
+
+El worker `worker/` con Hono + D1 existe como alternativa serverless pero no tiene todas
+las funcionalidades del Express (pagos, email, gift cards, importación). Solo se recomienda
+para funcionalidad básica.
 
 ## Convenciones de desarrollo
 
@@ -396,8 +419,12 @@ npx wrangler pages deploy dist/luxury-service/browser
 | `npm run dev` | Arranca servidor Express + Angular simultáneamente |
 | `npm run server` | Solo servidor Express en puerto 3000 |
 | `npm run server:seed` | Ejecuta seed de base de datos |
-| `npm run build` | Construye frontend para producción |
-| `npm test` | Ejecuta pruebas unitarias (Karma) |
+| `npm run build` | Construye frontend para producción (con SSR) |
+| `npm run build:pages` | Construye frontend para Cloudflare Pages (solo browser/) |
+| `npm run pages:deploy` | Despliega a Cloudflare Pages |
+| `npm run server` | Solo servidor Express en puerto 3000 |
+| `npm run server:seed` | Ejecuta seed de base de datos |
+| `npm test` | Ejecuta pruebas unitarias |
 
 ## Licencia
 

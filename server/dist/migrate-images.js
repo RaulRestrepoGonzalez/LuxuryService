@@ -3,6 +3,7 @@ import { connectDb, getDb } from './db.js';
 const IMG = {
     AUTO: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400&q=75',
     AUTO_BODY: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&q=75',
+    PARTS: 'https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?w=400&q=75',
     OIL: 'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=400&q=75',
     FILTER: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=400&q=75',
     BRAKE: 'https://images.unsplash.com/photo-1632823471565-1b2239885473?w=400&q=75',
@@ -11,6 +12,8 @@ const IMG = {
     ELECTRONICS: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&q=75',
     BATTERY: 'https://images.unsplash.com/photo-1620714223084-8fcacc6dfd8d?w=400&q=75',
     CLEANING: 'https://images.unsplash.com/photo-1601362840469-51e4d8d229c0?w=400&q=75',
+    MAT: 'https://images.unsplash.com/photo-1599232288126-7a8cb48a11b3?w=400&q=75',
+    ACCESSORY: 'https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=400&q=75',
     FOOD: 'https://images.unsplash.com/photo-1562967914-608f82629710?w=400&q=75',
     CANDY: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400&q=75',
     COFFEE: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&q=75',
@@ -25,21 +28,22 @@ const IMG = {
 // ── Direct keyword → image map (word-level exact match) ──
 const IMAGE_MAP = {
     // Marca de autopartes / códigos
-    ACP: IMG.AUTO, AIP: IMG.AUTO, OLP: IMG.AUTO,
-    BOSCH: IMG.AUTO, MERCEDEZ: IMG.AUTO, ONIX: IMG.AUTO,
-    HILLUX: IMG.AUTO, TOYOTA: IMG.AUTO, NISSAN: IMG.AUTO, MAZDA: IMG.AUTO,
-    BRAXOS: IMG.AUTO, RACORES: IMG.AUTO,
-    REPUESTO: IMG.AUTO, REPUESTOS: IMG.AUTO,
-    SOPORTE: IMG.AUTO, SOPORTES: IMG.AUTO, TUERCAS: IMG.AUTO,
-    TERMINALES: IMG.AUTO, REFLECTIVO: IMG.AUTO, CINTA: IMG.AUTO,
-    BUJIAS: IMG.AUTO, BUJIA: IMG.AUTO, MOTOR: IMG.AUTO,
-    VALVULA: IMG.AUTO, VÁLVULA: IMG.AUTO, VALVULAS: IMG.AUTO,
-    ABRAZADERAS: IMG.AUTO, MANGUERA: IMG.AUTO, CORREA: IMG.AUTO,
-    BANDA: IMG.AUTO, SELLADOR: IMG.AUTO, PINTURA: IMG.AUTO,
-    THINNER: IMG.AUTO, SILICONA: IMG.AUTO, ADITIVO: IMG.AUTO,
-    EMPAQUE: IMG.AUTO, TAPETE: IMG.AUTO, TAPETES: IMG.AUTO,
-    TERMOSTATO: IMG.AUTO, CHAZOS: IMG.AUTO, TUBO: IMG.AUTO,
-    UNION: IMG.AUTO, PITO: IMG.AUTO, RINES: IMG.AUTO,
+    ACP: IMG.PARTS, AIP: IMG.PARTS, OLP: IMG.FILTER, OIP: IMG.FILTER,
+    FLP: IMG.PARTS,
+    BOSCH: IMG.PARTS, MERCEDEZ: IMG.PARTS, ONIX: IMG.PARTS,
+    HILLUX: IMG.PARTS, TOYOTA: IMG.PARTS, NISSAN: IMG.PARTS, MAZDA: IMG.PARTS,
+    BRAXOS: IMG.PARTS, RACORES: IMG.PARTS,
+    REPUESTO: IMG.PARTS, REPUESTOS: IMG.PARTS,
+    SOPORTE: IMG.PARTS, SOPORTES: IMG.PARTS, TUERCAS: IMG.PARTS,
+    TERMINALES: IMG.PARTS, REFLECTIVO: IMG.PARTS, CINTA: IMG.ELECTRONICS,
+    BUJIAS: IMG.PARTS, BUJIA: IMG.PARTS, MOTOR: IMG.PARTS,
+    VALVULA: IMG.PARTS, VÁLVULA: IMG.PARTS, VALVULAS: IMG.PARTS,
+    ABRAZADERAS: IMG.PARTS, MANGUERA: IMG.PARTS, CORREA: IMG.PARTS,
+    BANDA: IMG.PARTS, SELLADOR: IMG.PARTS, PINTURA: IMG.PARTS,
+    THINNER: IMG.PARTS, SILICONA: IMG.PARTS, ADITIVO: IMG.PARTS,
+    EMPAQUE: IMG.PARTS, TAPETE: IMG.MAT, TAPETES: IMG.MAT,
+    TERMOSTATO: IMG.PARTS, CHAZOS: IMG.PARTS, TUBO: IMG.PARTS,
+    UNION: IMG.PARTS, PITO: IMG.PARTS, RINES: IMG.TIRE,
     GUARDABARROS: IMG.AUTO_BODY, LATONERIA: IMG.AUTO_BODY,
     RETOQUE: IMG.AUTO_BODY, REPARACION: IMG.AUTO_BODY,
     ESTRIBO: IMG.AUTO_BODY, PUERTA: IMG.AUTO_BODY,
@@ -193,7 +197,7 @@ const SERVICE_IMG_MAP = {
     CORREA: IMG.AUTO_BODY, BANDA: IMG.AUTO_BODY,
 };
 // ── Auto part code pattern ──
-const PART_CODE_RE = /^[A-Z]{2,6}[\s-]?\d/;
+const PART_CODE_RE = /^[A-Z]{2,6}[\s-]*\d/;
 function normalizeName(name) {
     // Normalize unicode (handles composed/decomposed chars)
     return name.normalize('NFC').toUpperCase();
@@ -258,7 +262,7 @@ function categorizeProduct(name) {
     const upper = name.toUpperCase().trim();
     // Auto part code?
     if (PART_CODE_RE.test(upper))
-        return IMG.AUTO;
+        return IMG.PARTS;
     let drinkScore = 0, foodScore = 0, cleaningScore = 0;
     for (const w of words) {
         if (isFoodWord(w))
@@ -293,11 +297,11 @@ function categorizeProduct(name) {
         return IMG.JUICE;
     if (foodScore > 0)
         return IMG.FOOD;
-    return IMG.AUTO;
+    return IMG.PARTS;
 }
 function productImage(name) {
-    const direct = findImage(name, IMAGE_MAP, IMG.AUTO);
-    if (direct !== IMG.AUTO)
+    const direct = findImage(name, IMAGE_MAP, IMG.PARTS);
+    if (direct !== IMG.PARTS)
         return direct;
     // Handle corrupted encoding (e.g. BRETAÑA stored as BRETAÃ‘A)
     const upper = name.toUpperCase();
@@ -321,7 +325,7 @@ async function main() {
     const services = await db.collection('servicios').find({}).toArray();
     let svcUpdated = 0;
     for (const s of services) {
-        const img = findImage(s.nombre, SERVICE_IMG_MAP, IMG.TIRE);
+        const img = findImage(s.nombre, SERVICE_IMG_MAP, IMG.CLEANING);
         if (s.imagen_url !== img) {
             await db.collection('servicios').updateOne({ _id: s._id }, { $set: { imagen_url: img } });
             svcUpdated++;

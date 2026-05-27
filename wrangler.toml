@@ -1,0 +1,13 @@
+# Cloudflare Pages — Frontend
+# build: npm run build:pages
+# deploy: npx wrangler pages deploy dist/LuxuryService/browser --branch production
+
+name = "luxury-service"
+compatibility_date = "2025-01-01"
+
+[build]
+command = "npm run build:pages"
+output_dir = "dist/LuxuryService/browser"
+
+[build.environment]
+NODE_VERSION = "22"

@@ -1,0 +1,2 @@
+# SPA fallback: serve index.csr.html for all unmatched routes
+/* /index.csr.html 200

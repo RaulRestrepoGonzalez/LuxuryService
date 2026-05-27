@@ -251,19 +251,27 @@ export async function enviarConfirmacionPago(params) {
     });
 }
 export async function enviarNotificacionGeneral(params) {
-    const content = `
+    const content = params.htmlCustom || `
 <h2 style="margin: 0 0 1rem; font-size: 1.2rem; color: #0a0a0a;">${params.titulo}</h2>
 <p style="color: #555; line-height: 1.6;">Hola <strong>${params.nombre}</strong>,</p>
 <p style="color: #555; line-height: 1.6;">${params.mensaje}</p>`;
     const html = baseHtml(content);
     const text = `Hola ${params.nombre},\n\n${params.mensaje}\n\nLuxury Service Manga - Manga, Cartagena${SPAM_NOTICE_TEXT}`;
-    return enviarConReintento(() => transporter.sendMail({
+    const mailOptions = {
         from: `"${CFG.fromName}" <${CFG.from}>`,
         to: params.to,
         subject: params.asunto,
         text,
         html,
-    }), {
+    };
+    if (params.qrBase64) {
+        mailOptions.attachments = [{
+                filename: 'codigo-qr.png',
+                content: Buffer.from(params.qrBase64, 'base64'),
+                cid: 'qr',
+            }];
+    }
+    return enviarConReintento(() => transporter.sendMail(mailOptions), {
         to: params.to, nombre: params.nombre,
         asunto: params.asunto,
         tipo: 'general', datos: params,
