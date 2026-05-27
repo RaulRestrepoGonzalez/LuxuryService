@@ -9,7 +9,7 @@
       <a routerLink="/agendar-cita" class="btn-hero-primary">Solicitar servicio</a>
       <a routerLink="/servicios" class="btn-hero-outline">Ver servicios</a>
     </div>
-    <p class="hero-hours">Te esperamos de lunes a s&aacute;bado, de 8:00 a.m. a 6:00 p.m. &mdash; los domingos descansamos</p>
+    <p class="hero-hours">Te esperamos de lunes a s&aacute;bado, de 7:00 a.m. a 6:00 p.m. &mdash; los domingos de 7:00 a.m. a 2:00 p.m.</p>
   </div>
 </section>
 
@@ -37,21 +37,14 @@
       </div>
     </div>
   </div>
-  <p class="tarifario-sub">Conoce todos los servicios que tenemos para tu vehículo</p>
 
   @if (loadingTarifario) {
     <p class="tarifario-loading">Cargando...</p>
   } @else {
-    <div class="tarifario-grid">
-      @for (cat of tarifarioCategorias; track cat) {
-        <div class="tarifario-card">
-          <h3 class="tarifario-cat-title">{{ cat }}</h3>
-          <div class="tarifario-tags">
-            @for (s of tarifarioGrouped[cat]; track s.id) {
-              <span class="tarifario-tag">{{ s.nombre }}</span>
-            }
-          </div>
-        </div>
+    <h3 class="tarifario-sub">Estos son nuestros servicios</h3>
+    <div class="tarifario-table">
+      @for (s of serviciosFlat; track s.id) {
+        <div class="tarifario-row">{{ s.nombre }}</div>
       }
     </div>
   }

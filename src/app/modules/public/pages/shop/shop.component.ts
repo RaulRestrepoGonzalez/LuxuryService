@@ -26,17 +26,12 @@ export interface Producto {
 })
 export class ShopComponent implements OnInit, OnDestroy {
   productos: Producto[] = [];
-  filtered: Producto[] = [];
-  destacados: Producto[] = [];
   loading = true;
   error = '';
   purchasing: string | null = null;
-  activeCategory = 'Todos';
-  categories: string[] = ['Todos'];
   toast = '';
   toastVisible = false;
   private refreshSub: Subscription | null = null;
-  private scrollInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private api: ApiService,
@@ -50,18 +45,13 @@ export class ShopComponent implements OnInit, OnDestroy {
     this.refreshSub = this.api.refresh$.subscribe(({ key, value }) => {
       if (key === '/products') {
         this.productos = value as Producto[];
-        this.destacados = this.productos.slice(0, 8);
-        this.buildCategories();
-        this.applyFilter();
         this.cdr.markForCheck();
       }
     });
-    this.startAutoScroll();
   }
 
   ngOnDestroy() {
     this.refreshSub?.unsubscribe();
-    this.stopAutoScroll();
   }
 
   loadProducts() {
@@ -70,9 +60,6 @@ export class ShopComponent implements OnInit, OnDestroy {
     this.api.getFresh<Producto[]>('/products').subscribe({
       next: res => {
         this.productos = res;
-        this.destacados = this.productos.slice(0, 8);
-        this.buildCategories();
-        this.applyFilter();
         this.loading = false;
         this.cdr.markForCheck();
       },
@@ -84,44 +71,12 @@ export class ShopComponent implements OnInit, OnDestroy {
     });
   }
 
-  private buildCategories() {
-    const cats = [...new Set(this.productos.map(p => p.categoria).filter(Boolean))] as string[];
-    this.categories = ['Todos', ...cats];
-  }
-
-  filterCategory(cat: string) {
-    this.activeCategory = cat;
-    this.applyFilter();
-  }
-
   img(p: Producto) { return productImage(p.icono, p.imagen_url); }
 
   stockClass(stock: number): string {
     if (stock <= 0) return 'out';
     if (stock <= 5) return 'low';
     return '';
-  }
-
-  private startAutoScroll() {
-    if (typeof window === 'undefined') return;
-    const el = () => document.querySelector('.featured-carousel');
-    this.scrollInterval = setInterval(() => {
-      const c = el();
-      if (!c || c.matches(':hover')) return;
-      const maxScroll = c.scrollWidth - c.clientWidth;
-      if (c.scrollLeft >= maxScroll - 10) {
-        c.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        c.scrollBy({ left: c.clientWidth, behavior: 'smooth' });
-      }
-    }, 4000);
-  }
-
-  private stopAutoScroll() {
-    if (this.scrollInterval) {
-      clearInterval(this.scrollInterval);
-      this.scrollInterval = null;
-    }
   }
 
   comprar(p: Producto) {
@@ -148,11 +103,5 @@ export class ShopComponent implements OnInit, OnDestroy {
     this.toast = msg;
     this.toastVisible = true;
     setTimeout(() => { this.toastVisible = false; }, 3200);
-  }
-
-  private applyFilter() {
-    this.filtered = this.activeCategory === 'Todos'
-      ? this.productos
-      : this.productos.filter(p => p.categoria === this.activeCategory);
   }
 }

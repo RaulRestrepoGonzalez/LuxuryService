@@ -5,7 +5,7 @@ import { ApiService } from 'src/app/core/services/api.service';
 import { HERO_IMAGE } from 'src/app/shared/constants/catalog-images';
 import { MARCAS_MULTIMARCAS } from 'src/app/shared/constants/marcas-multimarcas';
 import { SiteFooterComponent } from 'src/app/shared/components/site-footer/site-footer.component';
-import { FALLBACK_SERVICIOS, groupByCategoria } from 'src/app/shared/constants/servicios.data';
+import { FALLBACK_SERVICIOS } from 'src/app/shared/constants/servicios.data';
 
 interface Servicio {
   id: string;
@@ -34,8 +34,7 @@ const CATEGORIAS_VISIBLES = new Set([
 export class HomeComponent implements OnInit {
   heroImage = HERO_IMAGE;
   marcas = MARCAS_MULTIMARCAS;
-  tarifarioCategorias: string[] = [];
-  tarifarioGrouped: Record<string, Servicio[]> = {};
+  serviciosFlat: Servicio[] = [];
   loadingTarifario = true;
 
   contacto = {
@@ -53,29 +52,27 @@ export class HomeComponent implements OnInit {
   ngOnInit() {
     if (typeof window === 'undefined') return;
 
-    const fallback = groupByCategoria(FALLBACK_SERVICIOS);
-    this.tarifarioCategorias = fallback.categorias;
-    this.tarifarioGrouped = fallback.grouped;
+    this.serviciosFlat = FALLBACK_SERVICIOS.filter(s => !s.cotizar_local);
     this.loadingTarifario = false;
 
     this.api.get<{ categorias: string[]; grouped: Record<string, Servicio[]> }>('/services/catalog').subscribe({
       next: res => {
-        const categorias = res.categorias.filter(c => CATEGORIAS_VISIBLES.has(c));
-        const grouped: Record<string, Servicio[]> = {};
-        for (const c of categorias) {
-          grouped[c] = (res.grouped[c] || []).filter(s => !s.cotizar_local);
+        const flat: Servicio[] = [];
+        for (const c of res.categorias) {
+          if (CATEGORIAS_VISIBLES.has(c)) {
+            for (const s of (res.grouped[c] || [])) {
+              if (!s.cotizar_local) {
+                flat.push(s);
+              }
+            }
+          }
         }
-        if (categorias.length > 0) {
-          this.tarifarioCategorias = categorias;
-          this.tarifarioGrouped = grouped;
+        if (flat.length > 0) {
+          this.serviciosFlat = flat;
         }
       },
       error: () => {}
     });
-  }
-
-  formatPrice(n: number) {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n ?? 0);
   }
 
   onLogoError(ev: Event, nombre: string) {
