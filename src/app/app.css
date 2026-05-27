@@ -25,7 +25,7 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 1.1rem 2rem;
+  padding: 0.75rem 2rem;
   background: #ffffff;
   border-bottom: 1px solid #e8e8e8;
   position: sticky;
@@ -40,7 +40,7 @@ body {
 }
 
 .site-logo {
-  height: 52px;
+  height: 72px;
   width: auto;
   display: block;
   filter: brightness(0);
@@ -191,7 +191,7 @@ body {
   }
 
   .site-logo {
-    height: 42px;
+    height: 56px;
   }
 
   .site-hamburger {
@@ -201,7 +201,7 @@ body {
   .site-nav {
     display: none;
     position: fixed;
-    top: 68px;
+    top: 82px;
     left: 0;
     right: 0;
     bottom: 0;
