@@ -47,21 +47,21 @@ export class GiftCardComponent {
     {
       value: 80000,
       label: 'Clásica',
-      desc: 'Perfecto para un lavado premium o un detalle básico',
+      desc: 'Perfecto para regalar nuestros combos favoritos de lavado y motor',
       highlight: 'Lavado + Toallas',
       color: '#0a0a0a'
     },
     {
       value: 140000,
       label: 'Premium',
-      desc: 'Ideal para un detailing completo o varios servicios',
+      desc: 'Accedes al poder del lavado a vapor y encerado completo',
       highlight: 'Detailing + Cera',
       color: '#ff2b2b'
     },
     {
       value: 200000,
       label: 'Black Label',
-      desc: 'La mejor experiencia: tratamiento completo anticorrosivo + detailing',
+      desc: 'Abres la puerta al detailing premium que su auto merece',
       highlight: 'Full Treatment',
       color: '#d4af37'
     }
