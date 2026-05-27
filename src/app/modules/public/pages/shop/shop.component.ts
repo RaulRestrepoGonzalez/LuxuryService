@@ -102,10 +102,6 @@ export class ShopComponent implements OnInit, OnDestroy {
     return '';
   }
 
-  formatPrice(n: number) {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
-  }
-
   private startAutoScroll() {
     if (typeof window === 'undefined') return;
     const el = () => document.querySelector('.featured-carousel');

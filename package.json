@@ -8,7 +8,7 @@
     "server:seed": "cd server && npm run seed",
     "dev": "npm run server & ng serve",
     "build": "ng build",
-    "build:pages": "ng build --configuration pages",
+    "build:pages": "node scripts/set-api-url.js && ng build --configuration pages",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:LuxuryService": "node dist/LuxuryService/server/server.mjs",

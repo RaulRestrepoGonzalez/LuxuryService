@@ -24,7 +24,6 @@
             <img [src]="img(p)" [alt]="p.nombre" loading="lazy" width="200" height="150" />
             <div class="featured-card-body">
               <h4>{{ p.nombre }}</h4>
-              <span class="featured-card-price">{{ formatPrice(p.precio) }}</span>
             </div>
           </article>
         }
@@ -49,7 +48,6 @@
             <p class="md-card-desc">{{ p.descripcion }}</p>
             <div class="md-card-footer">
               <div>
-                <div class="md-card-price">{{ formatPrice(p.precio) }}</div>
                 <span class="md-card-stock" [class]="stockClass(p.stock)">
                   @if (p.stock <= 0) { Agotado }
                   @else if (p.stock <= 5) { Quedan {{ p.stock }} }

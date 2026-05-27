@@ -4,7 +4,7 @@
   <div class="chatbot-window">
     <header class="chatbot-header">
       <strong>Asesor Luxury</strong>
-      <span>Respuesta rápida · Precios y citas</span>
+      <span>Respuesta rápida · Servicios y citas</span>
       <button type="button" class="chat-close" (click)="toggle()">×</button>
     </header>
     <div class="chat-suggestions">
@@ -21,7 +21,7 @@
       }
     </div>
     <div class="chat-input-row">
-      <input [(ngModel)]="newMessage" (keyup.enter)="send()" placeholder="Pregunta precios, servicios..." />
+      <input [(ngModel)]="newMessage" (keyup.enter)="send()" placeholder="Pregunta por servicios..." />
       <button type="button" (click)="send()" [disabled]="typing">Enviar</button>
     </div>
   </div>

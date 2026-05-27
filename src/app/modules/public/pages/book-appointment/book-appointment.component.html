@@ -14,9 +14,6 @@
           }
           <div class="payment-row"><span>Fecha</span><strong>{{ appointmentForm.get('fecha')?.value }}</strong></div>
           <div class="payment-row"><span>Horario</span><strong>{{ selectedHorarioLabel() }}</strong></div>
-          <div class="payment-row"><span>Subtotal</span><strong>{{ formatPrice(payment.amount - 10000) }}</strong></div>
-          <div class="payment-row"><span>Recargo reserva</span><strong>+ $10,000</strong></div>
-          <div class="payment-row payment-total"><span>Total</span><strong>{{ formatPrice(payment.amount) }}</strong></div>
         </div>
         <div class="payment-10min-terms">⏱ Tienes <strong>10 minutos</strong> para pagar. Por el alto flujo de clientes, un espacio apartado sin pago es un ingreso que dejamos de percibir. Si no pagas a tiempo, la reserva se libera automáticamente.</div>
         <div class="payment-qr-wrap">
@@ -57,10 +54,9 @@
         @if (giftCardValid) {
           @if (giftCardValid.valid) {
             <div class="gc-valid-badge">
-              ✅ Gift Card {{ giftCardValid.etiqueta }} — <strong>{{ formatPrice(giftCardValid.monto!) }}</strong>
+              ✅ Gift Card {{ giftCardValid.etiqueta }}
               <button type="button" class="gc-clear-btn" (click)="clearGiftCard()" title="Quitar gift card">×</button>
             </div>
-            <p class="gc-filter-hint">Mostrando solo servicios hasta {{ formatPrice(giftCardValid.monto!) }}</p>
           } @else if (!errorMsg) {
             <div class="gc-invalid-badge">❌ {{ giftCardValid.error || 'Gift Card inválida' }}</div>
           }
@@ -83,7 +79,6 @@
           <label class="service-pick" [class.selected]="appointmentForm.get('servicioId')?.value === s.id">
             <input type="radio" formControlName="servicioId" [value]="s.id" />
             <span class="service-pick-name">{{ s.nombre }}</span>
-            <span class="service-pick-price">{{ formatPrice(tipoVehiculo === 'auto' ? s.precio_auto : tipoVehiculo === 'moto' ? s.precio_moto : s.precio_camioneta) }}</span>
           </label>
         }
       </div>
@@ -102,18 +97,17 @@
           </div>
           <div class="product-picks">
             @for (p of filteredProductos; track p.id) {
-              <label class="product-pick" [class.selected]="selectedProduct?.id === p.id">
-                <input type="radio" name="producto" [checked]="selectedProduct?.id === p.id" (change)="selectProduct(p)" />
-                <img [src]="img(p)" [alt]="p.nombre" loading="lazy" width="50" height="38" class="product-pick-img" />
-                <span class="product-pick-name">{{ p.nombre }}</span>
-                <span class="product-pick-price">{{ formatPrice(p.precio) }}</span>
-              </label>
+                <label class="product-pick" [class.selected]="selectedProduct?.id === p.id">
+                  <input type="radio" name="producto" [checked]="selectedProduct?.id === p.id" (change)="selectProduct(p)" />
+                  <img [src]="img(p)" [alt]="p.nombre" loading="lazy" width="50" height="38" class="product-pick-img" />
+                  <span class="product-pick-name">{{ p.nombre }}</span>
+                </label>
             }
           </div>
         }
         @if (selectedProduct) {
           <div class="product-selected-badge">
-            Producto seleccionado: <strong>{{ selectedProduct.nombre }}</strong> — {{ formatPrice(selectedProduct.precio) }}
+            Producto seleccionado: <strong>{{ selectedProduct.nombre }}</strong>
           </div>
         }
       </section>
@@ -180,39 +174,8 @@
     @if (errorMsg) { <div class="book-error">{{ errorMsg }}</div> }
 
     @if (appointmentForm.get('horario')?.value && !payment && !successMsg) {
-      <div class="book-fee-notice">
-        <div class="book-price-breakdown">
-          <span>Servicio ({{ tipoVehiculo === 'auto' ? 'Automóvil' : tipoVehiculo === 'moto' ? 'Moto' : 'Camioneta' }})</span>
-          <span>{{ formatPrice(precioServicio) }}</span>
-        </div>
-        @if (selectedProduct) {
-          <div class="book-price-breakdown">
-            <span>{{ selectedProduct.nombre }}</span>
-            <span>{{ formatPrice(selectedProduct.precio) }}</span>
-          </div>
-        }
-        @if (usandoGiftCard) {
-          <div class="book-price-breakdown" style="color:#137333">
-            <span>💳 Pagado con Gift Card</span>
-            <span>– {{ formatPrice(totalConRecargo) }}</span>
-          </div>
-          <div class="book-price-breakdown book-price-total">
-            <span>Saldo restante</span>
-            <span>{{ formatPrice(giftCardValid!.monto! - totalConRecargo) }}</span>
-          </div>
-        } @else {
-          <div class="book-price-breakdown">
-            <span>Recargo por reserva en línea</span>
-            <span>+ $10,000</span>
-          </div>
-          <div class="book-price-breakdown book-price-total">
-            <span>Total</span>
-            <span>{{ formatPrice(totalConRecargo) }}</span>
-          </div>
-        }
-      </div>
-      @if (!usandoGiftCard) {
-        <p class="book-terms">⏱ Tienes <strong>10 minutos</strong> para completar el pago. Por el alto flujo de clientes, un espacio apartado sin pago es un ingreso que dejamos de percibir. Si no pagas a tiempo, la reserva expira automáticamente.</p>
+      @if (usandoGiftCard) {
+        <p class="book-terms">⏱ Tienes <strong>10 minutos</strong> para completar el pago. Si no pagas a tiempo, la reserva expira automáticamente.</p>
       }
       <button type="button" class="btn-hero-primary book-submit" [disabled]="submitting || !auth.isLoggedIn()" (click)="submit()">
         {{ submitting ? 'Agendando...' : usandoGiftCard ? 'Confirmar cita con Gift Card' : 'Confirmar cita y pagar' }}

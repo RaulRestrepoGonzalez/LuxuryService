@@ -5,16 +5,10 @@ import { ChatbotService } from 'src/app/core/services/chatbot.service';
 
 const QUICK_REPLIES: Record<string, (v: string | null) => string | null> = {
   hola: v => v
-    ? `¡Hola de nuevo! Tienes seleccionado **${v === 'auto' ? 'Automóvil' : v === 'camioneta' ? 'Camioneta' : 'Moto'}**. Pregúntame por servicios, cotización, horarios (10:00 a.m. y 2:00 p.m.) o cómo agendar.`
+    ? `¡Hola de nuevo! Tienes seleccionado **${v === 'auto' ? 'Automóvil' : v === 'camioneta' ? 'Camioneta' : 'Moto'}**. Pregúntame por servicios, horarios (10:00 a.m. y 2:00 p.m.) o cómo agendar.`
     : '¡Hola! ¿Qué tipo de vehículo tienes? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto',
-  precios: v => v
-    ? null
-    : 'Para consultar precios primero dime: ¿Automóvil, Camioneta o Moto?',
   horarios: () => 'Citas disponibles: 10:00 a.m. y 2:00 p.m.',
   servicios: v => v ? null : '¿Qué tipo de vehículo tienes? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto',
-  cotizacion: v => v
-    ? null
-    : 'Te ayudo a cotizar. ¿Qué tipo de vehículo? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto',
 };
 
 @Component({
@@ -30,7 +24,7 @@ export class ChatbotFloatingComponent implements OnInit {
   newMessage = '';
   typing = false;
   vehiculo: 'auto' | 'camioneta' | 'moto' | null = null;
-  suggestions = ['Automóvil', 'Camioneta', 'Moto', 'Cotización', 'Horarios', 'Servicios', 'Productos', 'Agendar cita'];
+  suggestions = ['Automóvil', 'Camioneta', 'Moto', 'Horarios', 'Servicios', 'Agendar cita'];
   private replyCache = new Map<string, string>();
 
   constructor(
@@ -109,10 +103,8 @@ export class ChatbotFloatingComponent implements OnInit {
       'Automóvil': 'automovil',
       'Camioneta': 'camioneta',
       'Moto': 'moto',
-      'Cotización': 'cotizacion',
       'Horarios': 'horarios',
       'Servicios': 'servicios',
-      'Productos': 'productos',
       'Agendar cita': '¿Cómo agendar una cita?',
     };
     this.send(map[s] || s);

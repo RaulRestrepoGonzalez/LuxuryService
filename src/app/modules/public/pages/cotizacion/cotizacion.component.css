@@ -53,6 +53,34 @@
   position: relative;
 }
 
+.cot-aviso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  max-width: 700px;
+  margin: 1.5rem auto;
+  padding: 1.25rem 2rem;
+  background: #fff8e1;
+  border: 2px solid #ffe082;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.cot-aviso-icon {
+  font-size: 2.2rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.cot-aviso-text {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #5d4037;
+  line-height: 1.6;
+}
+
 .cot-tipo-toggle {
   display: flex;
   justify-content: center;
@@ -188,6 +216,13 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: #0a0a0a;
+}
+
+.cot-item-ejemplo {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #b8860b;
+  white-space: nowrap;
 }
 
 .cot-item-price {
@@ -339,12 +374,7 @@
   color: #ff2b2b;
 }
 
-.cot-resumen-iva {
-  margin: 0.5rem 0 0;
-  font-size: 0.7rem;
-  color: #80868b;
-  text-align: center;
-}
+
 
 .cot-agendar-btn {
   display: block;
@@ -368,7 +398,50 @@
   color: #fff;
 }
 
+.cot-resumen-ejemplo {
+  margin: 0.5rem 0 0;
+  font-size: 0.7rem;
+  color: #b8860b;
+  text-align: center;
+  font-style: italic;
+}
+
+.cot-ver-btn {
+  display: block;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  color: #555;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-align: center;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.cot-ver-btn:hover {
+  border-color: #ff2b2b;
+  color: #ff2b2b;
+}
+
+.cot-item-ejemplo {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #b8860b;
+  white-space: nowrap;
+}
+
 @media (max-width: 768px) {
   .cot-columns { grid-template-columns: 1fr; }
   .cot-resumen { position: static; }
+  .cot-aviso {
+    flex-direction: column;
+    padding: 1rem 1.25rem;
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+  .cot-aviso-text { font-size: 0.95rem; }
 }

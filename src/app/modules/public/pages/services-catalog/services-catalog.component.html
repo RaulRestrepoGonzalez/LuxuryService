@@ -3,8 +3,7 @@
     <p class="svc-hero-eyebrow">Conoce nuestros</p>
     <h1><em>SERVICIOS</em></h1>
     <p class="svc-hero-brand">{{ brandName }}</p>
-    <p class="svc-hero-desc">Tarifario oficial · Precios 2026 con IVA incluido · Autos y Camionetas</p>
-    <span class="svc-iva-badge">PRECIOS 2026 · IVA INCLUIDO</span>
+    <p class="svc-hero-desc">Conoce nuestra oferta de servicios profesionales · Autos y Camionetas</p>
   </header>
 
   <div class="svc-filters-row">
@@ -25,8 +24,6 @@
                 <span class="svc-dd-name">{{ s.nombre }}</span>
                 @if (s.cotizar_local) {
                   <span class="svc-dd-cotizar">Cotizar en local</span>
-                } @else {
-                  <span class="svc-dd-price">{{ formatPrice(precioActual(s)) }}</span>
                 }
               </a>
             }
@@ -36,14 +33,14 @@
     }
   </div>
 
+  <div class="svc-search">
+    <input type="text" class="svc-search-input" placeholder="Buscar servicio…" [(ngModel)]="searchTerm" />
+  </div>
+
   <div class="svc-tipo-toggle">
     <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'">🚗 Automóvil</button>
     <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'">🚙 Camioneta</button>
     <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'">🏍️ Moto</button>
-  </div>
-
-  <div class="svc-search">
-    <input type="text" class="svc-search-input" placeholder="Buscar servicio…" [(ngModel)]="searchTerm" />
   </div>
 
   @if (activeFilter !== 'Todos') {
@@ -56,13 +53,12 @@
   <div class="svc-lists">
     @for (cat of filterCats(); track cat) {
       <section class="svc-list-block">
-        <div class="svc-list-banner" [class.svc-list-banner--gray]="esCategoriaGray(cat)">
-          <div class="svc-banner-text">
-            <h2>{{ cat }}</h2>
-            <span>{{ meta(cat).tagline }} · {{ totalInCategory(cat) }} servicios</span>
+          <div class="svc-list-banner" [class.svc-list-banner--gray]="esCategoriaGray(cat)">
+            <div class="svc-banner-text">
+              <h2>{{ cat }}</h2>
+              <span>{{ meta(cat).tagline }} · {{ totalInCategory(cat) }} servicios</span>
+            </div>
           </div>
-          <span class="svc-iva-badge-small">IVA INCLUIDO</span>
-        </div>
 
         <div class="svc-list">
           @for (s of filteredGrouped[cat]; track s.id) {
@@ -71,8 +67,6 @@
                 <span class="svc-list-name">{{ s.nombre }}</span>
                 @if (s.cotizar_local) {
                   <span class="svc-list-cotizar">Cotizar en local</span>
-                } @else {
-                  <span class="svc-list-price">{{ formatPrice(precioActual(s)) }}</span>
                 }
               </div>
 
@@ -95,25 +89,6 @@
                     <strong>Cotizar en el local.</strong>
                   </div>
                 } @else {
-                  <div class="svc-list-prices">
-                    <div class="svc-list-price-row">
-                      <span class="svc-price-label">Automóvil</span>
-                      <span class="svc-price-val">{{ formatPrice(precioAuto(s)) }}</span>
-                    </div>
-                    <div class="svc-list-price-row">
-                      <span class="svc-price-label">Camioneta</span>
-                      <span class="svc-price-val svc-price-red">{{ formatPrice(precioCamioneta(s)) }}</span>
-                    </div>
-                    <div class="svc-list-price-row">
-                      <span class="svc-price-label">Moto</span>
-                      <span class="svc-price-val">{{ formatPrice(precioMoto(s)) }}</span>
-                    </div>
-                  </div>
-
-                  @if (s.iva_incluido) {
-                    <span class="svc-iva-tag">IVA incluido</span>
-                  }
-
                   @if (s.agendable !== false) {
                     <a class="svc-cta-btn" [routerLink]="['/agendar-cita']" [queryParams]="{ servicio: s.id }">
                       Agendar →

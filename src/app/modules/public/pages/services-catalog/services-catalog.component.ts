@@ -6,25 +6,24 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService } from 'src/app/core/services/api.service';
 import { Servicio, FALLBACK_SERVICIOS, groupByCategoria } from 'src/app/shared/constants/servicios.data';
 
-const VACUUM_IMG = '<img src="/aspiradora.png" alt="" class="svc-custom-icon">';
-const SPRAY_GUN_IMG = '<img src="/pistola-de-pintura.png" alt="" class="svc-custom-icon svc-custom-icon--sm">';
+const icon = (file: string) => `<img src="/${file}" alt="" class="svc-custom-icon">`;
 
 const CATEGORIA_META: Record<string, { icon: string; tagline: string }> = {
-  'Lavado y Detailing': { icon: '🚗', tagline: 'Lavado general, motor, express y premium' },
-  'Combos': { icon: '🏆', tagline: 'Paquetes con mejor precio' },
-  'Detailing y Protección': { icon: '🧽', tagline: 'Embellecimiento, sellado y nanocerámico' },
-  'Limpieza Profunda': { icon: VACUUM_IMG, tagline: 'Tapicería, techos, pisos y cojinería' },
-  'Serviteca': { icon: '🔧', tagline: 'Alineación, balanceo y rotación' },
-  'Polarizados': { icon: '🌑', tagline: 'Película nanocerámica para vidrios' },
-  'Farolas': { icon: '💡', tagline: 'Pulido y sellado de farolas' },
-  'Rines': { icon: '🛞', tagline: 'Limpieza, descontaminación y sellado' },
-  'Hidroblasting': { icon: '💧', tagline: 'Hidrolavado y retoque profesional' },
-  'Protección': { icon: '🛡️', tagline: 'Anticorrosiva y sellamiento' },
-  'Diagnóstico': { icon: '🔍', tagline: 'Scaner electrónico e inyectores' },
-  'Adicionales': { icon: '➕', tagline: 'Insumos, domicilios y aplicaciones' },
-  'Latonería y Carrocería': { icon: '🔧', tagline: 'Enderezada, golpes y carrocería' },
-  'Pintura y Acabados': { icon: SPRAY_GUN_IMG, tagline: 'Pintura, corrección y protección' },
-  'Mecánica General': { icon: '⚙️', tagline: 'Frenos, motor, suspensión y más' },
+  'Lavado y Detailing': { icon: icon('Lavado y Detailing.png'), tagline: 'Lavado general, motor, express y premium' },
+  'Combos': { icon: icon('Combos.png'), tagline: 'Paquetes con mejor precio' },
+  'Detailing y Protección': { icon: icon('Detailing y Protección.png'), tagline: 'Embellecimiento, sellado y nanocerámico' },
+  'Limpieza Profunda': { icon: icon('Limpieza Profunda.png'), tagline: 'Tapicería, techos, pisos y cojinería' },
+  'Serviteca': { icon: icon('serviteca.png'), tagline: 'Alineación, balanceo y rotación' },
+  'Polarizados': { icon: icon('Polarizados.png'), tagline: 'Película nanocerámica para vidrios' },
+  'Farolas': { icon: icon('Farolas.png'), tagline: 'Pulido y sellado de farolas' },
+  'Rines': { icon: icon('Rines.png'), tagline: 'Limpieza, descontaminación y sellado' },
+  'Hidroblasting': { icon: icon('Hidroblasting.png'), tagline: 'Hidrolavado y retoque profesional' },
+  'Protección': { icon: icon('Protección.png'), tagline: 'Anticorrosiva y sellamiento' },
+  'Diagnóstico': { icon: icon('Diagnóstico.png'), tagline: 'Scaner electrónico e inyectores' },
+  'Adicionales': { icon: icon('Adicionales.png'), tagline: 'Insumos, domicilios y aplicaciones' },
+  'Latonería y Carrocería': { icon: icon('Latonería y Carrocería.png'), tagline: 'Enderezada, golpes y carrocería' },
+  'Pintura y Acabados': { icon: icon('Pintura y Acabados.png'), tagline: 'Pintura, corrección y protección' },
+  'Mecánica General': { icon: icon('Mecánica General.png'), tagline: 'Frenos, motor, suspensión y más' },
 };
 
 @Component({
@@ -51,7 +50,6 @@ export class ServicesCatalogComponent implements OnInit {
     for (const [cat, list] of Object.entries(this.grouped)) {
       let f = list;
       if (this.CAT_SIEMPRE_VISIBLE.has(cat)) {
-        // Siempre mostrar estas categorías sin filtrar por vehículo
       } else if (this.tipoVehiculo === 'moto') {
         f = f.filter(s => /\b(moto(s)?|motocicleta)\b/i.test(s.nombre));
       } else {
@@ -117,20 +115,6 @@ export class ServicesCatalogComponent implements OnInit {
 
   showAll() {
     this.activeFilter = 'Todos';
-  }
-
-  formatPrice(n: number) {
-    if (!n) return '—';
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
-  }
-
-  precioAuto(s: Servicio) { return s.precio_auto ?? s.precio_base; }
-  precioCamioneta(s: Servicio) { return s.precio_camioneta ?? s.precio_base; }
-  precioMoto(s: Servicio) { return s.precio_moto ?? s.precio_base; }
-  precioActual(s: Servicio) {
-    if (this.tipoVehiculo === 'auto') return this.precioAuto(s);
-    if (this.tipoVehiculo === 'camioneta') return this.precioCamioneta(s);
-    return this.precioMoto(s);
   }
 
   totalInCategory(cat: string) {

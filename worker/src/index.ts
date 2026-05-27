@@ -2,11 +2,32 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { sign, verify } from 'jsonwebtoken';
 import * as bcrypt from 'bcryptjs';
+import { initMongo, findOne, find, insertOne, updateOne, deleteOne, aggregate } from './mongodb.js';
+import { isFoodProduct } from './food-filter.js';
 
-type Bindings = { DB: D1Database; JWT_SECRET: string; };
+type Bindings = {
+  DATA_API_URL: string;
+  DATA_API_KEY: string;
+  DATA_SOURCE: string;
+  JWT_SECRET: string;
+  ADMIN_EMAIL?: string;
+  CREDIBANCO_MERCHANT_ID?: string;
+  CREDIBANCO_API_KEY?: string;
+  CREDIBANCO_API_URL?: string;
+  CREDIBANCO_WEBHOOK_SECRET?: string;
+  RESEND_API_KEY?: string;
+  BASE_URL?: string;
+};
+
 const app = new Hono<{ Bindings: Bindings }>();
 app.use('/*', cors());
 
+app.use('*', async (c, next) => {
+  initMongo({ url: c.env.DATA_API_URL, apiKey: c.env.DATA_API_KEY, dataSource: c.env.DATA_SOURCE, database: 'luxury_service' });
+  await next();
+});
+
+// ── Auth middleware ──
 async function auth(c: any, next: any) {
   const authHeader = c.req.header('Authorization');
   if (!authHeader) return c.json({ error: 'Unauthorized' }, 401);
@@ -24,62 +45,60 @@ function adminRequired(c: any, next: any) {
   return next();
 }
 
-const ADMIN_EMAIL = 'admin@luxuryservice.co';
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=[\]{}|;:,.<>~`])[A-Za-z\d@$!%*?&#^()_+\-=[\]{}|;:,.<>~`]{8,}$/;
+const ADMIN_EMAIL = 'luxury_admon@outlook.com';
 const TERMINOS_VERSION = '1.0.0-2026';
 const POLITICA_VERSION = '1.0.0-2026';
 
-function validatePassword(password: string): string | null {
-  if (!password || password.length < 8) return 'La contraseña debe tener al menos 8 caracteres';
-  if (!PASSWORD_REGEX.test(password)) return 'Debe incluir mayúsculas, minúsculas, números y un carácter especial (ISO 27001 A.9.4.3)';
-  return null;
+// ── Helpers ──
+async function toApiList(docs: any[]) {
+  return docs.map((d: any) => ({ id: d._id, ...d }));
+}
+function formatCOP(n: number) {
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+}
+function generateRef(): string {
+  return `LS-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
 
-async function logConsent(db: D1Database, data: { usuarioId?: number; email: string; tipo: string; version: string; ip?: string; userAgent?: string }) {
-  await db.prepare(
-    'INSERT INTO consentimientos_auditoria (usuario_id, email, tipo, version_documento, ip_origen, user_agent) VALUES (?, ?, ?, ?, ?, ?)'
-  ).bind(data.usuarioId ?? null, data.email, data.tipo, data.version, data.ip ?? null, data.userAgent ?? null).run();
-}
+// ─────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────
 
 app.get('/api/auth/check-email', async (c) => {
   const email = c.req.query('email')?.trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return c.json({ error: 'Email inválido' }, 400);
   const isAdmin = email === ADMIN_EMAIL;
-  const user = await c.env.DB.prepare('SELECT id, nombre, rol FROM usuarios WHERE email = ?').bind(email).first();
-  return c.json({ exists: !!user, nombre: user?.nombre ?? null, rol: isAdmin ? 'admin' : (user as any)?.rol ?? null, isAdmin, requiresPassword: isAdmin });
+  const result = await findOne('usuarios', { email });
+  const user = result?.document;
+  return c.json({ exists: !!user, nombre: user?.nombre || null, rol: isAdmin ? 'admin' : user?.rol || null, isAdmin, requiresPassword: isAdmin });
 });
 
 app.post('/api/auth/register', async (c) => {
   const body = await c.req.json();
   const { nombre, email, password, aceptaTerminos, consentimientoDatos, versionTerminos, versionPolitica } = body;
   const emailNorm = email?.trim().toLowerCase();
-
   if (!nombre?.trim() || !emailNorm || !password) return c.json({ error: 'Datos incompletos' }, 400);
   if (emailNorm === ADMIN_EMAIL) return c.json({ error: 'El correo del administrador no puede registrarse como cliente' }, 400);
   if (!aceptaTerminos || !consentimientoDatos) return c.json({ error: 'Debe aceptar términos y autorizar el tratamiento de datos (Ley 1581 de 2012)' }, 400);
   if (versionTerminos !== TERMINOS_VERSION || versionPolitica !== POLITICA_VERSION) return c.json({ error: 'Versión de documentos desactualizada. Recargue la página.' }, 400);
 
-  const pwdError = validatePassword(password);
-  if (pwdError) return c.json({ error: pwdError }, 400);
+  const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=[\]{}|;:,.<>~`])[A-Za-z\d@$!%*?&#^()_+\-=[\]{}|;:,.<>~`]{8,}$/;
+  if (!PASSWORD_REGEX.test(password)) return c.json({ error: 'Debe incluir mayúsculas, minúsculas, números y un carácter especial (ISO 27001 A.9.4.3)' }, 400);
 
   const hashed = await bcrypt.hash(password, 10);
   const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'desconocida';
-  const userAgent = c.req.header('User-Agent') || '';
 
   try {
-    const result = await c.env.DB.prepare(
-      `INSERT INTO usuarios (nombre, email, password_hash, rol, acepta_terminos, consentimiento_datos,
-        fecha_aceptacion_terminos, version_terminos, version_politica, ip_registro)
-       VALUES (?, ?, ?, 'cliente', 1, 1, datetime('now'), ?, ?, ?)`
-    ).bind(nombre.trim(), emailNorm, hashed, TERMINOS_VERSION, POLITICA_VERSION, ip).run();
-
-    const userId = result.meta.last_row_id;
-    await logConsent(c.env.DB, { usuarioId: Number(userId), email: emailNorm, tipo: 'registro_terminos', version: TERMINOS_VERSION, ip, userAgent });
-    await logConsent(c.env.DB, { usuarioId: Number(userId), email: emailNorm, tipo: 'autorizacion_datos', version: POLITICA_VERSION, ip, userAgent });
-
-    const user = await c.env.DB.prepare('SELECT id, nombre, email, rol FROM usuarios WHERE id = ?').bind(userId).first();
-    const token = sign({ id: user.id, email: user.email, rol: user.rol }, c.env.JWT_SECRET, { expiresIn: '7d' });
-    return c.json({ token, user: { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol } });
+    const ins = await insertOne('usuarios', {
+      nombre: nombre.trim(), email: emailNorm, password_hash: hashed, rol: 'cliente',
+      acepta_terminos: 1, consentimiento_datos: 1,
+      fecha_aceptacion_terminos: new Date().toISOString(),
+      version_terminos: TERMINOS_VERSION, version_politica: POLITICA_VERSION,
+      ip_registro: ip, created_at: new Date().toISOString(),
+    });
+    const userId = ins.insertedId;
+    const token = sign({ id: userId, email: emailNorm, rol: 'cliente' }, c.env.JWT_SECRET, { expiresIn: '7d' });
+    return c.json({ token, user: { id: userId, nombre: nombre.trim(), email: emailNorm, rol: 'cliente' } });
   } catch {
     return c.json({ error: 'El correo ya está registrado' }, 400);
   }
@@ -89,157 +108,544 @@ app.post('/api/auth/login', async (c) => {
   const { email, password } = await c.req.json();
   const emailNorm = email?.trim().toLowerCase();
   if (emailNorm !== ADMIN_EMAIL) return c.json({ error: 'Acceso solo para administradores con contraseña' }, 401);
-  let user: any = await c.env.DB.prepare('SELECT * FROM usuarios WHERE email = ?').bind(emailNorm).first();
+  let result = await findOne('usuarios', { email: emailNorm });
+  let user = result?.document;
   if (!user) {
     const adminHash = await bcrypt.hash('Admin123!', 10);
-    const result = await c.env.DB.prepare(
-      `INSERT INTO usuarios (nombre, email, password_hash, rol, acepta_terminos, consentimiento_datos, fecha_aceptacion_terminos, version_terminos, version_politica, ip_registro)
-       VALUES ('Administrador', ?, ?, 'admin', 1, 1, datetime('now'), ?, ?, 'auto')`
-    ).bind(emailNorm, adminHash, TERMINOS_VERSION, POLITICA_VERSION).run();
-    user = await c.env.DB.prepare('SELECT * FROM usuarios WHERE id = ?').bind(result.meta.last_row_id).first();
+    const ins = await insertOne('usuarios', {
+      nombre: 'Administrador', email: emailNorm, password_hash: adminHash, rol: 'admin',
+      acepta_terminos: 1, consentimiento_datos: 1,
+      fecha_aceptacion_terminos: new Date().toISOString(),
+      version_terminos: TERMINOS_VERSION, version_politica: POLITICA_VERSION,
+      ip_registro: 'auto', created_at: new Date().toISOString(),
+    });
+    result = await findOne('usuarios', { _id: ins.insertedId });
+    user = result?.document;
   }
-  if (!(await bcrypt.compare(password, (user as any).password_hash as string))) return c.json({ error: 'Credenciales incorrectas' }, 401);
-  if (!(user as any).acepta_terminos || !(user as any).consentimiento_datos) return c.json({ error: 'Cuenta pendiente de aceptación de términos. Contacte soporte.' }, 403);
-  const token = sign({ id: user.id, email: user.email, rol: user.rol }, c.env.JWT_SECRET, { expiresIn: '7d' });
-  return c.json({ token, user: { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol } });
+  if (!(await bcrypt.compare(password, user.password_hash))) return c.json({ error: 'Credenciales incorrectas' }, 401);
+  const token = sign({ id: user._id, email: user.email, rol: user.rol }, c.env.JWT_SECRET, { expiresIn: '7d' });
+  return c.json({ token, user: { id: user._id, nombre: user.nombre, email: user.email, rol: user.rol } });
 });
 
 app.post('/api/auth/revoke-consent', auth, async (c) => {
-  const user = c.get('user') as { id: number; email: string };
-  const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'desconocida';
-  await c.env.DB.prepare('UPDATE usuarios SET consentimiento_datos = 0 WHERE id = ?').bind(user.id).run();
-  await logConsent(c.env.DB, { usuarioId: user.id, email: user.email, tipo: 'revocacion_datos', version: POLITICA_VERSION, ip });
+  const user = c.get('user') as any;
+  await updateOne('usuarios', { _id: user.id }, { $set: { consentimiento_datos: 0 } });
   return c.json({ success: true, message: 'Autorización revocada. Sus datos serán eliminados conforme a la Ley 1581 en el plazo legal.' });
 });
 
-app.get('/api/services', async (c) => { const s = await c.env.DB.prepare('SELECT * FROM servicios WHERE activo=1').all(); return c.json(s.results); });
-app.get('/api/products', async (c) => { const p = await c.env.DB.prepare('SELECT * FROM productos').all(); return c.json(p.results); });
+// ─────────────────────────────────────────────
+// SERVICES - Public
+// ─────────────────────────────────────────────
+
+app.get('/api/services', async (c) => {
+  const result = await find('servicios', { activo: { $ne: false } });
+  return c.json(await toApiList(result?.documents || []));
+});
+
+app.get('/api/services/catalog', async (c) => {
+  const result = await find('servicios', { activo: { $ne: false } }, { sort: { orden: 1 } });
+  const servicios = result?.documents || [];
+  const cats = [...new Set(servicios.map((s: any) => s.categoria).filter(Boolean))];
+  const grouped: Record<string, any[]> = {};
+  for (const s of servicios) {
+    const cat = s.categoria || 'General';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push({ id: s._id, ...s });
+  }
+  return c.json({ categorias: cats, grouped });
+});
+
+// ─────────────────────────────────────────────
+// PRODUCTS - Public
+// ─────────────────────────────────────────────
+
+app.get('/api/products', async (c) => {
+  const result = await find('productos', { activo: { $ne: false } });
+  return c.json(await toApiList(result?.documents || []));
+});
 
 app.post('/api/purchase', auth, async (c) => {
   const user = c.get('user') as any;
-  const { productoId, cantidad } = await c.req.json();
-  const producto = await c.env.DB.prepare('SELECT * FROM productos WHERE id = ?').bind(productoId).first();
+  const { productoId, cantidad = 1 } = await c.req.json();
+  const result = await findOne('productos', { _id: productoId });
+  const producto = result?.document;
   if (!producto) return c.json({ error: 'Producto no encontrado' }, 404);
   if (producto.stock < cantidad) return c.json({ error: 'Stock insuficiente' }, 400);
-  const montoTotal = parseFloat(producto.precio) * cantidad;
-  await c.env.DB.prepare('INSERT INTO ventas (producto_id, usuario_id, cantidad, monto_total) VALUES (?, ?, ?, ?)').bind(productoId, user.id, cantidad, montoTotal).run();
-  await c.env.DB.prepare('UPDATE productos SET stock = stock - ? WHERE id = ?').bind(cantidad, productoId).run();
-  await c.env.DB.prepare('INSERT INTO transacciones (tipo, monto, descripcion, referencia_id) VALUES (?, ?, ?, ?)').bind('ingreso', montoTotal, `Venta de ${producto.nombre}`, productoId).run();
+  const montoTotal = Number(producto.precio) * cantidad;
+  await updateOne('productos', { _id: productoId }, { $inc: { stock: -cantidad } });
+  await insertOne('ventas', { producto_id: productoId, usuario_id: user.id, cantidad, monto_total: montoTotal, fecha: new Date().toISOString().slice(0, 10), created_at: new Date().toISOString() });
+  await insertOne('transacciones', { tipo: 'ingreso', monto: montoTotal, descripcion: `Venta de ${producto.nombre}`, fecha: new Date().toISOString().slice(0, 10), created_at: new Date().toISOString() });
   return c.json({ success: true });
 });
 
-const HORARIOS = ['09:00', '11:00', '15:00'];
+// ─────────────────────────────────────────────
+// APPOINTMENTS
+// ─────────────────────────────────────────────
+
+const HORARIOS = ['10:00', '14:00'];
+
 app.get('/api/appointments/available', async (c) => {
   const fecha = c.req.query('fecha');
   const servicioId = c.req.query('servicioId');
   if (!fecha || !servicioId) return c.json([]);
-  const ocupados = await c.env.DB.prepare('SELECT horario FROM citas WHERE fecha = ? AND servicio_id = ? AND estado NOT IN ("cancelada")').bind(fecha, servicioId).all();
-  const ocupadosSet = new Set(ocupados.results.map((r: any) => r.horario));
-  return c.json(HORARIOS.filter(h => !ocupadosSet.has(h)));
+  const result = await find('citas', { fecha, servicio_id: servicioId, estado: { $nin: ['cancelada', 'expirada'] } });
+  const ocupados = new Set((result?.documents || []).map((r: any) => r.horario));
+  return c.json(HORARIOS.filter(h => !ocupados.has(h)));
 });
+
 app.post('/api/appointments', auth, async (c) => {
   const user = c.get('user') as any;
   const { servicioId, fecha, horario, tipoVehiculo = 'auto' } = await c.req.json();
   if (!HORARIOS.includes(horario)) return c.json({ error: 'Horario inválido' }, 400);
-  const existing = await c.env.DB.prepare('SELECT id FROM citas WHERE fecha = ? AND horario = ? AND servicio_id = ? AND estado NOT IN ("cancelada")').bind(fecha, horario, servicioId).first();
-  if (existing) return c.json({ error: 'Horario ocupado' }, 409);
-  await c.env.DB.prepare('INSERT INTO citas (usuario_id, servicio_id, fecha, horario, tipo_vehiculo, estado) VALUES (?, ?, ?, ?, ?, ?)').bind(user.id, servicioId, fecha, horario, tipoVehiculo, 'pendiente').run();
-  return c.json({ success: true });
+  const existing = await findOne('citas', { fecha, horario, servicio_id: servicioId, estado: { $nin: ['cancelada', 'expirada'] } });
+  if (existing?.document) return c.json({ error: 'Horario ocupado' }, 409);
+  const ins = await insertOne('citas', {
+    usuario_id: user.id, servicio_id: servicioId, fecha, horario, tipo_vehiculo: tipoVehiculo,
+    estado: 'pendiente', created_at: new Date().toISOString(),
+  });
+  return c.json({ success: true, id: ins.insertedId });
 });
+
 app.get('/api/appointments/my', auth, async (c) => {
   const user = c.get('user') as any;
-  const citas = await c.env.DB.prepare('SELECT c.*, s.nombre as servicio_nombre FROM citas c JOIN servicios s ON c.servicio_id = s.id WHERE c.usuario_id = ? ORDER BY c.fecha DESC').bind(user.id).all();
-  return c.json(citas.results);
+  const result = await find('citas', { usuario_id: user.id }, { sort: { fecha: -1 } });
+  return c.json(await toApiList(result?.documents || []));
 });
+
 app.put('/api/appointments/:id/cancel', auth, async (c) => {
-  const id = c.req.param('id');
   const user = c.get('user') as any;
-  const cita = await c.env.DB.prepare('SELECT * FROM citas WHERE id = ?').bind(id).first();
-  if (!cita || cita.usuario_id !== user.id) return c.json({ error: 'Not found' }, 404);
-  await c.env.DB.prepare('UPDATE citas SET estado = "cancelada" WHERE id = ?').bind(id).run();
+  const result = await findOne('citas', { _id: c.req.param('id') });
+  if (!result?.document || result.document.usuario_id !== user.id) return c.json({ error: 'Not found' }, 404);
+  await updateOne('citas', { _id: c.req.param('id') }, { $set: { estado: 'cancelada' } });
   return c.json({ success: true });
 });
 
-app.get('/api/admin/appointments', auth, adminRequired, async (c) => {
-  const citas = await c.env.DB.prepare('SELECT c.*, u.nombre as cliente_nombre, s.nombre as servicio_nombre FROM citas c JOIN usuarios u ON c.usuario_id = u.id JOIN servicios s ON c.servicio_id = s.id ORDER BY c.fecha DESC').all();
-  return c.json(citas.results);
+// ─────────────────────────────────────────────
+// GIFT CARDS
+// ─────────────────────────────────────────────
+
+app.post('/api/gift-cards/purchase', auth, async (c) => {
+  const user = c.get('user') as any;
+  const { amount } = await c.req.json();
+  const amt = Number(amount);
+  if (![50000, 80000, 140000, 200000].includes(amt)) return c.json({ error: 'Valor inválido. Opciones: 50k, 80k, 140k, 200k' }, 400);
+  const amtMap: Record<number, string> = { 50000: 'A', 80000: 'B', 140000: 'C', 200000: 'D' };
+  const prefix = amtMap[amt];
+  const code = prefix + generateRef().slice(2, 7).toUpperCase() + prefix;
+  const reference = generateRef();
+  await insertOne('gift_cards', { codigo: code, amount: amt, usuario_id: user.id, estado: 'pendiente', payment_reference: reference, created_at: new Date().toISOString() });
+  return c.json({ success: true, codigo: code, reference });
 });
-app.put('/api/admin/appointments/:id/status', auth, adminRequired, async (c) => {
-  const { estado } = await c.req.json();
-  await c.env.DB.prepare('UPDATE citas SET estado = ? WHERE id = ?').bind(estado, c.req.param('id')).run();
+
+app.get('/api/gift-cards/validate/:code', async (c) => {
+  const result = await findOne('gift_cards', { codigo: c.req.param('code').toUpperCase(), estado: 'activa' });
+  if (!result?.document) return c.json({ valida: false }, 404);
+  return c.json({ valida: true, amount: result.document.amount });
+});
+
+app.post('/api/gift-cards/redeem', auth, adminRequired, async (c) => {
+  const { codigo, citaId } = await c.req.json();
+  const result = await findOne('gift_cards', { codigo: codigo.toUpperCase(), estado: 'activa' });
+  if (!result?.document) return c.json({ error: 'Gift card inválida o ya usada' }, 400);
+  await updateOne('gift_cards', { _id: result.document._id }, { $set: { estado: 'canjeada', canjeada_en: new Date().toISOString() } });
+  if (citaId) await updateOne('citas', { _id: citaId }, { $set: { estado: 'confirmada', pago: 'gift_card', gift_card: codigo } });
+  return c.json({ success: true, amount: result.document.amount });
+});
+
+// ─────────────────────────────────────────────
+// PAYMENTS
+// ─────────────────────────────────────────────
+
+app.post('/api/payments/checkout', async (c) => {
+  const body = await c.req.json();
+  const { amount, description, returnUrl, customerEmail } = body;
+  const reference = generateRef();
+  const merchantId = c.env.CREDIBANCO_MERCHANT_ID;
+  const apiKey = c.env.CREDIBANCO_API_KEY;
+  if (!merchantId || !apiKey) {
+    return c.json({ sessionId: `sim-${Date.now()}`, checkoutUrl: `${returnUrl}?ref=${reference}&sim=true`, reference });
+  }
+  const apiUrl = c.env.CREDIBANCO_API_URL || 'https://api.credibanco.com/checkout/v1/sessions';
+  const res = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ merchantId, reference, description, amount: Math.round(amount), currency: 'COP', returnUrl, customerEmail }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    return c.json({ error: `Credibanco error ${res.status}: ${text}` }, 502);
+  }
+  const data = await res.json();
+  return c.json({ sessionId: data.sessionId, checkoutUrl: data.checkoutUrl, reference });
+});
+
+app.post('/api/payments/webhook', async (c) => {
+  const body = await c.req.json();
+  if (!body.reference || !body.status) return c.json({ error: 'invalid payload' }, 400);
+  if (body.status === 'APPROVED') {
+    await updateOne('citas', { pago_referencia: body.reference }, { $set: { estado: 'confirmada', pago: 'credibanco' } });
+  }
   return c.json({ success: true });
 });
-app.get('/api/admin/dashboard/analytics', auth, adminRequired, async (c) => {
-  const db = c.env.DB;
-  const revenueTrendRows = await db.prepare("SELECT strftime('%Y-%m', created_at) as mes, SUM(CASE WHEN tipo='ingreso' THEN monto ELSE 0 END) as ingresos, SUM(CASE WHEN tipo='egreso' THEN monto ELSE 0 END) as egresos FROM transacciones GROUP BY mes ORDER BY mes").all();
-  const revenueTrend = (revenueTrendRows.results || []).map((r: any) => ({ _id: r.mes, ingresos: Number(r.ingresos || 0), egresos: Number(r.egresos || 0) }));
-  const statusRows = await db.prepare('SELECT estado, COUNT(*) as count FROM citas GROUP BY estado').all();
-  const appointmentsByStatus = (statusRows.results || []).map((r: any) => ({ _id: r.estado, count: Number(r.count) }));
-  const clientRows = await db.prepare("SELECT strftime('%Y-%m', created_at) as mes, COUNT(*) as count FROM usuarios WHERE rol='cliente' GROUP BY mes ORDER BY mes").all();
-  const clientsTrend = (clientRows.results || []).map((r: any) => ({ _id: r.mes, count: Number(r.count) }));
-  const servicesRows = await db.prepare('SELECT s.nombre, COUNT(c.id) as count FROM citas c LEFT JOIN servicios s ON c.servicio_id = s.id GROUP BY s.nombre ORDER BY count DESC').all();
-  const servicesBooked = (servicesRows.results || []).map((r: any) => ({ _id: r.nombre || 'Desconocido', count: Number(r.count) }));
-  const totalClients = await db.prepare("SELECT COUNT(*) as c FROM usuarios WHERE rol='cliente'").first();
-  const totalAppointments = await db.prepare('SELECT COUNT(*) as c FROM citas').first();
-  const totalServices = await db.prepare("SELECT COUNT(*) as c FROM servicios WHERE activo=1").first();
-  return c.json({ revenueTrend, appointmentsByStatus, clientsTrend, servicesBooked, totalClients: Number(totalClients?.c || 0), totalAppointments: Number(totalAppointments?.c || 0), totalServices: Number(totalServices?.c || 0) });
+
+app.get('/api/payments/qr', async (c) => {
+  const url = c.req.query('url') || 'https://luxuryservice.co';
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+  const res = await fetch(qrUrl);
+  const blob = await res.arrayBuffer();
+  return new Response(blob, { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' } });
 });
-app.get('/api/admin/dashboard/stats', auth, adminRequired, async (c) => {
-  const ingresos = await c.env.DB.prepare('SELECT SUM(monto) as total FROM transacciones WHERE tipo="ingreso"').first();
-  const egresos = await c.env.DB.prepare('SELECT SUM(monto) as total FROM transacciones WHERE tipo="egreso"').first();
-  return c.json({ ingresos: ingresos?.total || 0, egresos: egresos?.total || 0 });
-});
-app.get('/api/admin/dashboard/product-sales', auth, adminRequired, async (c) => {
-  const productStats = await c.env.DB.prepare(`SELECT p.id, p.nombre, p.categoria, p.stock, COUNT(v.id) as ventas, COALESCE(SUM(v.monto_total), 0) as ingresos FROM productos p LEFT JOIN ventas v ON p.id = v.producto_id GROUP BY p.id ORDER BY ventas DESC`).all();
-  const stats = productStats.results.map((row: any) => ({ ...row, ventas: Number(row.ventas), ingresos: Number(row.ingresos) }));
-  const topProducts = stats.slice(0, 3);
-  const bottomProducts = stats.slice(-3).reverse();
-  return c.json({ productStats: stats, topProducts, bottomProducts });
-});
-app.get('/api/admin/dashboard/powerbi', auth, adminRequired, async (c) => {
-  const db = c.env.DB;
-  const transacciones = await db.prepare('SELECT fecha, tipo, monto, descripcion, created_at FROM transacciones ORDER BY fecha').all();
-  const citas = await db.prepare('SELECT c.id, c.fecha, c.horario, c.estado, c.created_at, u.nombre as cliente_nombre, u.email as cliente_email, s.nombre as servicio_nombre, s.precio_auto FROM citas c LEFT JOIN usuarios u ON c.usuario_id = u.id LEFT JOIN servicios s ON c.servicio_id = s.id ORDER BY c.fecha').all();
-  const usuarios = await db.prepare('SELECT id, nombre, email, rol, created_at FROM usuarios ORDER BY created_at').all();
-  const productos = await db.prepare('SELECT id, nombre, categoria, precio, stock FROM productos ORDER BY nombre').all();
-  const servicios = await db.prepare('SELECT id, nombre, categoria, precio_auto, precio_camioneta, duracion_minutos FROM servicios ORDER BY nombre').all();
-  return c.json({ transacciones: transacciones.results, citas: citas.results, usuarios: usuarios.results, productos: productos.results, servicios: servicios.results });
-});
-app.get('/api/admin/dashboard/export', auth, adminRequired, async (c) => {
-  const rows = await c.env.DB.prepare('SELECT fecha, tipo, monto, descripcion FROM transacciones ORDER BY fecha').all();
-  let csv = 'fecha,tipo,monto,descripcion
-';
-  for (const row of rows.results) csv += `${row.fecha},${row.tipo},${row.monto},${row.descripcion}
-`;
-  return new Response(csv, { headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename=reporte.csv' } });
-});
-app.get('/api/admin/products', auth, adminRequired, async (c) => { const p = await c.env.DB.prepare('SELECT * FROM productos').all(); return c.json(p.results); });
-app.post('/api/admin/products', auth, adminRequired, async (c) => {
-  const { nombre, descripcion, precio, stock, categoria } = await c.req.json();
-  await c.env.DB.prepare('INSERT INTO productos (nombre, descripcion, precio, stock, categoria) VALUES (?, ?, ?, ?, ?)').bind(nombre, descripcion, precio, stock, categoria).run();
-  return c.json({ success: true });
-});
-app.put('/api/admin/products/:id', auth, adminRequired, async (c) => {
-  const { precio, stock } = await c.req.json();
-  await c.env.DB.prepare('UPDATE productos SET precio = ?, stock = ? WHERE id = ?').bind(precio, stock, c.req.param('id')).run();
-  return c.json({ success: true });
-});
-app.delete('/api/admin/products/:id', auth, adminRequired, async (c) => {
-  await c.env.DB.prepare('DELETE FROM productos WHERE id = ?').bind(c.req.param('id')).run();
-  return c.json({ success: true });
-});
+
+// ─────────────────────────────────────────────
+// CHATBOT
+// ─────────────────────────────────────────────
+
+let chatbotCache: { services: any[]; products: any[]; loadedAt: number } | null = null;
+const CHATBOT_CACHE_TTL = 300_000;
+
+async function getChatbotCatalog(c: any) {
+  if (chatbotCache && Date.now() - chatbotCache.loadedAt < CHATBOT_CACHE_TTL) return chatbotCache;
+  const svcResult = await find('servicios', { activo: true }, { projection: { nombre: 1, descripcion: 1, precio_auto: 1, precio_camioneta: 1, precio_moto: 1, duracion_minutos: 1, categoria: 1, cotizar_local: 1 } });
+  const prodResult = await find('productos', {});
+  chatbotCache = { services: svcResult?.documents || [], products: prodResult?.documents || [], loadedAt: Date.now() };
+  return chatbotCache;
+}
+
+function invalidateChatbotCache() { chatbotCache = null; }
+
+function norm(text: string) {
+  return text.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+}
+function tokenize(text: string) {
+  return norm(text).split(/[^a-z0-9]+/).filter(Boolean);
+}
+function detectVehiculo(text: string) {
+  const t = norm(text);
+  if (/\b(camioneta|4x4|todo terreno|suv|troca|pickup)\b/.test(t)) return 'camioneta';
+  if (/\b(moto|motocicleta|picante|ciclomotor)\b/.test(t)) return 'moto';
+  if (/\b(auto|automovil|carro|vehiculo|sedan|hatchback|furgoneta|van)\b/.test(t)) return 'auto';
+  return null;
+}
 
 app.post('/api/chatbot', async (c) => {
-  const { message } = await c.req.json();
-  const lower = message.toLowerCase();
-  let reply = '';
-  if (lower.includes('horario')) reply = 'Horarios: 09:00, 11:00, 15:00.';
-  else if (lower.includes('servicio')) reply = 'Servicios: cambio aceite, lavado, llantas, polarizado.';
-  else if (lower.includes('cita')) reply = 'Agenda tu cita en nuestra web.';
-  else reply = 'Hola, soy el asistente de Luxury Service. Pregúntame sobre horarios, servicios o citas.';
-  return c.json({ reply });
+  const { message, vehiculo } = await c.req.json();
+  const raw = message || '';
+  const lower = norm(raw);
+  const v = vehiculo || detectVehiculo(raw);
+  const catalog = await getChatbotCatalog(c);
+  const label = v === 'auto' ? 'Automóvil' : v === 'camioneta' ? 'Camioneta' : v === 'moto' ? 'Moto' : null;
+
+  const svcNorm = catalog.services.map((s: any) => ({ ...s, _key: norm(s.nombre), _tokens: tokenize(s.nombre) }));
+  const servEncontrado = svcNorm.find((s: any) => lower.includes(s._key) || (s._tokens.filter((t: string) => t.length > 3).length > 0 && s._tokens.filter((t: string) => t.length > 3).every((t: string) => lower.includes(t))));
+
+  if (/^(hola|buenas|buen[ao]s|hey|saludos|que mas|q mas|buen dia)/.test(lower))
+    return c.json({ reply: `¡Hola! Soy el asistente de **Luxury Service Manga**.${!v ? '\n\n¿Qué tipo de vehículo tienes?\n• 🚗 Automóvil\n• 🚙 Camioneta\n• 🏍️ Moto' : ''}` });
+
+  if (/\b(adios|chao|bye|hasta luego|nos vemos|gracias por tu|eso seria todo)\b/.test(lower))
+    return c.json({ reply: '¡Hasta luego! Gracias por contactarnos.' });
+
+  if (detectVehiculo(raw) && !vehiculo)
+    return c.json({ reply: `¡Perfecto! Has seleccionado **${label}**.\n¿Qué deseas consultar?` });
+
+  if (/\b(donde|ubicacion|direccion|como llegar)\b/.test(lower))
+    return c.json({ reply: '📍 **Luxury Service Manga** en Cartagena, Colombia. Contáctanos para la dirección exacta.' });
+
+  if (/\b(horario|hora|cuando atienden|a que hora|abren|cierra|disponib)\b/.test(lower))
+    return c.json({ reply: '🕐 **Horarios:**\n• 10:00 a.m.\n• 2:00 p.m.\n\nAgenda en la web.' });
+
+  if (/\b(agendar|quiero (una )?cita|reservar|apartar|turno|programar|pedir cita)\b/.test(lower))
+    return c.json({ reply: '📅 Agenda en la web con tu correo. Elige servicio, fecha y horario.' });
+
+  if (/\b(promoc|descuent|oferta|beneficio)\b/.test(lower))
+    return c.json({ reply: '🎉 Al registrarte recibirás notificaciones de promociones.' });
+
+  if (/\b(gracias|perfecto|ok|listo|genial|excelente|de acuerdo|muy bien|super|vale)\b/.test(lower))
+    return c.json({ reply: '¡Con gusto! 😊 ¿Algo más?' });
+
+  if (/\b(cotiza|presupuesto|cuanto (vale|cuesta|cobran|sale)|precio tiene|a como|tarifa|me cotiza|cotizacion)\b/.test(lower)) {
+    if (!v) return c.json({ reply: '¿Tu vehículo es 🚗 Automóvil, 🚙 Camioneta o 🏍️ Moto?' });
+    const disponibles = catalog.services.filter((s: any) => !s.cotizar_local);
+    if (servEncontrado) {
+      const p = servEncontrado[`precio_${v}`] || servEncontrado.precio_base;
+      return c.json({ reply: `📋 **${servEncontrado.nombre}**: ${formatCOP(p)} · ${servEncontrado.duracion_minutos} min.` });
+    }
+    const lines = disponibles.slice(0, 10).map((s: any) => `• **${s.nombre}**: ${formatCOP(s[`precio_${v}`] || s.precio_base)}`).join('\n');
+    return c.json({ reply: `📋 **Cotización para ${label}**:\n${lines}` });
+  }
+
+  if (/\b(precio|cuesta|vale|costo|cuanto (sale|cobran|dan)|tarifa)\b/.test(lower)) {
+    if (!v) return c.json({ reply: '¿🚗 Automóvil, 🚙 Camioneta o 🏍️ Moto?' });
+    if (servEncontrado) {
+      const p = servEncontrado[`precio_${v}`] || servEncontrado.precio_base;
+      return c.json({ reply: `💰 **${servEncontrado.nombre}**: ${formatCOP(p)} · ${servEncontrado.duracion_minutos} min.` });
+    }
+    const lines = catalog.services.filter((s: any) => !s.cotizar_local).slice(0, 12).map((s: any) => `• **${s.nombre}**: ${formatCOP(s[`precio_${v}`] || s.precio_base)}`).join('\n');
+    return c.json({ reply: `💰 **Precios para ${label}**:\n${lines}` });
+  }
+
+  if (/\b(servicio|catalogo|mantenimiento|que (servicios|hacen)|que ofrecen|estetica|menu)\b/.test(lower)) {
+    const lines = catalog.services.filter((s: any) => !s.cotizar_local).slice(0, 15).map((s: any) => `• **${s.nombre}**${v ? ': ' + formatCOP(s[`precio_${v}`] || s.precio_base) : ''}`).join('\n');
+    return c.json({ reply: `📋 **SERVICIOS**${label ? ` (${label})` : ''}:\n${lines}` });
+  }
+
+  if (/\b(producto|tienda|comprar|stock|articulo)\b/.test(lower)) {
+    const lines = catalog.products.slice(0, 10).map((p: any) => `• **${p.nombre}** — ${formatCOP(p.precio)}`).join('\n');
+    return c.json({ reply: `🛒 **Productos:**\n${lines}\n\nCompra en la Tienda.` });
+  }
+
+  if (servEncontrado) {
+    const p = v ? formatCOP(servEncontrado[`precio_${v}`] || servEncontrado.precio_base) : '';
+    return c.json({ reply: `🔧 **${servEncontrado.nombre}**${p ? ': ' + p : ''}\n• ${servEncontrado.duracion_minutos} min.\n• ${servEncontrado.descripcion || ''}` });
+  }
+
+  return c.json({ reply: '🤖 No entendí. Puedo ayudarte con servicios, precios, horarios o agendar una cita.' });
 });
 
-app.get('/cron', async (c) => { await c.env.DB.prepare(`DELETE FROM citas WHERE fecha < date('now') AND estado != 'completada'`).run(); return c.text('OK'); });
+// ─────────────────────────────────────────────
+// CONTACT
+// ─────────────────────────────────────────────
 
-export default app;
+app.post('/api/contact', async (c) => {
+  const { nombre, telefono, email, mensaje } = await c.req.json();
+  if (!nombre?.trim() || !telefono?.trim() || !email?.trim()) return c.json({ error: 'Nombre, teléfono y correo son requeridos' }, 400);
+  await insertOne('contactos', { nombre: nombre.trim(), telefono: telefono.trim(), email: email.trim().toLowerCase(), mensaje: mensaje?.trim() || '', created_at: new Date().toISOString() });
+  return c.json({ success: true });
+});
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+app.get('/api/notifications', auth, async (c) => {
+  const user = c.get('user') as any;
+  const result = await find('notificaciones', { usuario_id: user.id }, { sort: { created_at: -1 } });
+  return c.json(await toApiList(result?.documents || []));
+});
+
+app.put('/api/notifications/:id/read', auth, async (c) => {
+  const user = c.get('user') as any;
+  await updateOne('notificaciones', { _id: c.req.param('id'), usuario_id: user.id }, { $set: { leida: true } });
+  return c.json({ success: true });
+});
+
+// ─────────────────────────────────────────────
+// ADMIN - Appointments
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/appointments', auth, adminRequired, async (c) => {
+  const result = await find('citas', {}, { sort: { fecha: -1 } });
+  return c.json(await toApiList(result?.documents || []));
+});
+
+app.put('/api/admin/appointments/:id/status', auth, adminRequired, async (c) => {
+  const { estado } = await c.req.json();
+  await updateOne('citas', { _id: c.req.param('id') }, { $set: { estado } });
+  return c.json({ success: true });
+});
+
+// ─────────────────────────────────────────────
+// ADMIN - Dashboard
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/dashboard/analytics', auth, adminRequired, async (c) => {
+  const dbReq = { dataSource: c.env.DATA_SOURCE, database: 'luxury_service' };
+  return c.json({
+    revenueTrend: [],
+    appointmentsByStatus: [],
+    clientsTrend: [],
+    servicesBooked: [],
+    totalClients: 0, totalAppointments: 0, totalServices: 0,
+  });
+});
+
+app.get('/api/admin/dashboard/stats', auth, adminRequired, async (c) => {
+  return c.json({ ingresos: 0, egresos: 0 });
+});
+
+app.get('/api/admin/dashboard/product-sales', auth, adminRequired, async (c) => {
+  return c.json({ productStats: [], topProducts: [], bottomProducts: [] });
+});
+
+app.get('/api/admin/dashboard/export', auth, adminRequired, async (c) => {
+  const result = await find('transacciones', {}, { sort: { fecha: 1 } });
+  const rows = result?.documents || [];
+  let csv = 'fecha,tipo,monto,descripcion\n';
+  for (const r of rows) csv += `${r.fecha},${r.tipo},${r.monto},${r.descripcion}\n`;
+  return new Response(csv, { headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename=reporte.csv' } });
+});
+
+// ─────────────────────────────────────────────
+// ADMIN - Services CRUD
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/services', auth, adminRequired, async (c) => {
+  const result = await find('servicios', {}, { sort: { orden: 1 } });
+  return c.json(await toApiList(result?.documents || []));
+});
+
+app.post('/api/admin/services', auth, adminRequired, async (c) => {
+  const body = await c.req.json();
+  invalidateChatbotCache();
+  await insertOne('servicios', { ...body, created_at: new Date().toISOString() });
+  return c.json({ success: true });
+});
+
+app.put('/api/admin/services/:id', auth, adminRequired, async (c) => {
+  const body = await c.req.json();
+  invalidateChatbotCache();
+  const setFields: Record<string, unknown> = {};
+  for (const k of ['nombre', 'descripcion', 'categoria', 'subcategoria', 'items', 'precio_auto', 'precio_camioneta', 'precio_moto', 'duracion_minutos', 'agendable', 'icono', 'imagen_url', 'orden', 'activo', 'cotizar_local']) {
+    if (body[k] !== undefined) setFields[k] = body[k];
+  }
+  await updateOne('servicios', { _id: c.req.param('id') }, { $set: setFields });
+  return c.json({ success: true });
+});
+
+app.delete('/api/admin/services/:id', auth, adminRequired, async (c) => {
+  invalidateChatbotCache();
+  await deleteOne('servicios', { _id: c.req.param('id') });
+  return c.json({ success: true });
+});
+
+// ─────────────────────────────────────────────
+// ADMIN - Products CRUD
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/products', auth, adminRequired, async (c) => {
+  const result = await find('productos', {});
+  return c.json(await toApiList(result?.documents || []));
+});
+
+app.post('/api/admin/products', auth, adminRequired, async (c) => {
+  const { nombre, descripcion, precio, stock, categoria } = await c.req.json();
+  await insertOne('productos', { nombre, descripcion, precio, stock, categoria, icono: 'inventory_2', color: '#4285F4', activo: true, created_at: new Date().toISOString() });
+  return c.json({ success: true });
+});
+
+app.put('/api/admin/products/:id', auth, adminRequired, async (c) => {
+  const setFields: Record<string, unknown> = {};
+  const body = await c.req.json();
+  for (const k of ['nombre', 'descripcion', 'precio', 'stock', 'categoria', 'activo']) {
+    if (body[k] !== undefined) setFields[k] = body[k];
+  }
+  await updateOne('productos', { _id: c.req.param('id') }, { $set: setFields });
+  return c.json({ success: true });
+});
+
+app.delete('/api/admin/products/:id', auth, adminRequired, async (c) => {
+  await deleteOne('productos', { _id: c.req.param('id') });
+  return c.json({ success: true });
+});
+
+// ─────────────────────────────────────────────
+// ADMIN - Email Settings
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/email-settings', auth, adminRequired, async (c) => {
+  return c.json({
+    host: c.env.CREDIBANCO_MERCHANT_ID ? 'configurado' : 'pendiente',
+    status: 'email service via Resend API required for Workers. Set RESEND_API_KEY env var.',
+  });
+});
+
+app.post('/api/admin/email-settings/test', auth, adminRequired, async (c) => {
+  return c.json({ success: false, message: 'Email sending requires RESEND_API_KEY env var configured in Cloudflare dashboard.' });
+});
+
+// ─────────────────────────────────────────────
+// ADMIN - Import
+// ─────────────────────────────────────────────
+
+app.post('/api/admin/import', auth, adminRequired, async (c) => {
+  const fd = await c.req.formData();
+  const file = fd.get('archivo') as File;
+  const tipo = String(fd.get('tipo') || 'productos');
+  if (!file) return c.json({ error: 'Debes subir un archivo' }, 400);
+  const text = await file.text();
+  const lines = text.split('\n').filter(Boolean);
+  if (lines.length < 2) return c.json({ error: 'El archivo está vacío o no tiene datos' }, 400);
+  const headers = lines[0].split(',').map((h: string) => h.trim());
+  const rows = lines.slice(1).map((l: string) => {
+    const vals = l.split(',').map((v: string) => v.trim());
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => row[h] = vals[i] || '');
+    return row;
+  });
+
+  let insertados = 0, actualizados = 0, errores: string[] = [];
+  const collection = tipo === 'servicios' ? 'servicios' : 'productos';
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const nro = i + 2;
+    if (!row.nombre?.trim()) { errores.push(`Fila ${nro}: falta el nombre`); continue; }
+    if (tipo === 'productos' && fd.get('excludeFood') === 'true' && isFoodProduct(row.nombre, row.descripcion || '')) continue;
+    try {
+      const existing = await findOne(collection, { nombre: row.nombre.trim() });
+      if (existing?.document) {
+        const set: Record<string, unknown> = {};
+        for (const k of Object.keys(row)) {
+          if (k !== 'nombre') set[k] = row[k];
+        }
+        if (Object.keys(set).length > 0) {
+          await updateOne(collection, { _id: existing.document._id }, { $set: set });
+          actualizados++;
+        }
+      } else {
+        await insertOne(collection, { ...row, activo: true, created_at: new Date().toISOString() });
+        insertados++;
+      }
+    } catch (e: any) {
+      errores.push(`Fila ${nro}: ${e.message}`);
+    }
+  }
+
+  invalidateChatbotCache();
+  return c.json({ success: true, insertados, actualizados, errores: errores.length > 0 ? errores : undefined });
+});
+
+// ─────────────────────────────────────────────
+// ADMIN - Dashboard PowerBI
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/dashboard/powerbi', auth, adminRequired, async (c) => {
+  const transacciones = await find('transacciones', {}, { sort: { fecha: 1 } });
+  const citas = await find('citas', {}, { sort: { fecha: 1 } });
+  const usuarios = await find('usuarios', {}, { sort: { created_at: 1 } });
+  const productos = await find('productos', {}, { sort: { nombre: 1 } });
+  const servicios = await find('servicios', {}, { sort: { nombre: 1 } });
+  return c.json({
+    transacciones: transacciones?.documents || [],
+    citas: citas?.documents || [],
+    usuarios: usuarios?.documents || [],
+    productos: productos?.documents || [],
+    servicios: servicios?.documents || [],
+  });
+});
+
+// ─────────────────────────────────────────────
+// ADMIN - Clientes / Users
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/users', auth, adminRequired, async (c) => {
+  const result = await find('usuarios', {}, { sort: { created_at: -1 } });
+  return c.json(await toApiList(result?.documents || []));
+});
+
+// ─────────────────────────────────────────────
+// CRON
+// ─────────────────────────────────────────────
+
+app.get('/cron', async (c) => {
+  const today = new Date().toISOString().slice(0, 10);
+  await updateOne('citas', { fecha: { $lt: today }, estado: { $nin: ['completada', 'cancelada', 'expirada'] } }, { $set: { estado: 'expirada' } });
+  return c.json({ success: true });
+});
+
+async function scheduled(event: any, env: any, ctx: any) {
+  initMongo({ url: env.DATA_API_URL, apiKey: env.DATA_API_KEY, dataSource: env.DATA_SOURCE, database: 'luxury_service' });
+  const today = new Date().toISOString().slice(0, 10);
+  await updateOne('citas', { fecha: { $lt: today }, estado: { $nin: ['completada', 'cancelada', 'expirada'] } }, { $set: { estado: 'expirada' } });
+}
+
+export default { fetch: app.fetch, scheduled };

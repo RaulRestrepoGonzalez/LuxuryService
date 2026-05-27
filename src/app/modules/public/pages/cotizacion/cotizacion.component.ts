@@ -19,7 +19,7 @@ interface Producto {
 interface CotizacionItem {
   id: string;
   nombre: string;
-  precio: number;
+  precioReferencia: number;
   tipo: 'servicio' | 'producto';
   seleccionado: boolean;
   cotizarLocal?: boolean;
@@ -38,7 +38,6 @@ export class CotizacionComponent implements OnInit {
   productos: Producto[] = [];
   items: CotizacionItem[] = [];
   categoriasServicios: string[] = [];
-  categoriasProductos: string[] = [];
   loading = true;
   searchTerm = '';
 
@@ -77,6 +76,15 @@ export class CotizacionComponent implements OnInit {
     });
   }
 
+  private precioReferencia(s: Servicio) {
+    const p = this.tipoVehiculo === 'auto'
+      ? (s.precio_auto ?? s.precio_base)
+      : this.tipoVehiculo === 'camioneta'
+        ? (s.precio_camioneta ?? s.precio_base)
+        : (s.precio_moto ?? s.precio_base);
+    return p ?? 0;
+  }
+
   private buildItems() {
     const items: CotizacionItem[] = [];
     const cats = new Set<string>();
@@ -84,7 +92,7 @@ export class CotizacionComponent implements OnInit {
       items.push({
         id: s.id,
         nombre: s.nombre,
-        precio: this.precioActual(s),
+        precioReferencia: this.precioReferencia(s),
         tipo: 'servicio',
         seleccionado: false,
         cotizarLocal: !!s.cotizar_local
@@ -92,25 +100,7 @@ export class CotizacionComponent implements OnInit {
       if (s.categoria) cats.add(s.categoria);
     }
     this.categoriasServicios = [...cats];
-    const pCats = new Set<string>();
-    for (const p of this.productos) {
-      items.push({
-        id: p.id,
-        nombre: p.nombre,
-        precio: p.precio,
-        tipo: 'producto',
-        seleccionado: false
-      });
-      if (p.categoria) pCats.add(p.categoria);
-    }
-    this.categoriasProductos = [...pCats];
     this.items = items;
-  }
-
-  private precioActual(s: Servicio) {
-    if (this.tipoVehiculo === 'auto') return s.precio_auto ?? s.precio_base;
-    if (this.tipoVehiculo === 'camioneta') return s.precio_camioneta ?? s.precio_base;
-    return s.precio_moto ?? s.precio_base;
   }
 
   cambiarVehiculo(t: 'auto' | 'camioneta' | 'moto') {
@@ -118,28 +108,14 @@ export class CotizacionComponent implements OnInit {
     for (const item of this.items) {
       if (item.tipo === 'servicio') {
         const s = this.servicios.find(sv => sv.id === item.id);
-        if (s) {
-          item.precio = this.precioActual(s);
-          // Deselect services not available for selected vehicle
-          if (t === 'moto') {
-            if (!/\b(moto(s)?|motocicleta)\b/i.test(s.nombre)) item.seleccionado = false;
-          } else {
-            const precio = t === 'auto'
-              ? (s.precio_auto ?? s.precio_base ?? 0)
-              : (s.precio_camioneta ?? s.precio_base ?? 0);
-            if (precio <= 0) item.seleccionado = false;
-          }
-        }
+        if (s) item.precioReferencia = this.precioReferencia(s);
       }
     }
   }
 
-  get seleccionados(): CotizacionItem[] {
-    return this.items.filter(i => i.seleccionado);
-  }
-
-  get total(): number {
-    return this.seleccionados.reduce((sum, i) => sum + i.precio, 0);
+  formatPrecio(n: number) {
+    if (!n) return '—';
+    return '$' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
   }
 
   private matchSearch(text: string): boolean {
@@ -154,10 +130,6 @@ export class CotizacionComponent implements OnInit {
 
   private buscaServicio(id: string): Servicio | undefined {
     return this.servicios.find(sv => sv.id === id);
-  }
-
-  private buscaProducto(id: string): Producto | undefined {
-    return this.productos.find(pr => pr.id === id);
   }
 
   serviciosPorCategoria(cat: string): CotizacionItem[] {
@@ -179,15 +151,6 @@ export class CotizacionComponent implements OnInit {
     });
   }
 
-  productosPorCategoria(cat: string): CotizacionItem[] {
-    return this.items.filter(i => {
-      if (i.tipo !== 'producto') return false;
-      const p = this.buscaProducto(i.id);
-      if (!this.matchSearch(i.nombre + ' ' + (p?.descripcion || '') + ' ' + (p?.categoria || ''))) return false;
-      return p?.categoria === cat;
-    });
-  }
-
   categoriaEsLocal(cat: string): boolean {
     const items = this.items.filter(i => i.tipo === 'servicio');
     const enCat = items.filter(i => {
@@ -197,7 +160,11 @@ export class CotizacionComponent implements OnInit {
     return enCat.length > 0 && enCat.every(i => i.cotizarLocal);
   }
 
-  formatPrice(n: number) {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+  get seleccionados(): CotizacionItem[] {
+    return this.items.filter(i => i.seleccionado);
+  }
+
+  get total(): number {
+    return this.seleccionados.reduce((sum, i) => sum + i.precioReferencia, 0);
   }
 }

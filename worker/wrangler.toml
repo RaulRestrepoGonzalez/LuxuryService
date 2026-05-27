@@ -1,14 +1,14 @@
 name = "luxury-worker"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "luxury-db"
-database_id = "TU_DATABASE_ID"
+node_compat = true
 
 [triggers]
 crons = ["0 0 * * *"]
 
 [vars]
-JWT_SECRET = "tu-secreto-muy-seguro-2026"
+JWT_SECRET = "cambiar-por-un-secreto-seguro"
+DATA_API_URL = "https://data.mongodb-api.com/app/TU_APP_ID/endpoint/data/v1"
+DATA_SOURCE = "luxury-servive-manga"
+ADMIN_EMAIL = "admin@luxuryservice.co"
+BASE_URL = "https://luxuryservice.co"
