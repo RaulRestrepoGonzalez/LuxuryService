@@ -14,8 +14,8 @@ async function getCatalog() {
         return cache;
     const db = getDb();
     const [services, products] = await Promise.all([
-        db.collection('servicios').find({ activo: true }).project({ nombre: 1, descripcion: 1, precio_base: 1, precio_auto: 1, precio_camioneta: 1, precio_moto: 1, duracion_minutos: 1, categoria: 1 }).toArray(),
-        db.collection('productos').find({ nombre: { $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i } }).project({ nombre: 1, descripcion: 1, precio: 1, stock: 1, categoria: 1 }).toArray()
+        db.collection('servicios').find({ activo: true }).project({ nombre: 1, descripcion: 1, duracion_minutos: 1, categoria: 1 }).toArray(),
+        db.collection('productos').find({ nombre: { $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i } }).project({ nombre: 1, descripcion: 1, stock: 1, categoria: 1 }).toArray()
     ]);
     cache = {
         services: services,
@@ -34,9 +34,6 @@ export async function initChatbotCache() {
         console.warn('[chatbot] No se pudo precargar caché al inicio:', err.message);
     }
 }
-function cop(n) {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
-}
 function labelVehiculo(v) {
     if (v === 'auto')
         return 'Automóvil';
@@ -44,19 +41,8 @@ function labelVehiculo(v) {
         return 'Camioneta';
     return 'Moto';
 }
-function precioSegun(s, v) {
-    if (v === 'auto')
-        return s.precio_auto ?? s.precio_base;
-    if (v === 'camioneta')
-        return s.precio_camioneta ?? s.precio_base;
-    if (v === 'moto')
-        return s.precio_moto ?? s.precio_base;
-    return s.precio_base;
-}
 function serviciosCompatibles(services, v) {
     let filtered = services.filter((s) => !s.cotizar_local);
-    if (v === 'moto')
-        filtered = filtered.filter((s) => s.precio_moto != null && s.precio_moto > 0);
     return filtered;
 }
 function detectarVehiculo(text) {
@@ -104,8 +90,8 @@ export async function buildChatbotReply(message, vehiculo) {
     if (matchPattern(lower, [/^(hola|buenas|buen[ao]s|hey|saludos|que mas|q mas|buen dia)/])) {
         const base = '¡Hola! Soy el asistente virtual de **Luxury Service Manga** 🚗✨';
         if (!v)
-            return base + '\n\n¿Qué tipo de vehículo tienes?\n• 🚗 **Automóvil**\n• 🚙 **Camioneta**\n• 🏍️ **Moto**\n\nTambién puedes preguntarme por servicios, precios u horarios.';
-        return base + `\n\nVeo que tienes **${label}**. ¿En qué puedo ayudarte?\n• Servicios disponibles\n• Precios y cotización\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar una cita`;
+            return base + '\n\n¿Qué tipo de vehículo tienes?\n• 🚗 **Automóvil**\n• 🚙 **Camioneta**\n• 🏍️ **Moto**\n\nTambién puedes preguntarme por servicios u horarios.';
+        return base + `\n\nVeo que tienes **${label}**. ¿En qué puedo ayudarte?\n• Servicios disponibles\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar una cita`;
     }
     // ── 2. Despedida ──
     if (matchPattern(lower, [/\b(adios|chao|bye|hasta luego|nos vemos|gracias por tu|eso seria todo)\b/])) {
@@ -114,7 +100,7 @@ export async function buildChatbotReply(message, vehiculo) {
     // ── 3. Vehiculo ──
     const vDetectado = detectarVehiculo(raw);
     if (vDetectado && !vehiculo) {
-        return `¡Perfecto! Has seleccionado **${labelVehiculo(vDetectado)}**. Puedo ayudarte con:\n• Ver **servicios** disponibles\n• **Cotización** con precios\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n\n¿Qué deseas consultar?`;
+        return `¡Perfecto! Has seleccionado **${labelVehiculo(vDetectado)}**. Puedo ayudarte con:\n• Ver **servicios** disponibles\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n\n¿Qué deseas consultar?`;
     }
     // ── 4. Ubicacion ──
     if (matchPattern(lower, [/\b(donde|ubicacion|direccion|como llegar|maps|estan ubicados)\b/])) {
@@ -151,28 +137,25 @@ export async function buildChatbotReply(message, vehiculo) {
         const disponibles = serviciosCompatibles(catalog.services, v);
         let out = '';
         if (servEncontrado) {
-            const p = cop(precioSegun(servEncontrado, v));
             const dur = servEncontrado.duracion_minutos;
-            out = `📋 **${servEncontrado.nombre}**\n• Precio ${label}: **${p}**\n• Duración: ${dur} minutos\n• ${servEncontrado.descripcion}\n\n¿Agendamos tu cita?`;
+            out = `📋 **${servEncontrado.nombre}**\n• Duración: ${dur} minutos\n• ${servEncontrado.descripcion}\n\n¿Agendamos tu cita?`;
         }
         else {
-            const svcLines = disponibles.map(s => `• **${s.nombre}**: ${cop(precioSegun(s, v))}`).join('\n');
-            const prodLines = catalog.products.slice(0, 8).map(p => `• ${p.nombre}: ${cop(p.precio)}`).join('\n');
-            out = `📋 **COTIZACIÓN para ${label}** (IVA incluido):\n\n🔧 **SERVICIOS:**\n${svcLines}\n\n🛒 **PRODUCTOS:**\n${prodLines}\n\n¿Te gustaría agendar alguno?`;
+            const svcLines = disponibles.map(s => `• **${s.nombre}**`).join('\n');
+            out = `📋 **SERVICIOS DISPONIBLES para ${label}:**\n${svcLines}\n\n¿Te gustaría agendar alguno?`;
         }
         return out;
     }
-    // ── 11. Precios ──
+    // ── 11. Precios (redirigir a cotización) ──
     if (matchPattern(lower, [/\b(precio|cuesta|vale|costo|cuanto (sale|cobran|vale|dan)|tarifa|mejor precio)\b/]) || matchWords(lower, ['precio', 'costos', 'valores'])) {
         if (!v)
-            return 'Para consultar precios primero dime: ¿🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
+            return 'Para consultar primero dime: ¿🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
         const disponibles = serviciosCompatibles(catalog.services, v);
         if (servEncontrado) {
-            return `💰 **${servEncontrado.nombre}** para ${label}: **${cop(precioSegun(servEncontrado, v))}** · ${servEncontrado.duracion_minutos} min.\n${servEncontrado.descripcion}\n\n¿Te gustaría agendar?`;
+            return `🔧 **${servEncontrado.nombre}**\n• Duración: ${servEncontrado.duracion_minutos} min.\n• ${servEncontrado.descripcion}\n\n¿Te gustaría agendar?`;
         }
-        const svcLines = disponibles.slice(0, 12).map(s => `• **${s.nombre}**: ${cop(precioSegun(s, v))}`).join('\n');
-        const prodLines = catalog.products.slice(0, 6).map(p => `• ${p.nombre}: ${cop(p.precio)}`).join('\n');
-        return `💰 **Precios para ${label}** (IVA incluido):\n\n🔧 **SERVICIOS:**\n${svcLines}\n\n🛒 **PRODUCTOS:**\n${prodLines}\n\nVer tarifario completo en /servicios`;
+        const svcLines = disponibles.slice(0, 12).map(s => `• **${s.nombre}**`).join('\n');
+        return `📋 **Servicios para ${label}:**\n${svcLines}\n\nLos valores de referencia los encuentras en la sección **Cotizar** de nuestra web. ¿Te interesa alguno?`;
     }
     // ── 12. Servicios por categoria (lógica agrupada) ──
     const CATEGORIA_MAP = [
@@ -198,10 +181,7 @@ export async function buildChatbotReply(message, vehiculo) {
         const items = disponibles.filter(s => cats.includes(s.categoria || ''));
         if (items.length === 0)
             return `No encontré servicios de esa categoría${label ? ' para ' + label : ''}.`;
-        const lines = items.map(s => {
-            const p = v ? `: ${cop(precioSegun(s, v))}` : '';
-            return `• **${s.nombre}**${p}`;
-        });
+        const lines = items.map(s => `• **${s.nombre}**`);
         return `🔧 **${items[0].categoria?.toUpperCase() || 'SERVICIOS'}**${label ? ` (${label})` : ''}:\n${lines.join('\n')}\n\n¿Te interesa alguno? Puedo darte más detalles.`;
     }
     // ── 13. Productos ──
@@ -210,9 +190,9 @@ export async function buildChatbotReply(message, vehiculo) {
             return 'Por el momento no hay productos en tienda.';
         const prodEncontrado = catalog.products.find(p => lower.includes(norm(p.nombre)));
         if (prodEncontrado) {
-            return `🛒 **${prodEncontrado.nombre}**: ${cop(prodEncontrado.precio)}\n${prodEncontrado.descripcion}\nStock: ${prodEncontrado.stock > 0 ? '✅ ' + prodEncontrado.stock + ' unidades' : '❌ Agotado'}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
+            return `🛒 **${prodEncontrado.nombre}**\n${prodEncontrado.descripcion}\nStock: ${prodEncontrado.stock > 0 ? '✅ ' + prodEncontrado.stock + ' unidades' : '❌ Agotado'}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
         }
-        const lines = catalog.products.map(p => `• **${p.nombre}** — ${cop(p.precio)} — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`).join('\n');
+        const lines = catalog.products.map(p => `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`).join('\n');
         return `🛒 **Catálogo de productos:**\n\n${lines}\n\nCompra en la sección **Tienda** con tu correo registrado. ¿Algún producto en especial?`;
     }
     // ── 14. Servicios general (catalogo completo) ──
@@ -228,34 +208,30 @@ export async function buildChatbotReply(message, vehiculo) {
         }
         for (const [cat, items] of categorias) {
             out += `\n**${cat.toUpperCase()}:**\n`;
-            out += items.slice(0, 6).map(x => {
-                const p = v ? `: ${cop(precioSegun(x, v))}` : '';
-                return `• ${x.nombre}${p}`;
-            }).join('\n');
-            if (items.length > 6)
-                out += `\n... y ${items.length - 6} más`;
+            out += items.slice(0, 8).map(x => `• ${x.nombre}`).join('\n');
+            if (items.length > 8)
+                out += `\n... y ${items.length - 8} más`;
         }
         out += '\n\n¿Te gustaría **cotizar** algún servicio o **agendar** una cita?';
         return out;
     }
     // ── 15. Servicio específico detectado en frase natural ──
     if (servEncontrado) {
-        const p = v ? cop(precioSegun(servEncontrado, v)) : '';
-        return `🔧 **${servEncontrado.nombre}**${p ? ': ' + p : ''}\n• Duración: ${servEncontrado.duracion_minutos} minutos\n• ${servEncontrado.descripcion}\n\n¿Agendamos tu cita? Horarios: 10:00 a.m. o 2:00 p.m.`;
+        return `🔧 **${servEncontrado.nombre}**\n• Duración: ${servEncontrado.duracion_minutos} minutos\n• ${servEncontrado.descripcion}\n\n¿Agendamos tu cita? Horarios: 10:00 a.m. o 2:00 p.m.`;
     }
     // ── 16. Producto específico detectado ──
     for (const p of catalog.products) {
         const key = norm(p.nombre);
         const tokens = tokenize(p.nombre).filter(t => t.length > 3);
         if (lower.includes(key) || (tokens.length > 0 && tokens.every(t => lower.includes(t)))) {
-            return `🛒 **${p.nombre}**: ${cop(p.precio)}\n${p.descripcion}\nStock: ${p.stock > 0 ? '✅ ' + p.stock + ' unidades' : '❌ Agotado'}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
+            return `🛒 **${p.nombre}**\n${p.descripcion}\nStock: ${p.stock > 0 ? '✅ ' + p.stock + ' unidades' : '❌ Agotado'}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
         }
     }
     // ── 17. Fallback ──
-    const base = '🤖 No entendí completamente tu mensaje. Puedo ayudarte con:\n• **Servicios** disponibles\n• **Cotización** y precios';
+    const base = '🤖 No entendí completamente tu mensaje. Puedo ayudarte con:\n• **Servicios** disponibles';
     if (!v)
         return base + '\n• Primero dime: ¿🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
-    return base + '\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Productos** en tienda\n• **Contacto** y ubicación\n\nEjemplos: "¿Qué servicios tienen?", "Cuánto cuesta un lavado", "Quiero agendar una cita"';
+    return base + '\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Productos** en tienda\n• **Contacto** y ubicación\n\nEjemplos: "¿Qué servicios tienen?", "¿Cómo agendar una cita?"';
 }
 export function invalidateChatbotCache() {
     cache = null;

@@ -53,9 +53,6 @@ const POLITICA_VERSION = '1.0.0-2026';
 async function toApiList(docs: any[]) {
   return docs.map((d: any) => ({ id: d._id, ...d }));
 }
-function formatCOP(n: number) {
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
-}
 function generateRef(): string {
   return `LS-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
@@ -305,7 +302,7 @@ const CHATBOT_CACHE_TTL = 300_000;
 
 async function getChatbotCatalog(c: any) {
   if (chatbotCache && Date.now() - chatbotCache.loadedAt < CHATBOT_CACHE_TTL) return chatbotCache;
-  const svcResult = await find('servicios', { activo: true }, { projection: { nombre: 1, descripcion: 1, precio_auto: 1, precio_camioneta: 1, precio_moto: 1, duracion_minutos: 1, categoria: 1, cotizar_local: 1 } });
+  const svcResult = await find('servicios', { activo: true }, { projection: { nombre: 1, descripcion: 1, duracion_minutos: 1, categoria: 1, cotizar_local: 1 } });
   const prodResult = await find('productos', {});
   chatbotCache = { services: svcResult?.documents || [], products: prodResult?.documents || [], loadedAt: Date.now() };
   return chatbotCache;
@@ -366,39 +363,36 @@ app.post('/api/chatbot', async (c) => {
     if (!v) return c.json({ reply: '¿Tu vehículo es 🚗 Automóvil, 🚙 Camioneta o 🏍️ Moto?' });
     const disponibles = catalog.services.filter((s: any) => !s.cotizar_local);
     if (servEncontrado) {
-      const p = servEncontrado[`precio_${v}`] || servEncontrado.precio_base;
-      return c.json({ reply: `📋 **${servEncontrado.nombre}**: ${formatCOP(p)} · ${servEncontrado.duracion_minutos} min.` });
+      return c.json({ reply: `📋 **${servEncontrado.nombre}** · ${servEncontrado.duracion_minutos} min.` });
     }
-    const lines = disponibles.slice(0, 10).map((s: any) => `• **${s.nombre}**: ${formatCOP(s[`precio_${v}`] || s.precio_base)}`).join('\n');
-    return c.json({ reply: `📋 **Cotización para ${label}**:\n${lines}` });
+    const lines = disponibles.slice(0, 10).map((s: any) => `• **${s.nombre}**`).join('\n');
+    return c.json({ reply: `📋 **Servicios para ${label}**:\n${lines}` });
   }
 
   if (/\b(precio|cuesta|vale|costo|cuanto (sale|cobran|dan)|tarifa)\b/.test(lower)) {
     if (!v) return c.json({ reply: '¿🚗 Automóvil, 🚙 Camioneta o 🏍️ Moto?' });
     if (servEncontrado) {
-      const p = servEncontrado[`precio_${v}`] || servEncontrado.precio_base;
-      return c.json({ reply: `💰 **${servEncontrado.nombre}**: ${formatCOP(p)} · ${servEncontrado.duracion_minutos} min.` });
+      return c.json({ reply: `🔧 **${servEncontrado.nombre}** · ${servEncontrado.duracion_minutos} min.` });
     }
-    const lines = catalog.services.filter((s: any) => !s.cotizar_local).slice(0, 12).map((s: any) => `• **${s.nombre}**: ${formatCOP(s[`precio_${v}`] || s.precio_base)}`).join('\n');
-    return c.json({ reply: `💰 **Precios para ${label}**:\n${lines}` });
+    const lines = catalog.services.filter((s: any) => !s.cotizar_local).slice(0, 12).map((s: any) => `• **${s.nombre}**`).join('\n');
+    return c.json({ reply: `📋 **Servicios para ${label}**:\n${lines}\n\nLos valores de referencia están en la sección Cotizar de nuestra web.` });
   }
 
   if (/\b(servicio|catalogo|mantenimiento|que (servicios|hacen)|que ofrecen|estetica|menu)\b/.test(lower)) {
-    const lines = catalog.services.filter((s: any) => !s.cotizar_local).slice(0, 15).map((s: any) => `• **${s.nombre}**${v ? ': ' + formatCOP(s[`precio_${v}`] || s.precio_base) : ''}`).join('\n');
+    const lines = catalog.services.filter((s: any) => !s.cotizar_local).slice(0, 15).map((s: any) => `• **${s.nombre}**`).join('\n');
     return c.json({ reply: `📋 **SERVICIOS**${label ? ` (${label})` : ''}:\n${lines}` });
   }
 
   if (/\b(producto|tienda|comprar|stock|articulo)\b/.test(lower)) {
-    const lines = catalog.products.slice(0, 10).map((p: any) => `• **${p.nombre}** — ${formatCOP(p.precio)}`).join('\n');
+    const lines = catalog.products.slice(0, 10).map((p: any) => `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`).join('\n');
     return c.json({ reply: `🛒 **Productos:**\n${lines}\n\nCompra en la Tienda.` });
   }
 
   if (servEncontrado) {
-    const p = v ? formatCOP(servEncontrado[`precio_${v}`] || servEncontrado.precio_base) : '';
-    return c.json({ reply: `🔧 **${servEncontrado.nombre}**${p ? ': ' + p : ''}\n• ${servEncontrado.duracion_minutos} min.\n• ${servEncontrado.descripcion || ''}` });
+    return c.json({ reply: `🔧 **${servEncontrado.nombre}**\n• ${servEncontrado.duracion_minutos} min.\n• ${servEncontrado.descripcion || ''}` });
   }
 
-  return c.json({ reply: '🤖 No entendí. Puedo ayudarte con servicios, precios, horarios o agendar una cita.' });
+  return c.json({ reply: '🤖 No entendí. Puedo ayudarte con servicios, horarios o agendar una cita.' });
 });
 
 // ─────────────────────────────────────────────
