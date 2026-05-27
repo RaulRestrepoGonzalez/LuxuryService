@@ -153,10 +153,13 @@ import { ApiService } from 'src/app/core/services/api.service';
               <div class="form-row">
                 <input formControlName="precio_auto" type="number" placeholder="Precio auto">
                 <input formControlName="precio_camioneta" type="number" placeholder="Precio camioneta">
+                <input formControlName="precio_moto" type="number" placeholder="Precio moto">
+              </div>
+              <div class="form-row">
                 <input formControlName="duracion_minutos" type="number" placeholder="Duración min">
               </div>
               <div class="form-actions">
-                <button type="submit" class="save" [disabled]="svcForm.invalid">{{ svcEdt ? 'Guardar' : 'Crear' }}</button>
+                <button type="submit" class="save" [disabled]="!svcForm.get('nombre')?.value || !svcForm.get('categoria')?.value">{{ svcEdt ? 'Guardar' : 'Crear' }}</button>
                 <button type="button" class="cancel" (click)="cerrarFormSvc()">Cancelar</button>
               </div>
             </form>
@@ -215,17 +218,18 @@ export class InventoryMgmtComponent implements OnInit {
       nombre: ['', Validators.required],
       descripcion: [''],
       categoria: ['', Validators.required],
-      precio: [0, Validators.min(1)],
-      stock: [0, Validators.min(0)]
+      precio: [0],
+      stock: [0]
     });
     this.svcForm = this.fb.group({
       nombre: ['', Validators.required],
       descripcion: [''],
       categoria: ['', Validators.required],
       icono: ['auto_awesome'],
-      precio_auto: [0, Validators.min(0)],
-      precio_camioneta: [0, Validators.min(0)],
-      duracion_minutos: [60, Validators.min(1)]
+      precio_auto: [0],
+      precio_camioneta: [0],
+      precio_moto: [0],
+      duracion_minutos: [60]
     });
   }
 
@@ -239,7 +243,7 @@ export class InventoryMgmtComponent implements OnInit {
   // ── Products ──
 
   cargarProductos() {
-    this.api.get('/admin/products').subscribe({
+    this.api.getFresh('/admin/products').subscribe({
       next: res => { this.productos = res as any[]; this.cdr.detectChanges(); },
       error: () => console.error('[Inventario] Error al cargar productos')
     });
@@ -282,7 +286,7 @@ export class InventoryMgmtComponent implements OnInit {
   // ── Services ──
 
   cargarServicios() {
-    this.api.get('/admin/services').subscribe({
+    this.api.getFresh('/admin/services').subscribe({
       next: res => { this.servicios = res as any[]; this.cdr.detectChanges(); },
       error: () => console.error('[Inventario] Error al cargar servicios')
     });
@@ -308,6 +312,7 @@ export class InventoryMgmtComponent implements OnInit {
       icono: s.icono || 'auto_awesome',
       precio_auto: s.precio_auto,
       precio_camioneta: s.precio_camioneta,
+      precio_moto: s.precio_moto,
       duracion_minutos: s.duracion_minutos
     });
   }
@@ -320,7 +325,7 @@ export class InventoryMgmtComponent implements OnInit {
       });
     } else {
       this.api.post('/admin/services', this.svcForm.value).subscribe(() => {
-        this.cerrarFormSvc(); this.svcForm.reset({ icono: 'auto_awesome', duracion_minutos: 60, precio_auto: 0, precio_camioneta: 0 }); this.cargarServicios();
+        this.cerrarFormSvc(); this.svcForm.reset({ icono: 'auto_awesome', duracion_minutos: 60, precio_auto: 0, precio_camioneta: 0, precio_moto: 0 }); this.cargarServicios();
       });
     }
   }

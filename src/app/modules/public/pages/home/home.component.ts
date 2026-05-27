@@ -19,8 +19,8 @@ interface Servicio {
 
 const CATEGORIAS_VISIBLES = new Set([
   'Lavado y Detailing', 'Combos', 'Detailing y Protección',
-  'Limpieza Profunda', 'Mantenimiento Básico', 'Protección',
-  'Hidroblasting', 'Polarizados', 'Faros',
+  'Limpieza Profunda', 'Serviteca', 'Protección',
+  'Hidroblasting', 'Polarizados', 'Farolas',
   'Rines', 'Diagnóstico', 'Adicionales'
 ]);
 
@@ -43,7 +43,7 @@ export class HomeComponent implements OnInit {
     horario: 'Lunes - Sábado: 8:00 a.m. - 6:00 p.m. · Domingo: cerrado',
     telefono: '+57 (605) 234 5678',
     telefonoRaw: '+576052345678',
-    email: 'contacto@luxuryservice.co',
+    email: 'luxury_admon@outlook.com',
     whatsapp: '+57 300 636 6429',
     whatsappRaw: '573006366429'
   };

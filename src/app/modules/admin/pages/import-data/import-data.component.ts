@@ -186,6 +186,7 @@ export class ImportDataComponent {
       next: (res: any) => {
         this.resultado = res;
         this.subiendo = false;
+        this.api.invalidate();
       },
       error: (err) => {
         this.resultado = { insertados: 0, actualizados: 0, errores: [err?.error?.error || 'Error al procesar el archivo'] };

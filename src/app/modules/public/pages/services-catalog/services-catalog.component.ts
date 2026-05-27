@@ -2,24 +2,28 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService } from 'src/app/core/services/api.service';
 import { Servicio, FALLBACK_SERVICIOS, groupByCategoria } from 'src/app/shared/constants/servicios.data';
 
+const VACUUM_IMG = '<img src="/aspiradora.png" alt="" class="svc-custom-icon">';
+const SPRAY_GUN_IMG = '<img src="/pistola-de-pintura.png" alt="" class="svc-custom-icon svc-custom-icon--sm">';
+
 const CATEGORIA_META: Record<string, { icon: string; tagline: string }> = {
   'Lavado y Detailing': { icon: '🚗', tagline: 'Lavado general, motor, express y premium' },
-  'Combos': { icon: '📦', tagline: 'Paquetes con mejor precio' },
-  'Detailing y Protección': { icon: '✨', tagline: 'Embellecimiento, sellado y nanocerámico' },
-  'Limpieza Profunda': { icon: '🧹', tagline: 'Tapicería, techos, pisos y cojinería' },
-  'Mantenimiento Básico': { icon: '🔧', tagline: 'Alineación, balanceo y rotación' },
-  'Polarizados': { icon: '🕶️', tagline: 'Película nanocerámica para vidrios' },
-  'Faros': { icon: '💡', tagline: 'Pulido y sellado de faros' },
-  'Rines': { icon: '⭕', tagline: 'Limpieza, descontaminación y sellado' },
+  'Combos': { icon: '🏆', tagline: 'Paquetes con mejor precio' },
+  'Detailing y Protección': { icon: '🧽', tagline: 'Embellecimiento, sellado y nanocerámico' },
+  'Limpieza Profunda': { icon: VACUUM_IMG, tagline: 'Tapicería, techos, pisos y cojinería' },
+  'Serviteca': { icon: '🔧', tagline: 'Alineación, balanceo y rotación' },
+  'Polarizados': { icon: '🌑', tagline: 'Película nanocerámica para vidrios' },
+  'Farolas': { icon: '💡', tagline: 'Pulido y sellado de farolas' },
+  'Rines': { icon: '🛞', tagline: 'Limpieza, descontaminación y sellado' },
   'Hidroblasting': { icon: '💧', tagline: 'Hidrolavado y retoque profesional' },
   'Protección': { icon: '🛡️', tagline: 'Anticorrosiva y sellamiento' },
   'Diagnóstico': { icon: '🔍', tagline: 'Scaner electrónico e inyectores' },
   'Adicionales': { icon: '➕', tagline: 'Insumos, domicilios y aplicaciones' },
   'Latonería y Carrocería': { icon: '🔧', tagline: 'Enderezada, golpes y carrocería' },
-  'Pintura y Acabados': { icon: '🎨', tagline: 'Pintura, corrección y protección' },
+  'Pintura y Acabados': { icon: SPRAY_GUN_IMG, tagline: 'Pintura, corrección y protección' },
   'Mecánica General': { icon: '⚙️', tagline: 'Frenos, motor, suspensión y más' },
 };
 
@@ -40,11 +44,15 @@ export class ServicesCatalogComponent implements OnInit {
 
   tipoVehiculo: 'auto' | 'camioneta' | 'moto' = 'auto';
 
+  private readonly CAT_SIEMPRE_VISIBLE = new Set(['Latonería y Carrocería', 'Pintura y Acabados', 'Mecánica General']);
+
   get filteredGrouped(): Record<string, Servicio[]> {
     const out: Record<string, Servicio[]> = {};
     for (const [cat, list] of Object.entries(this.grouped)) {
       let f = list;
-      if (this.tipoVehiculo === 'moto') {
+      if (this.CAT_SIEMPRE_VISIBLE.has(cat)) {
+        // Siempre mostrar estas categorías sin filtrar por vehículo
+      } else if (this.tipoVehiculo === 'moto') {
         f = f.filter(s => /\b(moto(s)?|motocicleta)\b/i.test(s.nombre));
       } else {
         const getPrecio = this.tipoVehiculo === 'auto'
@@ -62,7 +70,11 @@ export class ServicesCatalogComponent implements OnInit {
 
   readonly brandName = 'Luxury Service Manga M&S';
 
-  constructor(private api: ApiService) {
+  esCategoriaGray(cat: string): boolean {
+    return this.CAT_SIEMPRE_VISIBLE.has(cat);
+  }
+
+  constructor(private api: ApiService, private sanitizer: DomSanitizer) {
     const fb = groupByCategoria(FALLBACK_SERVICIOS);
     this.categorias = fb.categorias;
     this.grouped = fb.grouped;
@@ -87,8 +99,10 @@ export class ServicesCatalogComponent implements OnInit {
     });
   }
 
-  meta(cat: string) {
-    return CATEGORIA_META[cat] ?? { icon: '🔧', tagline: 'Servicios profesionales' };
+  meta(cat: string): { icon: SafeHtml; tagline: string } {
+    const m = CATEGORIA_META[cat];
+    if (!m) return { icon: this.sanitizer.bypassSecurityTrustHtml('🔧'), tagline: 'Servicios profesionales' };
+    return { icon: this.sanitizer.bypassSecurityTrustHtml(m.icon), tagline: m.tagline };
   }
 
   filterCats(): string[] {

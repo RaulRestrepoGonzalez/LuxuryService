@@ -130,5 +130,10 @@ export class ApiService {
     for (const [key, entry] of this.cache) {
       this.cache.set(key, { value: entry.value, expiry: 0 });
     }
+    if (isPlatformBrowser(this.platformId)) {
+      for (const k of this.persistentKeys) {
+        localStorage.removeItem(`api:${k}`);
+      }
+    }
   }
 }

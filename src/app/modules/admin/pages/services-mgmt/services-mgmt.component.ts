@@ -88,11 +88,14 @@ import { ApiService } from 'src/app/core/services/api.service';
           <div class="form-row">
             <input formControlName="precio_auto" type="number" class="half" placeholder="Precio auto">
             <input formControlName="precio_camioneta" type="number" class="half" placeholder="Precio camioneta">
+            <input formControlName="precio_moto" type="number" class="half" placeholder="Precio moto">
+          </div>
+          <div class="form-row">
             <input formControlName="duracion_minutos" type="number" class="half" placeholder="Duración (min)">
             <input formControlName="orden" type="number" class="half" placeholder="Orden">
           </div>
           <div class="form-actions">
-            <button type="submit" class="save" [disabled]="svcForm.invalid">{{ edt ? 'Guardar cambios' : 'Crear servicio' }}</button>
+            <button type="submit" class="save" [disabled]="!svcForm.get('nombre')?.value || !svcForm.get('categoria')?.value">{{ edt ? 'Guardar cambios' : 'Crear servicio' }}</button>
             <button type="button" class="cancel" (click)="cerrarForm()">Cancelar</button>
           </div>
         </form>
@@ -149,9 +152,10 @@ export class ServicesMgmtComponent implements OnInit {
       categoria: ['', Validators.required],
       icono: ['auto_awesome'],
       imagen_url: [''],
-      precio_auto: [0, Validators.min(0)],
-      precio_camioneta: [0, Validators.min(0)],
-      duracion_minutos: [60, Validators.min(1)],
+      precio_auto: [0],
+      precio_camioneta: [0],
+      precio_moto: [0],
+      duracion_minutos: [60],
       orden: [99]
     });
   }
@@ -161,7 +165,7 @@ export class ServicesMgmtComponent implements OnInit {
   }
 
   cargar() {
-    this.api.get('/admin/services').subscribe(res => this.servicios = res as any[]);
+    this.api.getFresh('/admin/services').subscribe(res => this.servicios = res as any[]);
   }
 
   abrirForm() {
@@ -185,6 +189,7 @@ export class ServicesMgmtComponent implements OnInit {
       imagen_url: s.imagen_url || '',
       precio_auto: s.precio_auto,
       precio_camioneta: s.precio_camioneta,
+      precio_moto: s.precio_moto,
       duracion_minutos: s.duracion_minutos,
       orden: s.orden
     });
@@ -198,7 +203,7 @@ export class ServicesMgmtComponent implements OnInit {
       });
     } else {
       this.api.post('/admin/services', this.svcForm.value).subscribe(() => {
-        this.cerrarForm(); this.svcForm.reset({ icono: 'auto_awesome', duracion_minutos: 60, precio_auto: 0, precio_camioneta: 0, orden: 99 }); this.cargar();
+        this.cerrarForm(); this.svcForm.reset({ icono: 'auto_awesome', duracion_minutos: 60, precio_auto: 0, precio_camioneta: 0, precio_moto: 0, orden: 99 }); this.cargar();
       });
     }
   }

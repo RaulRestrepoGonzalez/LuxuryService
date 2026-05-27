@@ -84,13 +84,10 @@
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 1rem;
   padding: 1.5rem 1rem;
   background: #fafafa;
   border-bottom: 1px solid #eee;
-  position: sticky;
-  top: 0;
-  z-index: 50;
 }
 
 .svc-filter-wrap {
@@ -102,16 +99,16 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
-  width: 96px;
-  height: 82px;
-  border-radius: 12px;
+  gap: 0.5rem;
+  width: 140px;
+  height: 128px;
+  border-radius: 18px;
   border: 2px solid #e0e0e0;
   background: #fff;
   cursor: pointer;
   transition: all 0.25s ease;
   margin: 0;
-  padding: 0.5rem;
+  padding: 0.8rem 0.5rem;
   font-family: inherit;
 }
 
@@ -124,19 +121,30 @@
 }
 
 .svc-filter-icon {
-  font-size: 1.4rem;
+  font-size: 3.2rem;
   line-height: 1;
+}
+.svc-filter-icon svg,
+.svc-custom-icon {
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+}
+.svc-custom-icon--sm {
+  width: 1.4rem;
+  height: 1.4rem;
 }
 
 .svc-filter-label {
-  font-size: 0.55rem;
+  font-size: 0.8rem;
   font-weight: 800;
   color: #0a0a0a;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   line-height: 1.2;
   text-align: center;
-  max-width: 80px;
+  max-width: 110px;
 }
 
 /* ─── vehicle toggle ─── */
@@ -312,6 +320,10 @@
 
 .svc-list-block {
   margin-bottom: 2.5rem;
+}
+
+.svc-list-banner--gray {
+  background: linear-gradient(90deg, #5f6368 0%, #3c4043 100%) !important;
 }
 
 .svc-list-banner {
@@ -536,9 +548,12 @@
 
 @media (max-width: 768px) {
   .svc-filters-row { gap: 0.5rem; padding: 1rem 0.75rem; }
-  .svc-filter-btn { width: 78px; height: 70px; border-radius: 10px; }
-  .svc-filter-icon { font-size: 1.15rem; }
-  .svc-filter-label { font-size: 0.5rem; max-width: 66px; }
+  .svc-filter-btn { width: 110px; height: 102px; border-radius: 14px; padding: 0.6rem 0.4rem; }
+  .svc-filter-icon { font-size: 2.4rem; }
+  .svc-filter-icon svg,
+  .svc-custom-icon { width: 1.6rem; height: 1.6rem; }
+  .svc-custom-icon--sm { width: 1.2rem; height: 1.2rem; }
+  .svc-filter-label { font-size: 0.65rem; max-width: 90px; }
   .svc-filter-dropdown { min-width: 200px; left: 0; transform: none; animation: none; }
   .svc-tipo-toggle { padding: 0.6rem 0.75rem 0; }
   .svc-lists { padding: 1.5rem 0.75rem; }

@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { connectDb, getDb, ObjectId, toApiId, toApiList } from './db.js';
+import { connectDb, getDb, ObjectId, toApiId, toApiList, uri, dbName } from './db.js';
 import { buildChatbotReply, HORARIOS, invalidateChatbotCache, initChatbotCache } from './chatbot.js';
 import { notificarCitaAgendada, notificarBienvenidaCliente } from './notifications.js';
 import { createCheckout, processWebhook } from './payments.js';
@@ -926,10 +926,10 @@ app.get('/api/admin/services', auth, adminRequired, async (_req, res) => {
 });
 
 app.post('/api/admin/services', auth, adminRequired, async (req, res) => {
-  const { nombre, descripcion, categoria, subcategoria, items, precio_auto, precio_camioneta, duracion_minutos, agendable, icono, imagen_url, orden } = req.body;
+  const { nombre, descripcion, categoria, subcategoria, items, precio_auto, precio_camioneta, precio_moto, duracion_minutos, agendable, icono, imagen_url, orden } = req.body;
   await getDb().collection('servicios').insertOne({
     nombre, descripcion, categoria, subcategoria: subcategoria || null, items: items || [],
-    precio_base: precio_auto, precio_auto, precio_camioneta,
+    precio_base: precio_auto, precio_auto, precio_camioneta, precio_moto: precio_moto || 0,
     iva_incluido: true, duracion_minutos, agendable: agendable ?? true,
     icono: icono || 'auto_awesome', imagen_url: imagen_url || '', color: '#ff2b2b',
     orden: orden || 99, activo: true, created_at: new Date()
@@ -940,7 +940,7 @@ app.post('/api/admin/services', auth, adminRequired, async (req, res) => {
 
 app.put('/api/admin/services/:id', auth, adminRequired, async (req, res) => {
   const set: Record<string, unknown> = {};
-  for (const k of ['nombre', 'descripcion', 'categoria', 'subcategoria', 'items', 'precio_auto', 'precio_camioneta', 'duracion_minutos', 'agendable', 'icono', 'imagen_url', 'orden', 'activo']) {
+  for (const k of ['nombre', 'descripcion', 'categoria', 'subcategoria', 'items', 'precio_auto', 'precio_camioneta', 'precio_moto', 'duracion_minutos', 'agendable', 'icono', 'imagen_url', 'orden', 'activo']) {
     if (req.body[k] !== undefined) set[k] = req.body[k];
   }
   if (req.body.precio_auto !== undefined) set['precio_base'] = req.body.precio_auto;
@@ -1131,6 +1131,7 @@ app.post('/api/admin/import', auth, adminRequired, upload.single('archivo'), asy
       }
     }
 
+    invalidateChatbotCache();
     res.json({
       success: true,
       servicios_actualizados: actualizadosServ,
@@ -1298,11 +1299,11 @@ connectDb().then(async () => {
   iniciarColaPendientes();
 
   app.listen(PORT, () => {
-    console.log(`API MongoDB → http://localhost:${PORT}/api`);
-    console.log(`Compass: mongodb://127.0.0.1:27017 → luxury_service`);
+    console.log(`API → http://localhost:${PORT}/api`);
+    console.log(`Base de datos: ${dbName} en ${uri.replace(/\/\/[^@]+@/, '//***:***@')}`);
   });
 }).catch(err => {
   console.error('No se pudo conectar a MongoDB:', err.message);
-  console.error('Asegúrate de tener MongoDB corriendo (Compass o mongod)');
+  console.error('Verifica que la URI en .env sea correcta y que la IP esté autorizada en Atlas.');
   process.exit(1);
 });

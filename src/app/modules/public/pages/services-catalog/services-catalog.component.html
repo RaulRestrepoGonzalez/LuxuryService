@@ -11,7 +11,7 @@
     @for (cat of categorias; track cat) {
       <div class="svc-filter-wrap" (mouseenter)="hoveredPill = cat" (mouseleave)="hoveredPill = null">
         <button type="button" class="svc-filter-btn" [class.active]="activeFilter === cat" (click)="setActiveCategory(cat)">
-          <span class="svc-filter-icon">{{ meta(cat).icon }}</span>
+          <span class="svc-filter-icon" [innerHTML]="meta(cat).icon"></span>
           <span class="svc-filter-label">{{ cat }}</span>
         </button>
         @if (hoveredPill === cat) {
@@ -56,7 +56,7 @@
   <div class="svc-lists">
     @for (cat of filterCats(); track cat) {
       <section class="svc-list-block">
-        <div class="svc-list-banner">
+        <div class="svc-list-banner" [class.svc-list-banner--gray]="esCategoriaGray(cat)">
           <div class="svc-banner-text">
             <h2>{{ cat }}</h2>
             <span>{{ meta(cat).tagline }} · {{ totalInCategory(cat) }} servicios</span>

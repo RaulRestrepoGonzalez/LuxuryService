@@ -309,9 +309,9 @@ function inferCategoria(nombre: string): string {
   if (/ENCERADO|BRILLADA|CORRECCION|PROTECCION ACRILICA/.test(n)) return 'Detailing y Protección';
   if (/NANO CERAMICO|NANOCERAMICO/.test(n)) return 'Detailing y Protección';
   if (/DESCONTAMINADO|DESCONTAMINACION/.test(n)) return 'Detailing y Protección';
-  if (/ALINEACION|BALANCEO|ROTACION/.test(n)) return 'Mantenimiento Básico';
+  if (/ALINEACION|BALANCEO|ROTACION/.test(n)) return 'Serviteca';
   if (/POLARIZADO/.test(n)) return 'Polarizados';
-  if (/LIMPIEZA.*FAROS|PULIDO.*FAROS|SELLADO.*FAROS/.test(n)) return 'Faros';
+  if (/LIMPIEZA.*FAROS|PULIDO.*FAROS|SELLADO.*FAROS|LIMPIEZA.*FAROLAS|PULIDO.*FAROLAS|SELLADO.*FAROLAS/.test(n)) return 'Farolas';
   if (/RIN|RINES/.test(n)) return 'Rines';
   if (/LIMPIEZA.*TAPICERIA|LIMPIEZA.*INTERIOR|LIMPIEZA.*TECHO|LIMPIEZA.*COJIN|DETAILING/.test(n)) return 'Limpieza Profunda';
   if (/PROTECCION ANTICORROSIVA/.test(n)) return 'Protección';
