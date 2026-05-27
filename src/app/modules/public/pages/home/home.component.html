@@ -44,7 +44,7 @@
     <h3 class="tarifario-sub">Estos son nuestros servicios</h3>
     <div class="tarifario-table">
       @for (s of serviciosFlat; track s.id) {
-        <div class="tarifario-row">{{ s.nombre }}</div>
+        <span class="tarifario-tag">{{ s.nombre }}</span>
       }
     </div>
   }

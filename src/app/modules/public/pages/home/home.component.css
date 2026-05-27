@@ -170,29 +170,30 @@
 }
 
 .tarifario-table {
-  max-width: 680px;
+  max-width: 800px;
   margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.tarifario-row {
-  display: block;
-  padding: 0.65rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 0.9rem;
+.tarifario-tag {
+  flex: 1 1 auto;
+  min-width: 140px;
+  text-align: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: rgba(255, 255, 255, 0.85);
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
-.tarifario-row:first-child {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.tarifario-row:nth-child(even) {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.tarifario-row:hover {
-  background: rgba(255, 43, 43, 0.08);
+.tarifario-tag:hover {
+  background: rgba(255, 43, 43, 0.15);
+  border-color: rgba(255, 43, 43, 0.35);
   color: #fff;
 }
 
