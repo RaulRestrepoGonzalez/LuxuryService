@@ -7,16 +7,27 @@
     <div class="catalog-error">{{ error }}</div>
   }
 
+  <div class="catalog-filters">
+    @for (cat of categories; track cat) {
+      <button type="button" class="catalog-chip" [class.active]="activeCategory === cat" (click)="filterCategory(cat)">
+        {{ cat }}
+      </button>
+    }
+  </div>
+
   @if (loading) {
     <div class="catalog-loading">Cargando productos…</div>
-  } @else if (productos.length === 0) {
-    <div class="catalog-empty">No hay productos disponibles</div>
+  } @else if (filtered.length === 0) {
+    <div class="catalog-empty">No hay productos en esta categoría</div>
   } @else {
     <div class="catalog-grid">
-      @for (p of productos; track p.id; let i = $index) {
+      @for (p of filtered; track p.id; let i = $index) {
         <article class="md-card" [style.animation-delay.ms]="i * 50">
           <img class="md-card-image" [src]="img(p)" [alt]="p.nombre" loading="lazy" width="400" height="300" />
           <div class="md-card-body">
+            @if (p.categoria) {
+              <span class="md-card-meta" style="display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.08em">{{ p.categoria }}</span>
+            }
             <h3>{{ p.nombre }}</h3>
             <p class="md-card-desc">{{ p.descripcion }}</p>
             <div class="md-card-footer">

@@ -26,9 +26,12 @@ export interface Producto {
 })
 export class ShopComponent implements OnInit, OnDestroy {
   productos: Producto[] = [];
+  filtered: Producto[] = [];
   loading = true;
   error = '';
   purchasing: string | null = null;
+  activeCategory = 'Todos';
+  categories: string[] = ['Todos'];
   toast = '';
   toastVisible = false;
   private refreshSub: Subscription | null = null;
@@ -45,6 +48,8 @@ export class ShopComponent implements OnInit, OnDestroy {
     this.refreshSub = this.api.refresh$.subscribe(({ key, value }) => {
       if (key === '/products') {
         this.productos = value as Producto[];
+        this.buildCategories();
+        this.applyFilter();
         this.cdr.markForCheck();
       }
     });
@@ -60,6 +65,8 @@ export class ShopComponent implements OnInit, OnDestroy {
     this.api.getFresh<Producto[]>('/products').subscribe({
       next: res => {
         this.productos = res;
+        this.buildCategories();
+        this.applyFilter();
         this.loading = false;
         this.cdr.markForCheck();
       },
@@ -69,6 +76,22 @@ export class ShopComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  private buildCategories() {
+    const cats = [...new Set(this.productos.map(p => p.categoria).filter(Boolean))] as string[];
+    this.categories = ['Todos', ...cats];
+  }
+
+  filterCategory(cat: string) {
+    this.activeCategory = cat;
+    this.applyFilter();
+  }
+
+  private applyFilter() {
+    this.filtered = this.activeCategory === 'Todos'
+      ? this.productos
+      : this.productos.filter(p => p.categoria === this.activeCategory);
   }
 
   img(p: Producto) { return productImage(p.icono, p.imagen_url); }

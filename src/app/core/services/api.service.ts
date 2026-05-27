@@ -3,7 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from 'src/environments/environment';
 import { Observable, of, throwError, Subject } from 'rxjs';
-import { tap, catchError, timeout, retry } from 'rxjs/operators';
+import { tap, catchError, timeout, retry, share, finalize } from 'rxjs/operators';
 
 interface CacheEntry { value: any; expiry: number; }
 
@@ -12,10 +12,9 @@ export class ApiService {
   private baseUrl = environment.apiUrl;
   private cache = new Map<string, CacheEntry>();
   private cacheTtl = 300_000;
-  private persistentTtl = 600_000;
   private platformId = inject(PLATFORM_ID);
   private persistentKeys = new Set(['/services/catalog', '/services', '/products']);
-  private refreshing = new Set<string>();
+  private inflight = new Map<string, Observable<any>>();
   private refreshSubject = new Subject<{ key: string; value: any }>();
   readonly refresh$ = this.refreshSubject.asObservable();
 
@@ -34,61 +33,58 @@ export class ApiService {
     }
   }
 
-  /** Returns cached data instantly (even if stale) and refreshes in background.
-   *  Only shows loading when there is genuinely no data at all. */
   get<T>(endpoint: string, ttl?: number, cacheKey?: string): Observable<T> {
     const key = cacheKey || endpoint;
     const now = Date.now();
     const entry = this.cache.get(key);
     const effectiveTtl = ttl ?? this.cacheTtl;
 
-    if (entry) {
-      if (entry.expiry <= now && !this.refreshing.has(key)) {
-        this.refreshInBackground(key, endpoint);
-      }
+    if (entry && entry.expiry > now) {
       return of(entry.value as T);
     }
 
-    return this.http.get<T>(`${this.baseUrl}${endpoint}`).pipe(
+    if (this.inflight.has(key)) {
+      return this.inflight.get(key)!;
+    }
+
+    const req = this.http.get<T>(`${this.baseUrl}${endpoint}`).pipe(
       retry(1),
       timeout(8_000),
       tap(value => {
         const expiry = now + effectiveTtl;
         this.cache.set(key, { value, expiry });
+        if (this.persistentKeys.has(key) && isPlatformBrowser(this.platformId)) {
+          try { localStorage.setItem(`api:${key}`, JSON.stringify({ value, expiry })); } catch {}
+        }
+        this.refreshSubject.next({ key, value });
       }),
       catchError(err => {
+        if (entry) return of(entry.value as T);
         console.error('[API GET] Error:', err instanceof HttpErrorResponse ? err.status : err);
         return throwError(() => err);
-      })
+      }),
+      finalize(() => this.inflight.delete(key)),
+      share()
     );
+
+    this.inflight.set(key, req);
+    return req;
   }
 
   getFresh<T>(endpoint: string, cacheKey?: string): Observable<T> {
     const key = cacheKey || endpoint;
     this.cache.delete(key);
+    this.inflight.delete(key);
     return this.get<T>(endpoint, 0, cacheKey);
-  }
-
-  private refreshInBackground(key: string, endpoint: string) {
-    this.refreshing.add(key);
-    this.http.get(`${this.baseUrl}${endpoint}`).pipe(retry(1), timeout(8_000)).subscribe({
-      next: value => {
-        const expiry = Date.now() + (key.startsWith('/appointments') ? 120_000 : this.cacheTtl);
-        this.cache.set(key, { value, expiry });
-        this.refreshing.delete(key);
-        this.refreshSubject.next({ key, value });
-      },
-      error: () => {
-        this.refreshing.delete(key);
-      }
-    });
   }
 
   invalidate(key?: string) {
     if (key) {
       this.cache.delete(key);
+      this.inflight.delete(key);
     } else {
       this.cache.clear();
+      this.inflight.clear();
       if (isPlatformBrowser(this.platformId)) {
         for (const k of this.persistentKeys) localStorage.removeItem(`api:${k}`);
       }
@@ -130,6 +126,7 @@ export class ApiService {
     for (const [key, entry] of this.cache) {
       this.cache.set(key, { value: entry.value, expiry: 0 });
     }
+    this.inflight.clear();
     if (isPlatformBrowser(this.platformId)) {
       for (const k of this.persistentKeys) {
         localStorage.removeItem(`api:${k}`);
