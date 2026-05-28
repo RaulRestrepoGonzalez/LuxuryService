@@ -3,6 +3,15 @@ import { getDb } from './db.js';
 export const HORARIOS_LABEL = ['10:00 a.m.', '2:00 p.m.'] as const;
 export const HORARIOS = ['10:00', '14:00'] as const;
 
+export type Vehiculo = 'auto' | 'camioneta' | 'moto';
+
+export interface ChatTurn {
+  role: 'user' | 'bot';
+  text: string;
+  vehiculo?: Vehiculo;
+  intent?: string;
+}
+
 interface CatalogCache {
   services: { nombre: string; descripcion: string; duracion_minutos: number; categoria?: string; cotizar_local?: boolean }[];
   products: { nombre: string; descripcion: string; stock: number; categoria?: string }[];
@@ -11,8 +20,6 @@ interface CatalogCache {
 
 let cache: CatalogCache | null = null;
 const CACHE_TTL = 300_000;
-
-type Vehiculo = 'auto' | 'camioneta' | 'moto';
 
 function norm(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
@@ -86,7 +93,7 @@ const VEHICULO_PATTERNS: [RegExp, Vehiculo][] = [
   [/\b(moto|motocicleta|picante|ciclomotor|bicicleta motorizada|pistera|cross|enduro|scooter|vespa)\b/, 'moto'],
 ];
 
-function detectarVehiculo(text: string): Vehiculo | null {
+export function detectarVehiculo(text: string): Vehiculo | null {
   const t = norm(text);
   for (const [pattern, v] of VEHICULO_PATTERNS) {
     if (pattern.test(t)) return v;
@@ -167,6 +174,52 @@ function scoreIntent(ctx: ChatContext, keywords: { word: string; weight: number 
     }
   }
   return score;
+}
+
+// Detecta si el usuario está negando una intención
+function intentNegado(lower: string, intentName: string): boolean {
+  const negaciones = ['no quiero', 'no necesito', 'no me interesa', 'no deseo', 'sin', 'solo quiero informacion', 'solo precio', 'solo quiero saber'];
+  for (const neg of negaciones) {
+    const idx = lower.indexOf(neg);
+    if (idx === -1) continue;
+    const fragmento = lower.slice(idx, idx + 50);
+    if (intentName === 'agendar' && /agendar|cita|reservar|apartar/.test(fragmento)) return true;
+    if (intentName === 'cotizacion' && /cotizar|precio|costo/.test(fragmento)) return true;
+  }
+  return false;
+}
+
+// Extrae el vehículo del historial reciente
+function vehiculoDesdeHistorial(history: ChatTurn[]): Vehiculo | undefined {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].vehiculo) return history[i].vehiculo;
+    const detected = detectarVehiculo(history[i].text);
+    if (detected) return detected;
+  }
+  return undefined;
+}
+
+// Detecta si el bot hizo una pregunta específica en el último turno
+function ultimaPreguntaBot(history: ChatTurn[]): 'vehiculo' | 'servicio' | 'fecha' | null {
+  const ultimoBot = [...history].reverse().find(t => t.role === 'bot');
+  if (!ultimoBot) return null;
+  const t = ultimoBot.text;
+  if (
+    (t.includes('Automóvil') && t.includes('Camioneta') && t.includes('Moto')) ||
+    t.includes('¿tu vehículo es') ||
+    t.includes('tipo de vehículo')
+  ) return 'vehiculo';
+  if (
+    t.includes('¿Tienes algún servicio') ||
+    t.includes('algún servicio en mente') ||
+    t.includes('¿Qué servicio')
+  ) return 'servicio';
+  if (
+    t.includes('¿Qué fecha') ||
+    t.includes('selecciona fecha') ||
+    t.includes('Selecciona fecha')
+  ) return 'fecha';
+  return null;
 }
 
 const INTENTS: Intent[] = [
@@ -314,7 +367,8 @@ const INTENTS: Intent[] = [
       { word: 'mantenimiento', weight: 4 }, { word: 'que servicios', weight: 6 }, { word: 'que hacen', weight: 4 },
       { word: 'que ofrecen', weight: 5 }, { word: 'menu', weight: 3 }, { word: 'servicios tienen', weight: 5 },
       { word: 'trabajan', weight: 3 }, { word: 'listado', weight: 3 }, { word: 'carta', weight: 2 },
-      { word: 'portafolio', weight: 3 },
+      { word: 'portafolio', weight: 3 }, { word: 'que tipo', weight: 4 }, { word: 'tipos de', weight: 4 },
+      { word: 'que tienen', weight: 4 }, { word: 'hay disponible', weight: 4 },
     ],
     minScore: 4,
     handler: (ctx) => {
@@ -366,12 +420,6 @@ const INTENTS: Intent[] = [
     }
   },
   {
-    name: 'servicio_especifico',
-    keywords: [],  // handled separately via servEncontrado
-    minScore: 0,
-    handler: (ctx) => null
-  },
-  {
     name: 'vehiculo_solo',
     keywords: [
       { word: 'automovil', weight: 3 }, { word: 'camioneta', weight: 3 }, { word: 'moto', weight: 3 },
@@ -381,13 +429,6 @@ const INTENTS: Intent[] = [
     ],
     minScore: 3,
     handler: (ctx) => {
-      const onlyVehicle = ctx.tokens.every(t => {
-        for (const [pattern] of VEHICULO_PATTERNS) {
-          if (pattern.test(t)) return true;
-        }
-        return /\b(auto|automovil|carro|vehiculo|camioneta|moto|motocicleta)\b/.test(t);
-      });
-      if (!onlyVehicle && ctx.tokens.length > 2) return null;
       const msgWords = ctx.lower.split(/\s+/).filter(Boolean);
       if (msgWords.length > 4) return null;
       if (!ctx.v) return '¿Tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
@@ -411,14 +452,52 @@ const CATEGORIA_MAP: [RegExp, string[]][] = [
   [/\b(farolas?|faros?|luz|iluminacion|optic)/, ['Farolas']],
 ];
 
-export async function buildChatbotReply(message: string, vehiculo?: Vehiculo): Promise<string> {
+export async function buildChatbotReply(
+  message: string,
+  history: ChatTurn[] = [],
+  vehiculoExplicito?: Vehiculo
+): Promise<string> {
   const catalog = await getCatalog();
-  const ctx = buildContext(message, vehiculo, catalog);
 
+  // Hereda el vehículo del historial si no viene explícito ni en el mensaje actual
+  const vehiculoDetectadoMensaje = detectarVehiculo(message);
+  const vehiculoHeredado: Vehiculo | undefined =
+    vehiculoExplicito ??
+    vehiculoDetectadoMensaje ??
+    vehiculoDesdeHistorial(history) ??
+    undefined;
+
+  const ctx = buildContext(message, vehiculoHeredado, catalog);
+
+  // ── SLOT FILLING: responde según la última pregunta del bot ──────────────
+  const preguntaPendiente = ultimaPreguntaBot(history);
+
+  if (preguntaPendiente === 'vehiculo' && ctx.v) {
+    // El usuario está respondiendo con su vehículo
+    const disponibles = serviciosCompatibles(catalog.services, ctx.v);
+    let out = `¡Perfecto! Has seleccionado **${ctx.label}**. Puedo ayudarte con:\n`;
+    out += '• Ver **servicios** disponibles\n';
+    out += '• **Horarios**: 10:00 a.m. y 2:00 p.m.\n';
+    out += '• **Agendar** una cita\n\n';
+    if (disponibles.length > 0) {
+      out += `Tenemos **${disponibles.length} servicios** para ${ctx.label}. ¿Qué deseas consultar?`;
+    } else {
+      out += '¿Qué deseas consultar?';
+    }
+    return out;
+  }
+
+  if (preguntaPendiente === 'servicio' && ctx.servEncontrado) {
+    // El usuario respondió con un servicio específico
+    return `📅 **Agendar: ${ctx.servEncontrado.nombre}**\n\nSigue estos pasos:\n1. Entra con tu correo en **"Acceder"**\n2. Selecciona **${ctx.servEncontrado.nombre}**\n3. Escoge fecha y horario (10:00 a.m. o 2:00 p.m.)\n4. Confirma y lista ✅\n\nRecibirás confirmación en tu cuenta.`;
+  }
+
+  // ── DETECCIÓN DE INTENT PRINCIPAL ───────────────────────────────────────
   let best: { intent: Intent; score: number } | null = null;
 
   for (const intent of INTENTS) {
     if (intent.name === 'servicio_especifico') continue;
+    if (intentNegado(ctx.lower, intent.name)) continue;
     const score = scoreIntent(ctx, intent.keywords);
     if (score >= intent.minScore && (!best || score > best.score)) {
       best = { intent, score };
@@ -429,6 +508,8 @@ export async function buildChatbotReply(message: string, vehiculo?: Vehiculo): P
     const reply = best.intent.handler(ctx);
     if (reply) return reply;
   }
+
+  // ── FALLBACKS POR ORDEN DE ESPECIFICIDAD ────────────────────────────────
 
   if (ctx.servEncontrado) {
     return `🔧 **${ctx.servEncontrado.nombre}**\n• Duración: ${ctx.servEncontrado.duracion_minutos} minutos\n• ${ctx.servEncontrado.descripcion}\n\n¿Agendamos tu cita? Horarios: 10:00 a.m. o 2:00 p.m.`;
@@ -477,18 +558,41 @@ export async function buildChatbotReply(message: string, vehiculo?: Vehiculo): P
     return `📋 **Servicios para ${ctx.label}:**\n${lines}\n\n¿Te gustaría más información sobre alguno en particular o agendar una cita?`;
   }
 
-  let base = '🤖 No entendí completamente tu mensaje. Puedo ayudarte con:\n• **Servicios** disponibles';
-  if (!ctx.v) return base + '\n• Primero dime: ¿🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
+  // ── FALLBACK INTELIGENTE ─────────────────────────────────────────────────
+  return buildSmartFallback(ctx, catalog);
+}
 
-  const suggestions: string[] = [];
-  if (/\b(servicio|hacen|ofrecen|trabajan|producto|lavado|detailing|mecanic|pintur)\b/.test(ctx.lower)) suggestions.push('servicios');
-  if (/\b(agendar|cita|turno|reserv|apartar|programar)\b/.test(ctx.lower)) suggestions.push('agendar una cita');
-  if (/\b(horario|hora|atienden|abren)\b/.test(ctx.lower)) suggestions.push('horarios');
-  if (suggestions.length > 0) {
-    return base + `\n• **${suggestions.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('**\n• **')}**\n\n¿Puedes ser más específico?`;
+function buildSmartFallback(ctx: ChatContext, catalog: CatalogCache): string {
+  // Si detectamos tokens cercanos a algún servicio, sugerimos los más parecidos
+  const serviciosCercanos = catalog.services.filter(s =>
+    ctx.tokens.some(t => {
+      const st = tokenize(s.nombre);
+      return st.some(stt => fuzzyMatch(t, stt) >= 0.55);
+    })
+  ).slice(0, 3);
+
+  if (serviciosCercanos.length > 0) {
+    const nombres = serviciosCercanos.map(s => `**${s.nombre}**`).join(', ');
+    return `¿Te refieres a alguno de estos servicios? ${nombres}\n\nO cuéntame con más detalle qué necesitas. 😊`;
   }
 
-  return base + '\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Productos** en tienda\n• **Contacto** y ubicación\n\nEjemplos: "¿Qué servicios tienen?", "¿Cómo agendar una cita?", "Quiero información sobre lavado"';
+  // Si tiene vehículo pero no entendimos la intención
+  if (ctx.v) {
+    const disponibles = serviciosCompatibles(catalog.services, ctx.v);
+    return `No entendí bien tu mensaje 😊 Tienes **${ctx.label}** — puedo ayudarte con:\n• **Servicios** (${disponibles.length} disponibles)\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Cotizar** un servicio\n\n¿Qué necesitas?`;
+  }
+
+  // Si hay palabras relacionadas con alguna intención conocida
+  const sugerencias: string[] = [];
+  if (/\b(servicio|hacen|ofrecen|trabajan|producto|lavado|detailing|mecanic|pintur)\b/.test(ctx.lower)) sugerencias.push('ver los **servicios**');
+  if (/\b(agendar|cita|turno|reserv|apartar|programar)\b/.test(ctx.lower)) sugerencias.push('**agendar una cita**');
+  if (/\b(horario|hora|atienden|abren)\b/.test(ctx.lower)) sugerencias.push('consultar **horarios**');
+
+  if (sugerencias.length > 0) {
+    return `No entendí bien, ¿quieres ${sugerencias.join(' o ')}?\n\nPrimero dime: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?`;
+  }
+
+  return '¡Hola! Puedo ayudarte con:\n• **Servicios** de lavado, detailing, mecánica y más\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Productos** en tienda\n• **Contacto** y ubicación\n\nPrimero dime: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
 }
 
 export function invalidateChatbotCache() {
