@@ -65,16 +65,21 @@ function fuzzyIncludes(text: string, phrase: string, threshold = 0.75): boolean 
 
 async function getCatalog(): Promise<CatalogCache> {
   if (cache && Date.now() - cache.loadedAt < CACHE_TTL) return cache;
-  const db = getDb();
-  const [services, products] = await Promise.all([
-    db.collection('servicios').find({ activo: true }).project({ nombre: 1, descripcion: 1, duracion_minutos: 1, categoria: 1, cotizar_local: 1 }).toArray(),
-    db.collection('productos').find({ nombre: { $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i } }).project({ nombre: 1, descripcion: 1, stock: 1, categoria: 1 }).toArray()
-  ]);
-  cache = {
-    services: services as CatalogCache['services'],
-    products: products as CatalogCache['products'],
-    loadedAt: Date.now()
-  };
+  try {
+    const db = getDb();
+    const [services, products] = await Promise.all([
+      db.collection('servicios').find({ activo: true }).project({ nombre: 1, descripcion: 1, duracion_minutos: 1, categoria: 1, cotizar_local: 1 }).toArray(),
+      db.collection('productos').find({ nombre: { $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i } }).project({ nombre: 1, descripcion: 1, stock: 1, categoria: 1 }).toArray()
+    ]);
+    cache = {
+      services: services as CatalogCache['services'],
+      products: products as CatalogCache['products'],
+      loadedAt: Date.now()
+    };
+  } catch (err) {
+    if (cache) return cache;
+    cache = { services: [], products: [], loadedAt: Date.now() };
+  }
   return cache;
 }
 
