@@ -11,18 +11,22 @@
 .catalog-section-title {
   text-align: center;
   margin: 0 0 2.5rem;
-  font-size: clamp(1.35rem, 3vw, 1.75rem);
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  font-weight: 900;
+  letter-spacing: 0.05em;
   color: #0a0a0a;
   animation: md-fade-in 0.5s cubic-bezier(0.2, 0, 0, 1) both;
+  position: relative;
 }
 
-.catalog-section-title .slash {
-  color: #ff2b2b;
-  font-weight: 900;
-  margin: 0 0.35rem;
+.catalog-section-title::after {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 4px;
+  background: #ff2b2b;
+  border-radius: 4px;
+  margin: 12px auto 0;
 }
 
 .catalog-header {
@@ -46,26 +50,27 @@
 }
 
 .catalog-chip {
-  padding: 0.45rem 1rem;
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-  background: #fff;
-  color: #3c4043;
-  font-size: 0.875rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: #f1f3f4;
+  color: #5f6368;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .catalog-chip:hover {
-  border-color: #0a0a0a;
+  background: #e8eaed;
   color: #0a0a0a;
 }
 
 .catalog-chip.active {
   background: #0a0a0a;
-  border-color: #0a0a0a;
   color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .catalog-carousel-wrap {
@@ -95,8 +100,7 @@
 
 .md-card {
   background: #fff;
-  border-radius: 0;
-  overflow: hidden;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   cursor: default;
@@ -105,24 +109,59 @@
   animation: md-card-enter 0.55s cubic-bezier(0.2, 0, 0, 1) both;
   text-decoration: none;
   color: inherit;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0,0,0,0.03);
+}
+
+.md-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
 }
 
 .md-card.interactive {
   cursor: pointer;
 }
 
-.md-card.interactive:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+.md-card-image-wrap {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 16px 16px 0 0;
+  position: relative;
+  background: #f5f5f5;
 }
 
 .md-card-image {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 100%;
   object-fit: cover;
   display: block;
-  background: #f5f5f5;
+  transition: transform 0.5s cubic-bezier(0.2, 0, 0, 1);
 }
+
+.md-card:hover .md-card-image {
+  transform: scale(1.05);
+}
+
+.md-card-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  color: #0a0a0a;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 2;
+}
+
+.md-card-badge.low { color: #b45309; }
+.md-card-badge.out { color: #ff2b2b; background: rgba(255, 255, 255, 0.95); }
 
 .md-card-body {
   padding: 1.35rem 1.25rem 1.5rem;
@@ -186,27 +225,18 @@
   font-weight: 500;
 }
 
-.md-card-stock {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #0a0a0a;
-}
 
-.md-card-stock.low { color: #b45309; }
-.md-card-stock.out { color: #ff2b2b; }
 
 .md-btn {
   border: none;
-  border-radius: 2px;
-  padding: 0.65rem 1.35rem;
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   display: inline-block;
 }
@@ -214,11 +244,13 @@
 .md-btn-filled {
   background: #ff2b2b;
   color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 43, 43, 0.2);
 }
 
 .md-btn-filled:hover:not(:disabled) {
   background: #e02424;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 43, 43, 0.3);
 }
 
 .md-btn-filled:disabled {

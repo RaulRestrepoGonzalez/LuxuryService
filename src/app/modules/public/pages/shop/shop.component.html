@@ -1,7 +1,37 @@
 <div class="catalog-page page-light">
   <h2 class="catalog-section-title">
-    <span class="slash">/</span> PRODUCTOS <span class="slash">/</span>
+    PRODUCTOS
   </h2>
+
+  @if (featuredProducts.length > 0) {
+    <section class="featured-section">
+      <h3 class="featured-title">🔥 Más Vendidos</h3>
+      <div class="featured-carousel">
+        @for (p of featuredProducts; track p.id; let i = $index) {
+          <article class="featured-card md-card" [style.animation-delay.ms]="i * 50">
+            <div class="md-card-image-wrap" style="aspect-ratio: 16/9;">
+              <img class="md-card-image" [src]="img(p)" [alt]="p.nombre" loading="lazy" width="400" height="225" />
+            </div>
+            <div class="featured-card-body md-card-body">
+              <h3 style="font-size:1rem; margin-bottom:0.25rem;">{{ p.nombre }}</h3>
+              <div class="featured-card-price md-card-price">${{ p.precio }}</div>
+              <div style="margin-top:0.75rem;">
+                <button
+                  type="button"
+                  class="md-btn md-btn-filled"
+                  style="width:100%; padding: 0.5rem; font-size:0.75rem;"
+                  [disabled]="purchasing === p.id"
+                  (click)="comprar(p)"
+                >
+                  {{ purchasing === p.id ? '...' : 'Comprar' }}
+                </button>
+              </div>
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+  }
 
   @if (error && productos.length === 0) {
     <div class="catalog-error">{{ error }}</div>
@@ -23,7 +53,14 @@
     <div class="catalog-grid">
       @for (p of filtered; track p.id; let i = $index) {
         <article class="md-card" [style.animation-delay.ms]="i * 50">
-          <img class="md-card-image" [src]="img(p)" [alt]="p.nombre" loading="lazy" width="400" height="300" />
+          <div class="md-card-image-wrap">
+            <img class="md-card-image" [src]="img(p)" [alt]="p.nombre" loading="lazy" width="400" height="300" />
+            <div class="md-card-badge" [class]="stockClass(p.stock)">
+              @if (p.stock <= 0) { Agotado }
+              @else if (p.stock <= 5) { Quedan {{ p.stock }} }
+              @else { En stock }
+            </div>
+          </div>
           <div class="md-card-body">
             @if (p.categoria) {
               <span class="md-card-meta" style="display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.08em">{{ p.categoria }}</span>
@@ -32,11 +69,7 @@
             <p class="md-card-desc">{{ p.descripcion }}</p>
             <div class="md-card-footer">
               <div>
-                <span class="md-card-stock" [class]="stockClass(p.stock)">
-                  @if (p.stock <= 0) { Agotado }
-                  @else if (p.stock <= 5) { Quedan {{ p.stock }} }
-                  @else { En stock }
-                </span>
+                <!-- stock info moved to badge -->
               </div>
               @if (auth.isLoggedIn()) {
                 <button

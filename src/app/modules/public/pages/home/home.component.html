@@ -41,10 +41,22 @@
   @if (loadingTarifario) {
     <p class="tarifario-loading">Cargando...</p>
   } @else {
-    <h3 class="tarifario-sub">Estos son nuestros servicios</h3>
-    <div class="tarifario-table">
-      @for (s of serviciosFlat; track s.id) {
-        <span class="tarifario-tag">{{ s.nombre }}</span>
+    <div class="tarifario-categories-wrap">
+      @for (cat of categoriasVisuales; track cat.nombre) {
+        <div class="tarifario-cat-block">
+          <div class="tarifario-cat-header">
+            <div class="tarifario-cat-title">
+              <span class="cat-icon">{{ cat.icono }}</span>
+              <h4>{{ cat.nombre }}</h4>
+            </div>
+            <span class="tarifario-cat-count">{{ cat.servicios.length }} servicios</span>
+          </div>
+          <div class="tarifario-table">
+            @for (s of cat.servicios; track s.id; let i = $index) {
+              <span class="tarifario-tag" [class.tag-outline]="i < 2">{{ s.nombre }}</span>
+            }
+          </div>
+        </div>
       }
     </div>
   }

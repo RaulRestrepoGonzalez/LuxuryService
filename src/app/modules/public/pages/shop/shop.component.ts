@@ -27,6 +27,7 @@ export interface Producto {
 export class ShopComponent implements OnInit, OnDestroy {
   productos: Producto[] = [];
   filtered: Producto[] = [];
+  featuredProducts: Producto[] = [];
   loading = true;
   error = '';
   purchasing: string | null = null;
@@ -50,6 +51,7 @@ export class ShopComponent implements OnInit, OnDestroy {
         this.productos = value as Producto[];
         this.buildCategories();
         this.applyFilter();
+        this.buildFeatured();
         this.cdr.markForCheck();
       }
     });
@@ -67,6 +69,7 @@ export class ShopComponent implements OnInit, OnDestroy {
         this.productos = res;
         this.buildCategories();
         this.applyFilter();
+        this.buildFeatured();
         this.loading = false;
         this.cdr.markForCheck();
       },
@@ -81,6 +84,13 @@ export class ShopComponent implements OnInit, OnDestroy {
   private buildCategories() {
     const cats = [...new Set(this.productos.map(p => p.categoria).filter(Boolean))] as string[];
     this.categories = ['Todos', ...cats];
+  }
+
+  private buildFeatured() {
+    this.featuredProducts = this.productos
+      .filter(p => p.stock > 0)
+      .sort((a, b) => a.stock - b.stock)
+      .slice(0, 8); // Top 8 items with lowest stock but still available
   }
 
   filterCategory(cat: string) {

@@ -161,40 +161,89 @@
   font-style: italic;
 }
 
-.tarifario-sub {
-  text-align: center;
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.6);
-  margin: -0.5rem auto 2rem;
-  max-width: 680px;
-}
-
-.tarifario-table {
-  max-width: 800px;
+.tarifario-categories-wrap {
+  max-width: 1000px;
   margin: 0 auto;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.tarifario-cat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tarifario-cat-title {
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.tarifario-tag {
-  flex: 1 1 auto;
-  min-width: 140px;
-  text-align: center;
-  padding: 0.5rem 0.75rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  font-size: 0.82rem;
+.cat-icon {
+  font-size: 1.15rem;
+  filter: grayscale(1);
+}
+
+.tarifario-cat-title h4 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.05em;
+  text-transform: capitalize;
+}
+
+.tarifario-cat-count {
+  font-size: 0.85rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  transition: all 0.15s;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.tarifario-table {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 0.65rem;
+}
+
+.tarifario-tag {
+  padding: 0.5rem 1.25rem;
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e8eaed;
+  transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  cursor: default;
 }
 
 .tarifario-tag:hover {
-  background: rgba(255, 43, 43, 0.15);
-  border-color: rgba(255, 43, 43, 0.35);
+  background: #2a2a2a;
+  border-color: #333;
   color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.tarifario-tag.tag-outline {
+  background: transparent;
+  border-color: #ff2b2b;
+  color: #ff2b2b;
+  box-shadow: none;
+}
+
+.tarifario-tag.tag-outline:hover {
+  background: #ff2b2b;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 43, 43, 0.3);
 }
 
 .tarifario-loading { text-align: center; color: rgba(255,255,255,0.5); }

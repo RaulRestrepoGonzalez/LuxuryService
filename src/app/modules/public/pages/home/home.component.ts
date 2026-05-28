@@ -24,6 +24,12 @@ const CATEGORIAS_VISIBLES = new Set([
   'Rines', 'Diagnóstico', 'Adicionales'
 ]);
 
+export interface CategoriaVisual {
+  nombre: string;
+  icono: string;
+  servicios: Servicio[];
+}
+
 @Component({
   selector: 'app-home',
   standalone: true,
@@ -34,7 +40,7 @@ const CATEGORIAS_VISIBLES = new Set([
 export class HomeComponent implements OnInit {
   heroImage = HERO_IMAGE;
   marcas = MARCAS_MULTIMARCAS;
-  serviciosFlat: Servicio[] = [];
+  categoriasVisuales: CategoriaVisual[] = [];
   loadingTarifario = true;
 
   contacto = {
@@ -52,23 +58,59 @@ export class HomeComponent implements OnInit {
   ngOnInit() {
     if (typeof window === 'undefined') return;
 
-    this.serviciosFlat = FALLBACK_SERVICIOS.filter(s => !s.cotizar_local);
+    const mapIcon = (cat: string) => {
+      cat = cat.toLowerCase();
+      if (cat.includes('lavado')) return '💧';
+      if (cat.includes('combo')) return '📦';
+      if (cat.includes('detailing')) return '✨';
+      if (cat.includes('pulido') || cat.includes('farola')) return '☀️';
+      if (cat.includes('llanta') || cat.includes('alineaci')) return '🛞';
+      if (cat.includes('limpieza profunda')) return '🫧';
+      if (cat.includes('protección') || cat.includes('polarizado')) return '🛡️';
+      return '📌';
+    };
+
+    const processGrouped = (cats: string[], grouped: Record<string, Servicio[]>) => {
+      const result: CategoriaVisual[] = [];
+      for (const c of cats) {
+        let list = grouped[c] || [];
+        list = list.filter(s => !s.cotizar_local).sort((a, b) => a.nombre.localeCompare(b.nombre));
+        if (list.length > 0) {
+          result.push({
+            nombre: c,
+            icono: mapIcon(c),
+            servicios: list
+          });
+        }
+      }
+      return result;
+    };
+
+    // Fallback logic grouped manually
+    const fallbackGrouped: Record<string, Servicio[]> = {};
+    for (const s of FALLBACK_SERVICIOS) {
+      if (!s.cotizar_local) {
+        const cat = s.categoria || 'Otros';
+        (fallbackGrouped[cat] ??= []).push(s);
+      }
+    }
+    this.categoriasVisuales = processGrouped(Object.keys(fallbackGrouped), fallbackGrouped);
     this.loadingTarifario = false;
 
     this.api.get<{ categorias: string[]; grouped: Record<string, Servicio[]> }>('/services/catalog').subscribe({
       next: res => {
-        const flat: Servicio[] = [];
+        const result: CategoriaVisual[] = [];
         for (const c of res.categorias) {
           if (CATEGORIAS_VISIBLES.has(c)) {
-            for (const s of (res.grouped[c] || [])) {
-              if (!s.cotizar_local) {
-                flat.push(s);
-              }
+            let list = res.grouped[c] || [];
+            list = list.filter(s => !s.cotizar_local).sort((a, b) => a.nombre.localeCompare(b.nombre));
+            if (list.length > 0) {
+              result.push({ nombre: c, icono: mapIcon(c), servicios: list });
             }
           }
         }
-        if (flat.length > 0) {
-          this.serviciosFlat = flat;
+        if (result.length > 0) {
+          this.categoriasVisuales = result;
         }
       },
       error: () => {}
