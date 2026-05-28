@@ -316,11 +316,60 @@ function norm(text: string) {
 function tokenize(text: string) {
   return norm(text).split(/[^a-z0-9]+/).filter(Boolean);
 }
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function fuzzyMatch(query: string, target: string): number {
+  const q = norm(query);
+  const t = norm(target);
+  const dist = levenshtein(q, t);
+  const maxLen = Math.max(q.length, t.length);
+  return maxLen === 0 ? 1 : 1 - dist / maxLen;
+}
+
+function fuzzyIncludes(text: string, phrase: string, threshold = 0.75): boolean {
+  const words = phrase.split(/\s+/);
+  const textWords = text.split(/\s+/);
+  let matched = 0;
+  for (const pw of words) {
+    if (pw.length < 3) continue;
+    for (const tw of textWords) {
+      if (fuzzyMatch(tw, pw) >= threshold) { matched++; break; }
+    }
+  }
+  return matched >= Math.max(1, words.filter(w => w.length >= 3).length * 0.6);
+}
+
+function scoreIntent(lower: string, tokens: string[], keywords: { word: string; weight: number }[]): number {
+  let score = 0;
+  for (const kw of keywords) {
+    if (lower.includes(kw.word)) {
+      score += kw.weight;
+    } else {
+      for (const token of tokens) {
+        if (fuzzyMatch(token, kw.word) >= 0.75) { score += kw.weight * 0.7; break; }
+      }
+    }
+  }
+  return score;
+}
+
 function detectVehiculo(text: string) {
   const t = norm(text);
-  if (/\b(camioneta|4x4|todo terreno|suv|troca|pickup)\b/.test(t)) return 'camioneta';
-  if (/\b(moto|motocicleta|picante|ciclomotor)\b/.test(t)) return 'moto';
-  if (/\b(auto|automovil|carro|vehiculo|sedan|hatchback|furgoneta|van)\b/.test(t)) return 'auto';
+  if (/\b(camioneta|4x4|todo terreno|suv|troca|pickup|troc|camion|blazer|trailblazer|explorer|duster|tracker|vitara)\b/.test(t)) return 'camioneta';
+  if (/\b(moto|motocicleta|picante|ciclomotor|pistera|cross|enduro|scooter|vespa)\b/.test(t)) return 'moto';
+  if (/\b(auto|automovil|carro|vehiculo|sedan|hatchback|furgoneta|van|furgon|deportivo|coupe|aveo|spark|swift|picanto|logan|sandero)\b/.test(t)) return 'auto';
   return null;
 }
 
@@ -328,71 +377,237 @@ app.post('/api/chatbot', async (c) => {
   const { message, vehiculo } = await c.req.json();
   const raw = message || '';
   const lower = norm(raw);
+  const tokens = tokenize(raw);
   const v = vehiculo || detectVehiculo(raw);
   const catalog = await getChatbotCatalog(c);
   const label = v === 'auto' ? 'Automóvil' : v === 'camioneta' ? 'Camioneta' : v === 'moto' ? 'Moto' : null;
 
-  const svcNorm = catalog.services.map((s: any) => ({ ...s, _key: norm(s.nombre), _tokens: tokenize(s.nombre) }));
-  const servEncontrado = svcNorm.find((s: any) => lower.includes(s._key) || (s._tokens.filter((t: string) => t.length > 3).length > 0 && s._tokens.filter((t: string) => t.length > 3).every((t: string) => lower.includes(t))));
+  const svcNorm = catalog.services.map((s: any) => ({
+    ...s, _key: norm(s.nombre), _tokens: tokenize(s.nombre)
+  }));
+  let servEncontrado = svcNorm.find((s: any) =>
+    lower.includes(s._key) || fuzzyIncludes(lower, s._key) ||
+    (s._tokens.filter((t: string) => t.length > 3).length > 0 &&
+     s._tokens.filter((t: string) => t.length > 3).every((t: string) => lower.includes(t) || fuzzyIncludes(lower, t)))
+  );
 
-  if (/^(hola|buenas|buen[ao]s|hey|saludos|que mas|q mas|buen dia)/.test(lower))
-    return c.json({ reply: `¡Hola! Soy el asistente de **Luxury Service Manga**.${!v ? '\n\n¿Qué tipo de vehículo tienes?\n• 🚗 Automóvil\n• 🚙 Camioneta\n• 🏍️ Moto' : ''}` });
+  let prodEncontrado = catalog.products.find((p: any) => {
+    const key = norm(p.nombre);
+    return lower.includes(key) || fuzzyIncludes(lower, key);
+  });
 
-  if (/\b(adios|chao|bye|hasta luego|nos vemos|gracias por tu|eso seria todo)\b/.test(lower))
-    return c.json({ reply: '¡Hasta luego! Gracias por contactarnos.' });
+  const INTENTS = [
+    {
+      name: 'saludo',
+      keywords: [
+        { word: 'hola', weight: 5 }, { word: 'buenas', weight: 5 }, { word: 'buenos', weight: 5 },
+        { word: 'saludos', weight: 5 }, { word: 'hey', weight: 4 }, { word: 'buen dia', weight: 5 },
+        { word: 'que mas', weight: 4 }, { word: 'buenas tardes', weight: 5 }, { word: 'buenas noches', weight: 5 },
+      ],
+      minScore: 4,
+      handler: () => `¡Hola! Soy el asistente de **Luxury Service Manga**.${!v ? '\n\n¿Qué tipo de vehículo tienes?\n• 🚗 Automóvil\n• 🚙 Camioneta\n• 🏍️ Moto' : `\n\nVeo que tienes **${label}**. ¿En qué puedo ayudarte?\n• Servicios disponibles\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar una cita`}`
+    },
+    {
+      name: 'despedida',
+      keywords: [
+        { word: 'adios', weight: 6 }, { word: 'chao', weight: 6 }, { word: 'bye', weight: 6 },
+        { word: 'hasta luego', weight: 6 }, { word: 'nos vemos', weight: 6 }, { word: 'eso seria todo', weight: 5 },
+        { word: 'gracias por tu', weight: 4 }, { word: 'hasta pronto', weight: 6 },
+      ],
+      minScore: 3,
+      handler: () => '¡Hasta luego! Gracias por contactarnos. **Luxury Service** a tu servicio 🚗✨'
+    },
+    {
+      name: 'ubicacion',
+      keywords: [
+        { word: 'donde', weight: 5 }, { word: 'ubicacion', weight: 6 }, { word: 'direccion', weight: 6 },
+        { word: 'como llegar', weight: 6 }, { word: 'maps', weight: 5 }, { word: 'queda', weight: 4 },
+      ],
+      minScore: 4,
+      handler: () => '📍 **Luxury Service Manga** en **Cartagena, Colombia**.\nAv. Principal Manga.\n\n¿Necesitas el teléfono o prefieres agendar una cita?'
+    },
+    {
+      name: 'contacto',
+      keywords: [
+        { word: 'contacto', weight: 6 }, { word: 'telefono', weight: 6 }, { word: 'whatsapp', weight: 6 },
+        { word: 'correo', weight: 5 }, { word: 'email', weight: 5 }, { word: 'llamar', weight: 5 },
+        { word: 'celular', weight: 5 }, { word: 'wsp', weight: 5 }, { word: 'asesor', weight: 5 },
+        { word: 'numero', weight: 4 }, { word: 'contactarnos', weight: 5 },
+      ],
+      minScore: 4,
+      handler: () => '📬 **Comunícate con nosotros:**\n\n📞 **Teléfono:** +57 300 636 6429\n💬 **WhatsApp:** wa.me/573006366429\n✉️ **Correo:** luxury_admon@outlook.com\n\n¿Necesitas ayuda con algo más?'
+    },
+    {
+      name: 'horarios',
+      keywords: [
+        { word: 'horario', weight: 6 }, { word: 'hora', weight: 4 }, { word: 'cuando atienden', weight: 6 },
+        { word: 'a que hora', weight: 5 }, { word: 'abren', weight: 5 }, { word: 'cierran', weight: 5 },
+        { word: 'atienden', weight: 5 }, { word: 'turno', weight: 4 },
+      ],
+      minScore: 4,
+      handler: () => '🕐 **Horarios de atención:**\n• **Lunes a sábado:** 8:00 a.m. - 6:00 p.m.\n• **Citas:** 10:00 a.m. y 2:00 p.m.\n• **Domingos:** Cerrado\n\nAgenda en la web.'
+    },
+    {
+      name: 'agendar',
+      keywords: [
+        { word: 'agendar', weight: 6 }, { word: 'cita', weight: 5 }, { word: 'reservar', weight: 5 },
+        { word: 'apartar', weight: 5 }, { word: 'turno', weight: 4 }, { word: 'programar', weight: 4 },
+        { word: 'pedir cita', weight: 6 }, { word: 'sacar cita', weight: 5 }, { word: 'necesito cita', weight: 5 },
+      ],
+      minScore: 4,
+      handler: () => servEncontrado
+        ? `📅 **Agendar: ${servEncontrado.nombre}**\n\n1. Entra con tu correo en "Acceder"\n2. Selecciona **${servEncontrado.nombre}**\n3. Escoge fecha y horario\n4. Confirma ✅`
+        : '📅 Agenda en la web con tu correo. Elige servicio, fecha y horario (10:00 a.m. o 2:00 p.m.).'
+    },
+    {
+      name: 'cotizacion',
+      keywords: [
+        { word: 'cotizar', weight: 6 }, { word: 'cotizacion', weight: 6 }, { word: 'presupuesto', weight: 6 },
+        { word: 'cuanto vale', weight: 5 }, { word: 'cuanto cuesta', weight: 5 }, { word: 'cuanto cobran', weight: 5 },
+        { word: 'tarifa', weight: 5 }, { word: 'me cotiza', weight: 6 }, { word: 'valor', weight: 4 },
+      ],
+      minScore: 4,
+      handler: () => {
+        if (!v) return '¿Tu vehículo es 🚗 Automóvil, 🚙 Camioneta o 🏍️ Moto?';
+        const disponibles = catalog.services.filter((s: any) => !s.cotizar_local);
+        if (servEncontrado) return `📋 **${servEncontrado.nombre}** · ${servEncontrado.duracion_minutos} min.\n\nLos precios de referencia están en la sección Cotizar.`;
+        const lines = disponibles.slice(0, 10).map((s: any) => `• **${s.nombre}**`).join('\n');
+        return `📋 **Servicios para ${label}**:\n${lines}`;
+      }
+    },
+    {
+      name: 'servicios',
+      keywords: [
+        { word: 'servicios', weight: 6 }, { word: 'servicio', weight: 5 }, { word: 'catalogo', weight: 5 },
+        { word: 'mantenimiento', weight: 4 }, { word: 'que servicios', weight: 6 }, { word: 'que ofrecen', weight: 5 },
+        { word: 'menu', weight: 3 },
+      ],
+      minScore: 4,
+      handler: () => {
+        const disponibles = catalog.services.filter((s: any) => !s.cotizar_local).slice(0, 18);
+        const lines = disponibles.map((s: any) => `• **${s.nombre}**`).join('\n');
+        return `📋 **SERVICIOS**${label ? ` (${label})` : ''}:\n${lines}`;
+      }
+    },
+    {
+      name: 'productos',
+      keywords: [
+        { word: 'producto', weight: 6 }, { word: 'productos', weight: 6 }, { word: 'tienda', weight: 5 },
+        { word: 'comprar', weight: 5 }, { word: 'stock', weight: 4 }, { word: 'articulo', weight: 4 },
+        { word: 'venden', weight: 4 },
+      ],
+      minScore: 4,
+      handler: () => {
+        if (prodEncontrado) return `🛒 **${prodEncontrado.nombre}**\n${prodEncontrado.descripcion}\nStock: ${prodEncontrado.stock > 0 ? '✅ ' + prodEncontrado.stock + ' unidades' : '❌ Agotado'}`;
+        const lines = catalog.products.slice(0, 10).map((p: any) => `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`).join('\n');
+        return `🛒 **Productos:**\n${lines}\n\nCompra en la Tienda.`;
+      }
+    },
+    {
+      name: 'precios',
+      keywords: [
+        { word: 'precio', weight: 6 }, { word: 'cuesta', weight: 5 }, { word: 'vale', weight: 4 },
+        { word: 'costo', weight: 5 }, { word: 'cuanto sale', weight: 5 }, { word: 'cuanto cobran', weight: 5 },
+      ],
+      minScore: 3,
+      handler: () => {
+        if (!v) return '¿🚗 Automóvil, 🚙 Camioneta o 🏍️ Moto?';
+        if (servEncontrado) return `🔧 **${servEncontrado.nombre}** · ${servEncontrado.duracion_minutos} min.\n\nLos valores de referencia están en la sección Cotizar.`;
+        const lines = catalog.services.filter((s: any) => !s.cotizar_local).slice(0, 12).map((s: any) => `• **${s.nombre}**`).join('\n');
+        return `📋 **Servicios para ${label}**:\n${lines}\n\nVer valores en Cotizar.`;
+      }
+    },
+    {
+      name: 'agradecimiento',
+      keywords: [
+        { word: 'gracias', weight: 6 }, { word: 'perfecto', weight: 4 }, { word: 'listo', weight: 4 },
+        { word: 'genial', weight: 4 }, { word: 'excelente', weight: 4 }, { word: 'muy bien', weight: 4 },
+        { word: 'vale', weight: 3 }, { word: 'entendido', weight: 4 },
+      ],
+      minScore: 3,
+      handler: () => '¡Con gusto! 😊 ¿Algo más en que pueda ayudarte?'
+    },
+    {
+      name: 'vehiculo_solo',
+      keywords: [
+        { word: 'automovil', weight: 3 }, { word: 'camioneta', weight: 3 }, { word: 'moto', weight: 3 },
+        { word: 'carro', weight: 3 }, { word: 'auto', weight: 3 }, { word: 'vehiculo', weight: 2 },
+        { word: 'motocicleta', weight: 3 },
+      ],
+      minScore: 3,
+      handler: () => {
+        const vehicleWords = ['auto', 'automovil', 'carro', 'vehiculo', 'camioneta', 'moto', 'motocicleta', '4x4', 'suv', 'troca', 'pickup'];
+        const onlyVehicle = tokens.every(t => vehicleWords.includes(t));
+        if (!onlyVehicle && tokens.length > 2) return null;
+        const msgWords = lower.split(/\s+/).filter(Boolean);
+        if (msgWords.length > 4) return null;
+        if (!v) return '¿Tu vehículo es 🚗 Automóvil, 🚙 Camioneta o 🏍️ Moto?';
+        return `¡Perfecto! Has seleccionado **${label}**. ¿Qué deseas consultar?\n• Servicios disponibles\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar una cita`;
+      }
+    },
+  ];
 
-  if (detectVehiculo(raw) && !vehiculo)
-    return c.json({ reply: `¡Perfecto! Has seleccionado **${label}**.\n¿Qué deseas consultar?` });
-
-  if (/\b(donde|ubicacion|direccion|como llegar)\b/.test(lower))
-    return c.json({ reply: '📍 **Luxury Service Manga** en Cartagena, Colombia. Contáctanos para la dirección exacta.' });
-
-  if (/\b(horario|hora|cuando atienden|a que hora|abren|cierra|disponib)\b/.test(lower))
-    return c.json({ reply: '🕐 **Horarios:**\n• 10:00 a.m.\n• 2:00 p.m.\n\nAgenda en la web.' });
-
-  if (/\b(agendar|quiero (una )?cita|reservar|apartar|turno|programar|pedir cita)\b/.test(lower))
-    return c.json({ reply: '📅 Agenda en la web con tu correo. Elige servicio, fecha y horario.' });
-
-  if (/\b(promoc|descuent|oferta|beneficio)\b/.test(lower))
-    return c.json({ reply: '🎉 Al registrarte recibirás notificaciones de promociones.' });
-
-  if (/\b(gracias|perfecto|ok|listo|genial|excelente|de acuerdo|muy bien|super|vale)\b/.test(lower))
-    return c.json({ reply: '¡Con gusto! 😊 ¿Algo más?' });
-
-  if (/\b(cotiza|presupuesto|cuanto (vale|cuesta|cobran|sale)|precio tiene|a como|tarifa|me cotiza|cotizacion)\b/.test(lower)) {
-    if (!v) return c.json({ reply: '¿Tu vehículo es 🚗 Automóvil, 🚙 Camioneta o 🏍️ Moto?' });
-    const disponibles = catalog.services.filter((s: any) => !s.cotizar_local);
-    if (servEncontrado) {
-      return c.json({ reply: `📋 **${servEncontrado.nombre}** · ${servEncontrado.duracion_minutos} min.` });
+  let best: { handler: () => string; score: number } | null = null;
+  for (const intent of INTENTS) {
+    const score = scoreIntent(lower, tokens, intent.keywords);
+    if (score >= intent.minScore && (!best || score > best.score)) {
+      best = { handler: intent.handler, score };
     }
-    const lines = disponibles.slice(0, 10).map((s: any) => `• **${s.nombre}**`).join('\n');
-    return c.json({ reply: `📋 **Servicios para ${label}**:\n${lines}` });
   }
 
-  if (/\b(precio|cuesta|vale|costo|cuanto (sale|cobran|dan)|tarifa)\b/.test(lower)) {
-    if (!v) return c.json({ reply: '¿🚗 Automóvil, 🚙 Camioneta o 🏍️ Moto?' });
-    if (servEncontrado) {
-      return c.json({ reply: `🔧 **${servEncontrado.nombre}** · ${servEncontrado.duracion_minutos} min.` });
-    }
-    const lines = catalog.services.filter((s: any) => !s.cotizar_local).slice(0, 12).map((s: any) => `• **${s.nombre}**`).join('\n');
-    return c.json({ reply: `📋 **Servicios para ${label}**:\n${lines}\n\nLos valores de referencia están en la sección Cotizar de nuestra web.` });
-  }
-
-  if (/\b(servicio|catalogo|mantenimiento|que (servicios|hacen)|que ofrecen|estetica|menu)\b/.test(lower)) {
-    const lines = catalog.services.filter((s: any) => !s.cotizar_local).slice(0, 15).map((s: any) => `• **${s.nombre}**`).join('\n');
-    return c.json({ reply: `📋 **SERVICIOS**${label ? ` (${label})` : ''}:\n${lines}` });
-  }
-
-  if (/\b(producto|tienda|comprar|stock|articulo)\b/.test(lower)) {
-    const lines = catalog.products.slice(0, 10).map((p: any) => `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`).join('\n');
-    return c.json({ reply: `🛒 **Productos:**\n${lines}\n\nCompra en la Tienda.` });
+  if (best) {
+    const reply = best.handler();
+    if (reply) return c.json({ reply });
   }
 
   if (servEncontrado) {
     return c.json({ reply: `🔧 **${servEncontrado.nombre}**\n• ${servEncontrado.duracion_minutos} min.\n• ${servEncontrado.descripcion || ''}` });
   }
 
-  return c.json({ reply: '🤖 No entendí. Puedo ayudarte con servicios, horarios o agendar una cita.' });
+  if (prodEncontrado) {
+    return c.json({ reply: `🛒 **${prodEncontrado.nombre}**\n${prodEncontrado.descripcion}\nStock: ${prodEncontrado.stock > 0 ? '✅ ' + prodEncontrado.stock + ' unidades' : '❌ Agotado'}` });
+  }
+
+  if (!v) return c.json({ reply: '🤖 No entendí. ¿Tu vehículo es 🚗 Automóvil, 🚙 Camioneta o 🏍️ Moto?\n\nTambién puedes preguntar por servicios, horarios o agendar una cita.' });
+
+  const CATEGORIA_MAP: [RegExp, string[]][] = [
+    [/\b(lavados?|hidroblast|chasis|vapores?|encerados?|combos?|express|espumas?|lavar)/, ['Servicios Básicos', 'Combos', 'Lavado']],
+    [/\b(alineacion|balanceo|llantas?|suspension|faros?|direccion|amortiguadores?|cauchos?|neumaticos?|rines?)/, ['Alineación y Balanceo']],
+    [/\b(frenos?|pastillas?|bandas?|liquido de freno|calipers?|discos?)/, ['Mantenimiento de Frenos']],
+    [/\b(lubric|cambio de aceite|cambio aceite|filtros?|aceites?|engrases?)/, ['Lubricación']],
+    [/\b(detailing|pulidos?|ceramicos?|nano|rayon|farolas?|tapicer|luxury|detallados?|pulir|brillo|cera)/, ['Servicios Detailing', 'Detailing']],
+    [/\b(polarizados?|polarizacion|vidrios?|peliculas?|polarizar|film)/, ['Polarizados']],
+    [/\b(pinturas?|pintar|latoneria|latas|enderezada|chapista|carroceria|repintar)/, ['Servicios de Pintura', 'Pintura']],
+    [/\b(diagnosti|scan|computador|escaneo|electr|fallas?|test|chequeos?)/, ['Diagnóstico']],
+  ];
+
+  for (const [pattern, cats] of CATEGORIA_MAP) {
+    if (pattern.test(lower)) {
+      const items = catalog.services.filter((s: any) => !s.cotizar_local && cats.includes(s.categoria));
+      if (items.length > 0) {
+        const lines = items.map((s: any) => `• **${s.nombre}**`).join('\n');
+        return c.json({ reply: `🔧 **${items[0].categoria?.toUpperCase() || 'SERVICIOS'}** (${label}):\n${lines}` });
+      }
+    }
+  }
+
+  const sinServicios = Object.entries({
+    'Lavado': ['lavado', 'lavar', 'limpieza', 'aseo', 'espuma'],
+    'Detailing': ['detailing', 'detallado', 'pulido', 'brillo', 'cera', 'pulir'],
+    'Polarizados': ['polarizado', 'pelicula', 'vidrio polarizado', 'film'],
+    'Pintura': ['pintura', 'pintar', 'latoneria', 'carroceria'],
+    'Mecánica': ['mecanica', 'mecanico', 'reparacion', 'mantenimiento'],
+  }).find(([_, words]) => words.some(w => lower.includes(w) || fuzzyIncludes(lower, w)));
+
+  if (sinServicios) {
+    const items = catalog.services.filter((s: any) => !s.cotizar_local && s.categoria === sinServicios[0]);
+    if (items.length > 0) {
+      const lines = items.map((s: any) => `• **${s.nombre}**`).join('\n');
+      return c.json({ reply: `🔧 **${sinServicios[0].toUpperCase()}** (${label}):\n${lines}` });
+    }
+  }
+
+  return c.json({ reply: '🤖 No entendí completamente. Puedo ayudarte con:\n• **Servicios** disponibles\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Productos** en tienda\n• **Contacto** y ubicación\n\nEj: "Qué servicios tienen?", "Cómo agendar una cita?"' });
 });
 
 // ─────────────────────────────────────────────

@@ -8,7 +8,9 @@ const QUICK_REPLIES: Record<string, (v: string | null) => string | null> = {
     ? `¡Hola de nuevo! Tienes seleccionado **${v === 'auto' ? 'Automóvil' : v === 'camioneta' ? 'Camioneta' : 'Moto'}**. Pregúntame por servicios, horarios (10:00 a.m. y 2:00 p.m.) o cómo agendar.`
     : '¡Hola! ¿Qué tipo de vehículo tienes? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto',
   horarios: () => 'Citas disponibles: 10:00 a.m. y 2:00 p.m.',
-  servicios: v => v ? null : '¿Qué tipo de vehículo tienes? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto',
+  automovil: () => '¡Perfecto! Has seleccionado **Automóvil**. ¿Qué deseas consultar?\n• Servicios disponibles\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar una cita',
+  camioneta: () => '¡Perfecto! Has seleccionado **Camioneta**. ¿Qué deseas consultar?\n• Servicios disponibles\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar una cita',
+  moto: () => '¡Perfecto! Has seleccionado **Moto**. ¿Qué deseas consultar?\n• Servicios disponibles\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar una cita',
 };
 
 @Component({
