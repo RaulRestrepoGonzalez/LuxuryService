@@ -6,6 +6,17 @@ import { ApiService } from 'src/app/core/services/api.service';
 import { AuthService } from 'src/app/core/services/auth.service';
 import { productImage } from 'src/app/shared/constants/catalog-images';
 
+const TIRE_IMAGE = 'https://source.unsplash.com/featured/400x400/?tire';
+const CATEGORY_IMAGES: Record<string, string> = {
+  llantas: TIRE_IMAGE,
+  llanta: TIRE_IMAGE,
+  neumáticos: TIRE_IMAGE,
+  neumaticos: TIRE_IMAGE,
+  rines: TIRE_IMAGE,
+  'alineación y balanceo': TIRE_IMAGE,
+  'alineacion y balanceo': TIRE_IMAGE,
+};
+
 export interface Producto {
   id: string;
   nombre: string;
@@ -130,7 +141,28 @@ export class ShopComponent implements OnInit, OnDestroy {
       : this.productos.filter(p => p.categoria === this.activeCategory);
   }
 
-  img(p: Producto) { return productImage(p.icono, p.imagen_url); }
+  img(p: Producto) {
+    if (p.categoria) {
+      const categoryKey = p.categoria.trim().toLowerCase();
+      if (CATEGORY_IMAGES[categoryKey]) {
+        return CATEGORY_IMAGES[categoryKey];
+      }
+    }
+
+    const name = (p.nombre || '').trim().toLowerCase();
+    const normalizedName = name
+      .replace(/á/g, 'a')
+      .replace(/é/g, 'e')
+      .replace(/í/g, 'i')
+      .replace(/ó/g, 'o')
+      .replace(/ú/g, 'u')
+      .replace(/ñ/g, 'n');
+    if (normalizedName.includes('llanta') || normalizedName.includes('neumatico') || normalizedName.includes('rines') || normalizedName.includes('llantas')) {
+      return TIRE_IMAGE;
+    }
+
+    return productImage(p.icono, p.imagen_url);
+  }
 
   stockClass(stock: number): string {
     if (stock <= 0) return 'out';
