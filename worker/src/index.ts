@@ -297,6 +297,33 @@ app.get('/api/payments/qr', async (c) => {
 // CHATBOT
 // ─────────────────────────────────────────────
 
+const FALLBACK_SERVICIOS = [
+  { nombre: 'Lavado General Exterior', descripcion: 'Lavado exterior completo', duracion_minutos: 30, categoria: 'Lavado', cotizar_local: false },
+  { nombre: 'Lavado Completo Premium', descripcion: 'Lavado exterior e interior completo', duracion_minutos: 60, categoria: 'Lavado', cotizar_local: false },
+  { nombre: 'Lavado de Motor', descripcion: 'Limpieza profunda del motor', duracion_minutos: 45, categoria: 'Lavado', cotizar_local: true },
+  { nombre: 'Lavado de Tapicería', descripcion: 'Limpieza profunda de asientos y tapicería', duracion_minutos: 60, categoria: 'Lavado', cotizar_local: false },
+  { nombre: 'Pulido General', descripcion: 'Pulido de pintura completo', duracion_minutos: 120, categoria: 'Pulido', cotizar_local: false },
+  { nombre: 'Pulido de Faros', descripcion: 'Restauración de faros opacos', duracion_minutos: 30, categoria: 'Pulido', cotizar_local: false },
+  { nombre: 'Encerado', descripcion: 'Aplicación de cera protectora', duracion_minutos: 45, categoria: 'Pulido', cotizar_local: false },
+  { nombre: 'Polarizados', descripcion: 'Instalación de película polarizada', duracion_minutos: 90, categoria: 'Polarizados', cotizar_local: true },
+  { nombre: 'Detailing Interior', descripcion: 'Limpieza y acondicionamiento interior completo', duracion_minutos: 90, categoria: 'Detailing', cotizar_local: false },
+  { nombre: 'Detailing Exterior', descripcion: 'Lavado, pulido, encerado y protección', duracion_minutos: 150, categoria: 'Detailing', cotizar_local: false },
+  { nombre: 'Tratamiento Nanocerámico', descripcion: 'Protección de pintura con nanocerámica', duracion_minutos: 240, categoria: 'Detailing', cotizar_local: false },
+  { nombre: 'Cambio de Aceite', descripcion: 'Cambio de aceite y filtro', duracion_minutos: 30, categoria: 'Lubricación', cotizar_local: false },
+  { nombre: 'Limpieza de Inyectores', descripcion: 'Limpieza ultrasónica de inyectores', duracion_minutos: 60, categoria: 'Mecánica', cotizar_local: false },
+  { nombre: 'Alineación y Balanceo', descripcion: 'Alineación y balanceo de llantas', duracion_minutos: 45, categoria: 'Llantas', cotizar_local: false },
+  { nombre: 'Scanner Automotriz', descripcion: 'Diagnóstico electrónico del vehículo', duracion_minutos: 30, categoria: 'Mecánica', cotizar_local: false },
+];
+
+const FALLBACK_PRODUCTOS = [
+  { nombre: 'Aceite sintético 5W-30', descripcion: 'Alto rendimiento', stock: 24, categoria: 'Lubricantes' },
+  { nombre: 'Filtro de aceite', descripcion: 'Estándar', stock: 40, categoria: 'Repuestos' },
+  { nombre: 'Cera nanocerámica', descripcion: 'Protección pintura', stock: 12, categoria: 'Detailing' },
+  { nombre: 'Lavado Completo Premium', descripcion: 'Lavado exterior e interior completo', stock: 99, categoria: 'Lavado' },
+  { nombre: 'Ambientador automotriz', descripcion: 'Fragancia duradera', stock: 50, categoria: 'Accesorios' },
+  { nombre: 'Paño de microfibra x3', descripcion: 'Set de paños de microfibra', stock: 35, categoria: 'Accesorios' },
+];
+
 let chatbotCache: { services: any[]; products: any[]; loadedAt: number } | null = null;
 const CHATBOT_CACHE_TTL = 300_000;
 
@@ -305,10 +332,10 @@ async function getChatbotCatalog(c: any) {
   try {
     const svcResult = await find('servicios', { activo: true }, { projection: { nombre: 1, descripcion: 1, duracion_minutos: 1, categoria: 1, cotizar_local: 1 } });
     const prodResult = await find('productos', {});
-    chatbotCache = { services: svcResult?.documents || [], products: prodResult?.documents || [], loadedAt: Date.now() };
+    chatbotCache = { services: svcResult?.documents || FALLBACK_SERVICIOS, products: prodResult?.documents || FALLBACK_PRODUCTOS, loadedAt: Date.now() };
   } catch (e) {
     if (chatbotCache) return chatbotCache;
-    chatbotCache = { services: [], products: [], loadedAt: Date.now() };
+    chatbotCache = { services: FALLBACK_SERVICIOS, products: FALLBACK_PRODUCTOS, loadedAt: Date.now() };
   }
   return chatbotCache;
 }

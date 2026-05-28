@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { connectDb, getDb, ObjectId, toApiId, toApiList, uri, dbName } from './db.js';
 import { buildChatbotReply, HORARIOS, invalidateChatbotCache, initChatbotCache } from './chatbot.js';
+import { processChatMessage } from './chatSession.js';
 import { notificarCitaAgendada, notificarBienvenidaCliente } from './notifications.js';
 import { createCheckout, processWebhook } from './payments.js';
 import { enviarTicketCita, enviarConfirmacionPago, enviarNotificacionGeneral, getEmailStatus, reenviarEmailsPendientes, ensureTransporter, verificarConfiguracion, iniciarColaPendientes, enviarCorreoPrueba } from './email.js';
@@ -1236,8 +1237,18 @@ app.post('/api/contact', async (req, res) => {
 });
 
 app.post('/api/chatbot', async (req, res) => {
-  const reply = await buildChatbotReply(String(req.body.message || ''), req.body.vehiculo);
-  res.json({ reply });
+  try {
+    const { message, sessionId } = req.body;
+    if (sessionId) {
+      const result = await processChatMessage(sessionId, String(message || ''));
+      return res.json(result);
+    }
+    const reply = await buildChatbotReply(String(message || ''), [], req.body.vehiculo);
+    res.json({ reply });
+  } catch (err) {
+    console.error('[chatbot] Error:', err);
+    res.json({ reply: '🤖 No entendí completamente. Puedo ayudarte con:\n• **Servicios** disponibles\n• **Agendar** una cita\n• **Productos** en tienda\n\nEj: "Qué servicios tienen?", "Cómo agendar una cita?"' });
+  }
 });
 
 app.post('/api/admin/promotions', auth, adminRequired, async (req, res) => {

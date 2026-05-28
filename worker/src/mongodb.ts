@@ -11,24 +11,33 @@ export function initMongo(cfg: MongoConfig) {
   config = cfg;
 }
 
+const FETCH_TIMEOUT = 3000;
+
 async function action(action: string, body: Record<string, unknown>) {
-  const res = await fetch(`${config.url}/action/${action}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'api-key': config.apiKey,
-    },
-    body: JSON.stringify({
-      dataSource: config.dataSource,
-      database: config.database,
-      ...body,
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Data API ${action} ${res.status}: ${text}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+  try {
+    const res = await fetch(`${config.url}/action/${action}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': config.apiKey,
+      },
+      body: JSON.stringify({
+        dataSource: config.dataSource,
+        database: config.database,
+        ...body,
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Data API ${action} ${res.status}: ${text}`);
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json();
 }
 
 export function findOne(collection: string, filter: Record<string, unknown>, projection?: Record<string, number>) {
