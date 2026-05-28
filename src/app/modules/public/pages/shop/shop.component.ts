@@ -6,15 +6,17 @@ import { ApiService } from 'src/app/core/services/api.service';
 import { AuthService } from 'src/app/core/services/auth.service';
 import { productImage } from 'src/app/shared/constants/catalog-images';
 
-const TIRE_IMAGE = 'https://source.unsplash.com/featured/400x400/?tire';
+const TIRE_IMAGES = [
+  'https://www.todosobreautos.com/content/images/2024/11/Tipos-de-Llantas-para-Autos.webp',
+];
 const CATEGORY_IMAGES: Record<string, string> = {
-  llantas: TIRE_IMAGE,
-  llanta: TIRE_IMAGE,
-  neumáticos: TIRE_IMAGE,
-  neumaticos: TIRE_IMAGE,
-  rines: TIRE_IMAGE,
-  'alineación y balanceo': TIRE_IMAGE,
-  'alineacion y balanceo': TIRE_IMAGE,
+  llantas: TIRE_IMAGES[0],
+  llanta: TIRE_IMAGES[0],
+  neumáticos: TIRE_IMAGES[0],
+  neumaticos: TIRE_IMAGES[0],
+  rines: TIRE_IMAGES[0],
+  'alineación y balanceo': TIRE_IMAGES[0],
+  'alineacion y balanceo': TIRE_IMAGES[0],
 };
 
 export interface Producto {
@@ -141,6 +143,24 @@ export class ShopComponent implements OnInit, OnDestroy {
       : this.productos.filter(p => p.categoria === this.activeCategory);
   }
 
+  private tireImageForProduct(p: Producto) {
+    const text = `${p.categoria || ''} ${p.nombre || ''}`.trim().toLowerCase();
+    const normalizedText = text
+      .replace(/á/g, 'a')
+      .replace(/é/g, 'e')
+      .replace(/í/g, 'i')
+      .replace(/ó/g, 'o')
+      .replace(/ú/g, 'u')
+      .replace(/ñ/g, 'n');
+
+    if (normalizedText.includes('llanta') || normalizedText.includes('neumatico') || normalizedText.includes('rines')) {
+      const hash = Array.from((p.id || p.nombre || '').toString()).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+      return TIRE_IMAGES[hash % TIRE_IMAGES.length];
+    }
+
+    return '';
+  }
+
   img(p: Producto) {
     if (p.categoria) {
       const categoryKey = p.categoria.trim().toLowerCase();
@@ -149,16 +169,9 @@ export class ShopComponent implements OnInit, OnDestroy {
       }
     }
 
-    const name = (p.nombre || '').trim().toLowerCase();
-    const normalizedName = name
-      .replace(/á/g, 'a')
-      .replace(/é/g, 'e')
-      .replace(/í/g, 'i')
-      .replace(/ó/g, 'o')
-      .replace(/ú/g, 'u')
-      .replace(/ñ/g, 'n');
-    if (normalizedName.includes('llanta') || normalizedName.includes('neumatico') || normalizedName.includes('rines') || normalizedName.includes('llantas')) {
-      return TIRE_IMAGE;
+    const tireImage = this.tireImageForProduct(p);
+    if (tireImage) {
+      return tireImage;
     }
 
     return productImage(p.icono, p.imagen_url);
