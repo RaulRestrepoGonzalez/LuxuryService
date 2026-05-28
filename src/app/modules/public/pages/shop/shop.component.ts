@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -25,9 +25,12 @@ export interface Producto {
   styleUrl: './shop.component.css'
 })
 export class ShopComponent implements OnInit, OnDestroy {
+  @ViewChild('featuredTrack', { static: false }) featuredTrack!: ElementRef;
+
   productos: Producto[] = [];
   filtered: Producto[] = [];
   featuredProducts: Producto[] = [];
+  featuredIndex = 0;
   loading = true;
   error = '';
   purchasing: string | null = null;
@@ -36,6 +39,7 @@ export class ShopComponent implements OnInit, OnDestroy {
   toast = '';
   toastVisible = false;
   private refreshSub: Subscription | null = null;
+  private featuredTimer: any = null;
 
   constructor(
     private api: ApiService,
@@ -59,6 +63,26 @@ export class ShopComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.refreshSub?.unsubscribe();
+    clearInterval(this.featuredTimer);
+  }
+
+  private startFeaturedAutoSlide() {
+    clearInterval(this.featuredTimer);
+    if (this.featuredProducts.length <= 1) return;
+    this.featuredTimer = setInterval(() => {
+      const next = (this.featuredIndex + 1) % this.featuredProducts.length;
+      this.goToSlide(next);
+    }, 3500);
+  }
+
+  goToSlide(index: number) {
+    this.featuredIndex = index;
+    const el = this.featuredTrack?.nativeElement;
+    if (el) {
+      const cardWidth = 280 + 12; // 280px card + 0.75rem gap
+      el.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
+    }
+    this.cdr.markForCheck();
   }
 
   loadProducts() {
@@ -90,7 +114,9 @@ export class ShopComponent implements OnInit, OnDestroy {
     this.featuredProducts = this.productos
       .filter(p => p.stock > 0)
       .sort((a, b) => a.stock - b.stock)
-      .slice(0, 8); // Top 8 items with lowest stock but still available
+      .slice(0, 8);
+    this.featuredIndex = 0;
+    setTimeout(() => this.startFeaturedAutoSlide(), 500);
   }
 
   filterCategory(cat: string) {

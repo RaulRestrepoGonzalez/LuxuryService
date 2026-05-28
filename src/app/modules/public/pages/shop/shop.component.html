@@ -6,20 +6,18 @@
   @if (featuredProducts.length > 0) {
     <section class="featured-section">
       <h3 class="featured-title">🔥 Más Vendidos</h3>
-      <div class="featured-carousel">
+      <div #featuredTrack class="featured-carousel">
         @for (p of featuredProducts; track p.id; let i = $index) {
-          <article class="featured-card md-card" [style.animation-delay.ms]="i * 50">
-            <div class="md-card-image-wrap" style="aspect-ratio: 16/9;">
-              <img class="md-card-image" [src]="img(p)" [alt]="p.nombre" loading="lazy" width="400" height="225" />
+          <article class="featured-card">
+            <div class="md-card-image-wrap">
+              <img class="md-card-image" [src]="img(p)" [alt]="p.nombre" loading="lazy" width="400" height="400" />
             </div>
-            <div class="featured-card-body md-card-body">
-              <h3 style="font-size:1rem; margin-bottom:0.25rem;">{{ p.nombre }}</h3>
-              <div class="featured-card-price md-card-price">${{ p.precio }}</div>
-              <div style="margin-top:0.75rem;">
+            <div class="featured-card-body">
+              <h3>{{ p.nombre }}</h3>
+              <div style="margin-top:0.6rem;">
                 <button
                   type="button"
                   class="md-btn md-btn-filled"
-                  style="width:100%; padding: 0.5rem; font-size:0.75rem;"
                   [disabled]="purchasing === p.id"
                   (click)="comprar(p)"
                 >
@@ -30,6 +28,13 @@
           </article>
         }
       </div>
+      @if (featuredProducts.length > 1) {
+        <div class="featured-dots">
+          @for (p of featuredProducts; track p.id; let i = $index) {
+            <button type="button" class="featured-dot" [class.active]="i === featuredIndex" (click)="goToSlide(i)"></button>
+          }
+        </div>
+      }
     </section>
   }
 
