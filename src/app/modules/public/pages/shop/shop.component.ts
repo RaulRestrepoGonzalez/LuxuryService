@@ -150,6 +150,32 @@ const SHICK_AIR_TECH_IMAGE = 'https://lubriaceites.com/wp-content/uploads/2023/1
 const SHICK_GEL_IMAGE = 'https://www.faggidistribuciones.com.co/wp-content/uploads/2019/07/ambientador-auto-fresco-gel-1.jpg';
 // Lubristone Ambientador 60ml spray (faggidistribuciones.com.co — Pereira, Colombia)
 const LUBRISTONE_AIR_FRESHENER_IMAGE = 'https://www.faggidistribuciones.com.co/wp-content/uploads/2014/11/ambientador-lubristone-1.jpg';
+// Brake fluid (distribuidoraherca.com — Colombia)
+const BRAKE_FLUID_IMAGE = 'https://distribuidoraherca.com/wp-content/uploads/2024/10/DOT-3-liquido-para-frenos-ISIN-1P.png';
+// CarBlock perfume para autos (superllantas.co — Bogotá, Colombia)
+const CAR_BLOCK_PERFUME_IMAGE = 'https://superllantas.co/wp-content/uploads/2026/03/CarBlock-superllantas.jpg';
+// Meguiar's Ultimate Black plastic restorer (faggidistribuciones.com.co — Pereira, Colombia)
+const ULTIMATE_BLACK_IMAGE = 'https://www.faggidistribuciones.com.co/wp-content/uploads/2020/11/meguiars-ultimate-black-1.jpg';
+// Tapetes Proliner 3 piezas universales (expolujosgyg.com — Colombia)
+const PROLINER_TAPETES_IMAGE = 'https://expolujosgyg.com/wp-content/uploads/2022/07/proliner-2.jpg';
+// FILTRO FLP-300 combustible (premiumfilters.store — Bogotá, Colombia)
+const FLP300_IMAGE = 'https://premiumfilters.store/cdn/shop/files/FLP-300.jpg?v=1736966521';
+// Limpia Parabrisas Lubristone (lubristone.com — Pereira, Colombia)
+const LUBRISTONE_WINDSHIELD_CLEANER_IMAGE = 'https://lubristone.com/sitio/wp-content/uploads/2021/01/Limpia-parabrisas-Lubristone-570x450.jpg';
+// Refrigerante Rojo Lubristone 1/4 (lubristone.com — Pereira, Colombia)
+const LUBRISTONE_RED_COOLANT_IMAGE = 'https://lubristone.com/sitio/wp-content/uploads/2021/07/refrigerante-rojo.jpg';
+// Refrigerante Verde Lubristone 1/4 (lubristone.com — Pereira, Colombia)
+const LUBRISTONE_GREEN_COOLANT_IMAGE = 'https://lubristone.com/sitio/wp-content/uploads/2021/07/refrigerante-verde.jpg';
+// Meguiar's Gold Class Rich Leather Spray (tpcolombia.com.co — Bello, Antioquia, Colombia)
+const MEGUIARS_GOLD_CLASS_LEATHER_IMAGE = 'https://tpcolombia.com.co/wp-content/uploads/2024/11/G10916-removebg-preview.png';
+// Lysol Eliminador de Olores (lysol.com.co — Colombia)
+const LYSOL_ODOR_ELIMINATOR_IMAGE = 'https://www.lysol.com.co/static/9c9a6df1df7c62f734c0ba953497ea8e/00fe5/Lizol_-_CO_-_es-CO-lds_crisp_linen_19oz.png';
+// Filtro de aceite OLP-098 / F/ACEITE 098 (premiumfilters.store — Bogotá, Colombia)
+const FILTER_OIL_098_IMAGE = 'https://premiumfilters.store/cdn/shop/files/OLP-098.jpg?v=1736966424';
+// Refrigerante 1 Galón Lubristone Naranja (faggidistribuciones.com.co — Pereira, Colombia)
+const COOLANT_1GL_IMAGE = 'https://www.faggidistribuciones.com.co/wp-content/uploads/2020/07/refrigerante-radiador-naranja.jpg';
+// Válvula TR-413 caucho sellomatic (insumosgn.com — Bogotá, Colombia)
+const VALVULA_TR413_IMAGE = 'https://insumosgn.com/wp-content/uploads/2023/02/VALVULA-SELLOMATIC-CAUCHO-TR413.png';
 
 export interface Producto {
   id: string;
@@ -685,6 +711,58 @@ export class ShopComponent implements OnInit, OnDestroy {
     // LUBRISTONE AMBIENTADOR PERFUM 60 ML / AMBIENTADOR LUBRISTONE
     if (cleanProductName.startsWith('lubristoneambientadorperfum') || cleanProductName.startsWith('ambientadorlubristone')) {
       return LUBRISTONE_AIR_FRESHENER_IMAGE;
+    }
+    // LIQUIDO DE FRENO / LIQUIDO DE FRENOS (generic brake fluid)
+    if (cleanProductName.startsWith('liquidodefreno')) {
+      return BRAKE_FLUID_IMAGE;
+    }
+    // CAR BLOCK - PERFUME PARA AUTOS
+    if (cleanProductName.startsWith('carblockperfumeparaautos')) {
+      return CAR_BLOCK_PERFUME_IMAGE;
+    }
+    // ULTIMATE BLACK (Meguiar's Ultimate Black plastic restorer)
+    if (cleanProductName.startsWith('ultimateblack')) {
+      return ULTIMATE_BLACK_IMAGE;
+    }
+    // TAPETES PROLINER
+    if (cleanProductName.startsWith('tapetesproliner')) {
+      return PROLINER_TAPETES_IMAGE;
+    }
+    // FLP-300 (Filtro de combustible)
+    if (cleanProductName.startsWith('flp300')) {
+      return FLP300_IMAGE;
+    }
+    // LIMPIA PARABRISA LUBRISTONE
+    if (cleanProductName.startsWith('limpiaparabrisalubristone')) {
+      return LUBRISTONE_WINDSHIELD_CLEANER_IMAGE;
+    }
+    // REFRIGERANTE ROJO 1/4 (Lubristone)
+    if (cleanProductName.startsWith('refrigeranterojo1/4')) {
+      return LUBRISTONE_RED_COOLANT_IMAGE;
+    }
+    // REFRIGERANTE VERDE 1/4 (Lubristone)
+    if (cleanProductName.startsWith('refrigeranteverde1/4')) {
+      return LUBRISTONE_GREEN_COOLANT_IMAGE;
+    }
+    // GOLD CLASS RICH LEATHER SPRAY (Meguiar's)
+    if (cleanProductName.startsWith('goldclassrichleatherspray')) {
+      return MEGUIARS_GOLD_CLASS_LEATHER_IMAGE;
+    }
+    // LYSOL ELIMINADOR DE OLORES
+    if (cleanProductName.startsWith('lysoleliminadordeolores')) {
+      return LYSOL_ODOR_ELIMINATOR_IMAGE;
+    }
+    // F/ACEITE 098 (Filtro de aceite)
+    if (cleanProductName.startsWith('f/aceite098')) {
+      return FILTER_OIL_098_IMAGE;
+    }
+    // REFRIGERANTE 1GLN (1 galón)
+    if (cleanProductName.startsWith('refrigerante1gln')) {
+      return COOLANT_1GL_IMAGE;
+    }
+    // VÁLVULA TR 413
+    if (cleanProductName.startsWith('válvulatr413') || cleanProductName.startsWith('valvulatr413')) {
+      return VALVULA_TR413_IMAGE;
     }
 
     const keywordImage = this.keywordImageForProduct(p);
