@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { HomeComponent } from './pages/home/home.component';
 import { ServicesCatalogComponent } from './pages/services-catalog/services-catalog.component';
 import { ShopComponent } from './pages/shop/shop.component';
+import { ProductsResolver } from './resolvers/products.resolver';
 import { BookAppointmentComponent } from './pages/book-appointment/book-appointment.component';
 import { AuthComponent } from './pages/auth/auth.component';
 import { LoginComponent } from './pages/login/login.component';
@@ -15,7 +16,7 @@ const routes: Routes = [
   { path: 'servicios', component: ServicesCatalogComponent },
   { path: 'cotizar', component: CotizacionComponent },
   { path: 'tarjeta-regalo', component: GiftCardComponent },
-  { path: 'tienda', component: ShopComponent },
+  { path: 'tienda', component: ShopComponent, resolve: { products: ProductsResolver } },
   { path: 'agendar-cita', component: BookAppointmentComponent },
   { path: 'acceso', component: AuthComponent },
   { path: 'login', component: LoginComponent },

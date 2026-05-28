@@ -71,7 +71,9 @@
               <span class="md-card-meta" style="display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.08em">{{ p.categoria }}</span>
             }
             <h3>{{ p.nombre }}</h3>
-            <p class="md-card-desc">{{ p.descripcion }}</p>
+            @if (productDescription(p)) {
+              <p class="md-card-desc">{{ productDescription(p) }}</p>
+            }
             <div class="md-card-footer">
               <div>
                 <!-- stock info moved to badge -->

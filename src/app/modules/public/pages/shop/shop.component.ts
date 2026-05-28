@@ -4,8 +4,25 @@ import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ApiService } from 'src/app/core/services/api.service';
 import { AuthService } from 'src/app/core/services/auth.service';
+import { ActivatedRoute } from '@angular/router';
 import { productImage } from 'src/app/shared/constants/catalog-images';
 
+const MOBIL_10W40_IMAGE = 'https://tse4.mm.bing.net/th/id/OIP.fvgaTYLY3V1dELCdTT3GPAHaHa?rs=1&pid=ImgDetMain&o=7&rm=3';
+const MOBIL_10W40_GALON_IMAGE = 'https://aldauto.co/wp-content/uploads/2024/07/MO-10W40-SP-GL-1.jpg';
+const MOBIL_20W50_IMAGE = 'https://energiteca.vtexassets.com/arquivos/ids/160372/Aceite-Mobil-SUP-1000-20W-50-1-4.png?v=638852833774370000';
+const MOBIL_20W50_GALON_IMAGE = 'https://daycar.com.co/wp-content/uploads/2024/01/MOBIL-1000-20W50-SP-GALON-4-LITROS.jpeg';
+const MOBIL_ATF_DM_IMAGE = 'https://cdnx.jumpseller.com/comercialharambour/image/65391659/resize/1200/630?1752587427';
+const MOBIL_DELVAN_15W40_IMAGE = 'https://ciadelubricantes.com/wp-content/uploads/2024/02/delvac-15w-40-modern.jpg';
+const MOBIL_SUPER_2000_10W30_IMAGE = 'https://energiteca.vtexassets.com/arquivos/ids/156496/Aceite-Mobil-SUP-2000-10W30-1-4.png?v=638852833793600000';
+const MOBIL_SUPER_2000_10W30_GL_IMAGE = 'https://energiteca.vtexassets.com/arquivos/ids/156497-800-800?v=638852833800300000&width=800&height=800&aspect=true';
+const MOBIL_SUPER_3000_5W30_IMAGE = 'https://http2.mlstatic.com/D_NQ_NP_855195-MCO53561034692_022023-O.webp';
+const MOBIL_SUPER_3000_5W30_GL_IMAGE = 'https://energiteca.vtexassets.com/arquivos/ids/160379-800-800?v=638852833866000000&width=800&height=800&aspect=true';
+const MOBIL_1_0W20_IMAGE = 'https://http2.mlstatic.com/D_Q_NP_694908-MLA99357258250_112025-O.webp';
+const WIPER_IMAGE = 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&q=75';
+const WINDSHIELD_CLEANER_IMAGE = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&q=75';
+const SPARK_PLUG_IMAGE = 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400&q=75';
+const OIL_CAN_IMAGE = 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=400&q=75';
+const FILTER_IMAGE = 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=400&q=75';
 const TIRE_IMAGES = [
   'https://www.todosobreautos.com/content/images/2024/11/Tipos-de-Llantas-para-Autos.webp',
 ];
@@ -57,12 +74,22 @@ export class ShopComponent implements OnInit, OnDestroy {
   constructor(
     private api: ApiService,
     public auth: AuthService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit() {
     if (typeof window === 'undefined') return;
-    this.loadProducts();
+    const resolved = this.route.snapshot.data['products'];
+    if (Array.isArray(resolved) && resolved.length > 0) {
+      this.productos = resolved as Producto[];
+      this.buildCategories();
+      this.applyFilter();
+      this.buildFeatured();
+      this.loading = false;
+    } else {
+      this.loadProducts();
+    }
     this.refreshSub = this.api.refresh$.subscribe(({ key, value }) => {
       if (key === '/products') {
         this.productos = value as Producto[];
@@ -162,6 +189,54 @@ export class ShopComponent implements OnInit, OnDestroy {
   }
 
   img(p: Producto) {
+    const productName = (p.nombre || '').trim().toLowerCase();
+    const cleanProductName = productName.replace(/\s+/g, '').replace(/-/g, '');
+    const containsGalon = /galon|gallon|galón/.test(productName);
+    if (containsGalon && cleanProductName.startsWith('mobil10w40')) {
+      return MOBIL_10W40_GALON_IMAGE;
+    }
+    if (cleanProductName.startsWith('mobil10w40')) {
+      return MOBIL_10W40_IMAGE;
+    }
+    if (containsGalon && cleanProductName.startsWith('mobil20w50')) {
+      return MOBIL_20W50_GALON_IMAGE;
+    }
+    if (cleanProductName.startsWith('mobil20w50')) {
+      return MOBIL_20W50_IMAGE;
+    }
+    // MOBIL SUPER 2000 10W30 (1/4) and GL variant
+    const containsGL = /\bgl\b/.test(productName) || cleanProductName.endsWith('gl');
+    if (containsGL && cleanProductName.startsWith('mobilsuper200010w30')) {
+      return MOBIL_SUPER_2000_10W30_GL_IMAGE;
+    }
+    if (cleanProductName.startsWith('mobilsuper200010w30')) {
+      return MOBIL_SUPER_2000_10W30_IMAGE;
+    }
+    // MOBIL SUPER 3000 5W30 (1/4) and GL variant
+    if (containsGL && cleanProductName.startsWith('mobilsuper30005w30')) {
+      return MOBIL_SUPER_3000_5W30_GL_IMAGE;
+    }
+    if (cleanProductName.startsWith('mobilsuper30005w30')) {
+      return MOBIL_SUPER_3000_5W30_IMAGE;
+    }
+    // MOBIL-1 0W20 1/4 exact match
+    if (cleanProductName.startsWith('mobil10w20')) {
+      return MOBIL_1_0W20_IMAGE;
+    }
+    // MOBIL ATF D/M exact match or variants
+    if (cleanProductName.replace(/\./g, '').startsWith('mobilatfdm') || /atf\s*d\/?m/.test(productName)) {
+      return MOBIL_ATF_DM_IMAGE;
+    }
+    // MOBIL DELVAN / DELVAC 15W40 (1/4 and variants)
+    if ((/delv(an|ac|van)/.test(productName) || /delvac/.test(productName)) && /15w40/.test(productName)) {
+      return MOBIL_DELVAN_15W40_IMAGE;
+    }
+
+    const keywordImage = this.keywordImageForProduct(p);
+    if (keywordImage) {
+      return keywordImage;
+    }
+
     if (p.categoria) {
       const categoryKey = p.categoria.trim().toLowerCase();
       if (CATEGORY_IMAGES[categoryKey]) {
@@ -175,6 +250,71 @@ export class ShopComponent implements OnInit, OnDestroy {
     }
 
     return productImage(p.icono, p.imagen_url);
+  }
+
+  private keywordImageForProduct(p: Producto) {
+    const text = this.normalizeText(`${p.categoria || ''} ${p.nombre || ''}`);
+    if (/\b(plumilla|plumillas|beam blade|bean blade|softwiper|titan|wiper)\b/.test(text)) {
+      return WIPER_IMAGE;
+    }
+    if (/\b(limpia|limpiador|limpiaparabrisas|lavaparabrisas|parabrisas|lavaparabrisa)\b/.test(text)) {
+      return WINDSHIELD_CLEANER_IMAGE;
+    }
+    if (/\b(bujia|bujías|bujias)\b/.test(text)) {
+      return SPARK_PLUG_IMAGE;
+    }
+    if (/\b(filtro|filtros)\b/.test(text)) {
+      return FILTER_IMAGE;
+    }
+    if (/\b(aceite|oil|lubricante|lubricantes|motor)\b/.test(text)) {
+      return OIL_CAN_IMAGE;
+    }
+    return '';
+  }
+
+  private normalizeText(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  private isSupplierDescription(desc: string): boolean {
+    const normalized = this.normalizeText(desc);
+    if (!normalized) return false;
+
+    const supplierPrefixes = ['proveedor', 'supplier', 'fabricante', 'marca', 'brand'];
+    if (supplierPrefixes.some(prefix => normalized.startsWith(prefix + ':') || normalized.startsWith(prefix + ' -') || normalized === prefix)) {
+      return true;
+    }
+
+    const knownSuppliers = [
+      'mobil', 'mobil 1', 'shell', 'castrol', 'repsol', 'petronas', 'mahle', 'bosch', 'ngk', 'denso',
+      'pirelli', 'michelin', 'continental', 'goodyear', 'bridgestone', 'cooper', 'firestone', 'hankook',
+      'motul', 'valvoline', 'total', 'quaker state', 'elf', 'texaco', 'chevron', 'ac delco', 'mopar',
+      'gates', 'trw', 'bosch', 'promo', 'kixx', 'bp', 'royal purple', 'edgard', 'indra', 'yuasa'
+    ];
+
+    if (knownSuppliers.some(name => normalized === name || normalized.startsWith(name + ' ') || normalized.endsWith(' ' + name) || normalized.includes(' ' + name + ' '))) {
+      return true;
+    }
+
+    const words = normalized.split(/\s+/);
+    if (words.length <= 3 && normalized.length <= 35) {
+      if (/^[A-Z0-9\s&\-()\/]+$/.test(desc) && !/[a-záéíóúñ]/.test(desc)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  productDescription(p: Producto): string {
+    const desc = (p.descripcion || '').trim();
+    if (!desc || this.isSupplierDescription(desc)) return '';
+    return desc.replace(/\s+/g, ' ').trim();
   }
 
   stockClass(stock: number): string {

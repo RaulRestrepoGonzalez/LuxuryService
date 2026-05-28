@@ -95,6 +95,11 @@ export class ApiService {
     this.invalidateMutations();
     return this.http.post<T>(`${this.baseUrl}${endpoint}`, body).pipe(
       timeout(8_000),
+      tap(() => {
+        for (const k of this.persistentKeys) {
+          try { this.refreshSubject.next({ key: k, value: null }); } catch {}
+        }
+      }),
       catchError(err => {
         console.error('[API POST] Error:', err instanceof HttpErrorResponse ? err.status : err);
         return throwError(() => err);
@@ -105,6 +110,11 @@ export class ApiService {
     this.invalidateMutations();
     return this.http.put<T>(`${this.baseUrl}${endpoint}`, body).pipe(
       timeout(8_000),
+      tap(() => {
+        for (const k of this.persistentKeys) {
+          try { this.refreshSubject.next({ key: k, value: null }); } catch {}
+        }
+      }),
       catchError(err => {
         console.error('[API PUT] Error:', err instanceof HttpErrorResponse ? err.status : err);
         return throwError(() => err);
@@ -115,6 +125,11 @@ export class ApiService {
     this.invalidateMutations();
     return this.http.delete<T>(`${this.baseUrl}${endpoint}`).pipe(
       timeout(8_000),
+      tap(() => {
+        for (const k of this.persistentKeys) {
+          try { this.refreshSubject.next({ key: k, value: null }); } catch {}
+        }
+      }),
       catchError(err => {
         console.error('[API DELETE] Error:', err instanceof HttpErrorResponse ? err.status : err);
         return throwError(() => err);
@@ -123,6 +138,13 @@ export class ApiService {
   }
 
   private invalidateMutations() {
+    // capture previous values for persistent keys so subscribers can be notified
+    const prev: Record<string, any> = {};
+    for (const k of this.persistentKeys) {
+      const e = this.cache.get(k);
+      prev[k] = e ? e.value : null;
+    }
+
     for (const [key, entry] of this.cache) {
       this.cache.set(key, { value: entry.value, expiry: 0 });
     }
@@ -131,6 +153,11 @@ export class ApiService {
       for (const k of this.persistentKeys) {
         localStorage.removeItem(`api:${k}`);
       }
+    }
+
+    // emit refresh notifications for persistent keys
+    for (const k of this.persistentKeys) {
+      try { this.refreshSubject.next({ key: k, value: prev[k] }); } catch {}
     }
   }
 }
