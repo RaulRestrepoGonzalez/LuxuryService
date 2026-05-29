@@ -222,7 +222,6 @@ export class ShopComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    if (typeof window === 'undefined') return;
     const resolved = this.route.snapshot.data['products'];
     if (Array.isArray(resolved) && resolved.length > 0) {
       this.productos = resolved as Producto[];
