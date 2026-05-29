@@ -50,6 +50,20 @@
   text-shadow: 0 2px 20px rgba(212, 175, 55, 0.3);
 }
 
+.gc-hero-note {
+  margin: 0 auto 1rem;
+  padding: 0.5rem 1.2rem;
+  font-size: clamp(0.9rem, 2vw, 1.05rem);
+  color: #854d0e;
+  background: #fef3c7;
+  border-radius: 999px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  display: inline-block;
+}
+
 .gc-hero-desc {
   margin: 0;
   font-size: clamp(1rem, 2vw, 1.15rem);

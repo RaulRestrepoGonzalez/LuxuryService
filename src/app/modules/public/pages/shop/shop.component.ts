@@ -30,8 +30,8 @@ const MOBIL_HIDRAULICO_10W_IMAGE = 'https://lubriaceites.com/wp-content/uploads/
 const MOBIL_SUPER_1000_20W50_IMAGE = 'https://tecnifil.com/wp-content/uploads/2023/05/COMPRAR-ACEITE-MOBIL-SUPER-1000-MIL-20w-50-Colombia-.jpg';
 const MOBIL_SUPER_1000_20W50_GL_IMAGE = 'https://tecnifil.com/wp-content/uploads/2024/04/COMPRAR-ACEITE-MOBIL-SUPER-1000-MIL-20w-50-Galon-Colombia-Tecnifil.jpg';
 const MOBIL_SUPER_2000_5W20_IMAGE = 'https://autopla1.b-cdn.net/wp-content/uploads/2026/01/601250AM_1.webp';
-// Bosch Aerofit / Aerotwin wiper blade
-const WIPER_IMAGE = 'https://www.bosch-presse.de/pressportal/de/media/dam_images/pi11185/01_mkw_wba_aerotwin_a_ppp_longlife_mit_vp_cd2016_880206668x3750_img_w640.jpg';
+// Bosch Eco wiper blade product image (Colombian store source, without packaging)
+const WIPER_IMAGE = 'https://llantasypartes.com/storage/images/products/568/plumilla-limpia-parabrisas-bosch-eco-01.webp';
 // Shell Helix motor oil product images (Colombian store sources)
 const SHELL_10W30_IMAGE = 'https://tecnifil.com/wp-content/uploads/2023/06/Comprar-SHELL-10W30-CUARTO-Colombia-distribuidor-Tecnifil-.jpg';
 const SHELL_HELIX_ULTRA_0W20_IMAGE = 'https://tecnifil.com/wp-content/uploads/2024/01/Comprar-SHELL-HELIX-ULTRA-0W20-CUARTO-Colombia-distribuidor-Tecnifil.jpg';
@@ -793,7 +793,7 @@ export class ShopComponent implements OnInit, OnDestroy {
 
   private keywordImageForProduct(p: Producto) {
     const text = this.normalizeText(`${p.categoria || ''} ${p.nombre || ''}`);
-    if (/\b(plumilla|plumillas|beam blade|bean blade|softwiper|titan|wiper)\b/.test(text)) {
+    if (/\b(beam blade advance|bean blade|titan|softwiper rexion|plumilla|plumillas|plumillaa|plimilla|softwiper|wiper)\b/.test(text)) {
       return WIPER_IMAGE;
     }
     if (/\b(limpia|limpiador|limpiaparabrisas|lavaparabrisas|parabrisas|lavaparabrisa)\b/.test(text)) {
@@ -833,16 +833,22 @@ export class ShopComponent implements OnInit, OnDestroy {
       'mobil', 'mobil 1', 'shell', 'castrol', 'repsol', 'petronas', 'mahle', 'bosch', 'ngk', 'denso',
       'pirelli', 'michelin', 'continental', 'goodyear', 'bridgestone', 'cooper', 'firestone', 'hankook',
       'motul', 'valvoline', 'total', 'quaker state', 'elf', 'texaco', 'chevron', 'ac delco', 'mopar',
-      'gates', 'trw', 'bosch', 'promo', 'kixx', 'bp', 'royal purple', 'edgard', 'indra', 'yuasa'
+      'gates', 'trw', 'promo', 'kixx', 'bp', 'royal purple', 'edgard', 'indra', 'yuasa'
     ];
 
     if (knownSuppliers.some(name => normalized === name || normalized.startsWith(name + ' ') || normalized.endsWith(' ' + name) || normalized.includes(' ' + name + ' '))) {
       return true;
     }
 
-    const words = normalized.split(/\s+/);
-    if (words.length <= 3 && normalized.length <= 35) {
-      if (/^[A-Z0-9\s&\-()\/]+$/.test(desc) && !/[a-záéíóúñ]/.test(desc)) {
+    const legalSuffixes = ['sas', 'ltda', 'lte', 'e.u', 'e u', 's.a', 's a', 'cia', 'c ia', 's.a.s', 's a s'];
+    const hasLegalSuffix = legalSuffixes.some(suffix => normalized.endsWith(' ' + suffix) || normalized.endsWith(' ' + suffix + '.'));
+    if (hasLegalSuffix) {
+      return true;
+    }
+
+    if (!/[a-záéíóúñ]/.test(desc) && /^[A-Z0-9\s&\-().\/,:]+$/.test(desc) && desc.length >= 4) {
+      const words = desc.trim().split(/\s+/);
+      if (words.length <= 10) {
         return true;
       }
     }

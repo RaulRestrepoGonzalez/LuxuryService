@@ -49,16 +49,23 @@ function fuzzyIncludes(text, phrase, threshold = 0.75) {
 async function getCatalog() {
     if (cache && Date.now() - cache.loadedAt < CACHE_TTL)
         return cache;
-    const db = getDb();
-    const [services, products] = await Promise.all([
-        db.collection('servicios').find({ activo: true }).project({ nombre: 1, descripcion: 1, duracion_minutos: 1, categoria: 1, cotizar_local: 1 }).toArray(),
-        db.collection('productos').find({ nombre: { $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i } }).project({ nombre: 1, descripcion: 1, stock: 1, categoria: 1 }).toArray()
-    ]);
-    cache = {
-        services: services,
-        products: products,
-        loadedAt: Date.now()
-    };
+    try {
+        const db = getDb();
+        const [services, products] = await Promise.all([
+            db.collection('servicios').find({ activo: true }).project({ nombre: 1, descripcion: 1, duracion_minutos: 1, categoria: 1, cotizar_local: 1 }).toArray(),
+            db.collection('productos').find({ nombre: { $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i } }).project({ nombre: 1, descripcion: 1, stock: 1, categoria: 1 }).toArray()
+        ]);
+        cache = {
+            services: services,
+            products: products,
+            loadedAt: Date.now()
+        };
+    }
+    catch (err) {
+        if (cache)
+            return cache;
+        cache = { services: [], products: [], loadedAt: Date.now() };
+    }
     return cache;
 }
 export async function initChatbotCache() {
@@ -75,7 +82,7 @@ const VEHICULO_PATTERNS = [
     [/\b(camioneta|4x4|todo terreno|suv|troca|pickup|troc|camion|blazer|trailblazer|explorer|duster|tracker|vitara|grand vitara)\b/, 'camioneta'],
     [/\b(moto|motocicleta|picante|ciclomotor|bicicleta motorizada|pistera|cross|enduro|scooter|vespa)\b/, 'moto'],
 ];
-function detectarVehiculo(text) {
+export function detectarVehiculo(text) {
     const t = norm(text);
     for (const [pattern, v] of VEHICULO_PATTERNS) {
         if (pattern.test(t))
@@ -145,6 +152,52 @@ function scoreIntent(ctx, keywords) {
         }
     }
     return score;
+}
+// Detecta si el usuario está negando una intención
+function intentNegado(lower, intentName) {
+    const negaciones = ['no quiero', 'no necesito', 'no me interesa', 'no deseo', 'sin', 'solo quiero informacion', 'solo precio', 'solo quiero saber'];
+    for (const neg of negaciones) {
+        const idx = lower.indexOf(neg);
+        if (idx === -1)
+            continue;
+        const fragmento = lower.slice(idx, idx + 50);
+        if (intentName === 'agendar' && /agendar|cita|reservar|apartar/.test(fragmento))
+            return true;
+        if (intentName === 'cotizacion' && /cotizar|precio|costo/.test(fragmento))
+            return true;
+    }
+    return false;
+}
+// Extrae el vehículo del historial reciente
+function vehiculoDesdeHistorial(history) {
+    for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].vehiculo)
+            return history[i].vehiculo;
+        const detected = detectarVehiculo(history[i].text);
+        if (detected)
+            return detected;
+    }
+    return undefined;
+}
+// Detecta si el bot hizo una pregunta específica en el último turno
+function ultimaPreguntaBot(history) {
+    const ultimoBot = [...history].reverse().find(t => t.role === 'bot');
+    if (!ultimoBot)
+        return null;
+    const t = ultimoBot.text;
+    if ((t.includes('Automóvil') && t.includes('Camioneta') && t.includes('Moto')) ||
+        t.includes('¿tu vehículo es') ||
+        t.includes('tipo de vehículo'))
+        return 'vehiculo';
+    if (t.includes('¿Tienes algún servicio') ||
+        t.includes('algún servicio en mente') ||
+        t.includes('¿Qué servicio'))
+        return 'servicio';
+    if (t.includes('¿Qué fecha') ||
+        t.includes('selecciona fecha') ||
+        t.includes('Selecciona fecha'))
+        return 'fecha';
+    return null;
 }
 const INTENTS = [
     {
@@ -258,8 +311,10 @@ const INTENTS = [
             { word: 'cuanto vale', weight: 5 }, { word: 'cuanto cuesta', weight: 5 }, { word: 'cuanto cobran', weight: 5 },
             { word: 'cuanto sale', weight: 5 }, { word: 'precio tiene', weight: 5 }, { word: 'a como', weight: 4 },
             { word: 'tarifa', weight: 5 }, { word: 'me cotiza', weight: 6 }, { word: 'valor', weight: 4 },
-            { word: 'costo', weight: 4 }, { word: 'quiero cotizar', weight: 6 }, { word: 'cotizame', weight: 5 },
-            { word: 'cotiza', weight: 5 }, { word: 'presupuestame', weight: 5 }, { word: 'qiero cotizar', weight: 3 },
+            { word: 'precio', weight: 4 }, { word: 'precios', weight: 4 },
+            { word: 'costo', weight: 4 }, { word: 'costos', weight: 4 }, { word: 'quiero cotizar', weight: 6 },
+            { word: 'cotizame', weight: 5 }, { word: 'cotiza', weight: 5 }, { word: 'presupuestame', weight: 5 },
+            { word: 'qiero cotizar', weight: 3 }, { word: 'cuanto dan', weight: 3 },
         ],
         minScore: 4,
         handler: (ctx) => {
@@ -292,7 +347,8 @@ const INTENTS = [
             { word: 'mantenimiento', weight: 4 }, { word: 'que servicios', weight: 6 }, { word: 'que hacen', weight: 4 },
             { word: 'que ofrecen', weight: 5 }, { word: 'menu', weight: 3 }, { word: 'servicios tienen', weight: 5 },
             { word: 'trabajan', weight: 3 }, { word: 'listado', weight: 3 }, { word: 'carta', weight: 2 },
-            { word: 'portafolio', weight: 3 },
+            { word: 'portafolio', weight: 3 }, { word: 'que tipo', weight: 4 }, { word: 'tipos de', weight: 4 },
+            { word: 'que tienen', weight: 4 }, { word: 'hay disponible', weight: 4 },
         ],
         minScore: 4,
         handler: (ctx) => {
@@ -348,12 +404,6 @@ const INTENTS = [
         }
     },
     {
-        name: 'servicio_especifico',
-        keywords: [], // handled separately via servEncontrado
-        minScore: 0,
-        handler: (ctx) => null
-    },
-    {
         name: 'vehiculo_solo',
         keywords: [
             { word: 'automovil', weight: 3 }, { word: 'camioneta', weight: 3 }, { word: 'moto', weight: 3 },
@@ -363,15 +413,6 @@ const INTENTS = [
         ],
         minScore: 3,
         handler: (ctx) => {
-            const onlyVehicle = ctx.tokens.every(t => {
-                for (const [pattern] of VEHICULO_PATTERNS) {
-                    if (pattern.test(t))
-                        return true;
-                }
-                return /\b(auto|automovil|carro|vehiculo|camioneta|moto|motocicleta)\b/.test(t);
-            });
-            if (!onlyVehicle && ctx.tokens.length > 2)
-                return null;
             const msgWords = ctx.lower.split(/\s+/).filter(Boolean);
             if (msgWords.length > 4)
                 return null;
@@ -382,25 +423,55 @@ const INTENTS = [
     },
 ];
 const CATEGORIA_MAP = [
-    [/\b(lavado|hidroblast|chasis|vapor|encerado|combo|express|general|espuma|enjuague|lavar|limpieza exterior)\b/, ['Servicios Básicos', 'Combos', 'Lavado']],
-    [/\b(alineacion|balanceo|llanta|suspension|faro|direccion|amortiguador|rueda|caucho|neumatico|rin|rines)\b/, ['Alineación y Balanceo', 'Llantas']],
-    [/\b(freno|pastilla|banda|liquido de freno|caliper|disco|frenado|frenos)\b/, ['Mantenimiento de Frenos']],
-    [/\b(lubric|cambio de aceite|cambio aceite|filtro|aceite|engrase|aceit|aceite sintetico)\b/, ['Lubricación']],
-    [/\b(detailing|pulido|ceramico|nano|rayon|farola|tapicer|luxury|detallado|brillo|cera|encerado|pulir|abrillantar|detallar)\b/, ['Servicios Detailing', 'Detailing']],
-    [/\b(anticorrosiv|cabina|pintura|agua caliente|cavidad|oxido|herrumbre|corrosion|protector)\b/, ['Servicios Anticorrosivos']],
-    [/\b(polarizado|polarizacion|vidrio|pelicula|polarizar|polarizad|opaco|film)\b/, ['Polarizados']],
-    [/\b(pintura|pintar|latoneria|latas|enderezada|chapista|carroceria|enderezar|pintura completa|repintar)\b/, ['Servicios de Pintura', 'Pintura']],
-    [/\b(diagnosti|scan|computador|escaneo|electr|falla|test|revisar|comprobar|chequeo|check)\b/, ['Diagnóstico']],
-    [/\b(proteccion| protect |anticorrosivo|ceramico|sellador|protector)\b/, ['Protección']],
-    [/\b(adicional|extra|accesorio|complemento)\b/, ['Adicionales']],
-    [/\b(farola|faro|luz|iluminacion|faros|optic)\b/, ['Farolas']],
+    [/\b(lavados?|hidroblast|chasis|vapores?|encerados?|combos?|express|generales?|espumas?|enjuagues?|lavar|limpieza exterior)/, ['Servicios Básicos', 'Combos', 'Lavado']],
+    [/\b(alineacion|balanceo|llantas?|suspension|faros?|direccion|amortiguadores?|ruedas?|cauchos?|neumaticos?|rines?)/, ['Alineación y Balanceo', 'Llantas']],
+    [/\b(frenos?|pastillas?|bandas?|liquido de freno|calipers?|discos?|frenado)/, ['Mantenimiento de Frenos']],
+    [/\b(lubric|cambio de aceite|cambio aceite|filtros?|aceites?|engrases?)/, ['Lubricación']],
+    [/\b(detailing|pulidos?|ceramicos?|nano|rayon|farolas?|tapicer|luxury|detallados?|brillos?|ceras?|encerados?|pulir|abrillantar|detallar)/, ['Servicios Detailing', 'Detailing']],
+    [/\b(anticorrosiv|cabinas?|pinturas?|agua caliente|cavidades?|oxido|herrumbre|corrosion|protectores?)/, ['Servicios Anticorrosivos']],
+    [/\b(polarizados?|polarizacion|vidrios?|peliculas?|polarizar|polarizad|opacos?|film)/, ['Polarizados']],
+    [/\b(pinturas?|pintar|latoneria|latas|enderezada|chapista|carroceria|enderezar|pintura completa|repintar)/, ['Servicios de Pintura', 'Pintura']],
+    [/\b(diagnosti|scan|computador|escaneo|electr|fallas?|test|revisar|comprobar|chequeos?|check)/, ['Diagnóstico']],
+    [/\b(proteccion|protect|anticorrosivo|ceramico|selladores?|protectores?)/, ['Protección']],
+    [/\b(adicionales?|extra|accesorios?|complementos?)/, ['Adicionales']],
+    [/\b(farolas?|faros?|luz|iluminacion|optic)/, ['Farolas']],
 ];
-export async function buildChatbotReply(message, vehiculo) {
+export async function buildChatbotReply(message, history = [], vehiculoExplicito) {
     const catalog = await getCatalog();
-    const ctx = buildContext(message, vehiculo, catalog);
+    // Hereda el vehículo del historial si no viene explícito ni en el mensaje actual
+    const vehiculoDetectadoMensaje = detectarVehiculo(message);
+    const vehiculoHeredado = vehiculoExplicito ??
+        vehiculoDetectadoMensaje ??
+        vehiculoDesdeHistorial(history) ??
+        undefined;
+    const ctx = buildContext(message, vehiculoHeredado, catalog);
+    // ── SLOT FILLING: responde según la última pregunta del bot ──────────────
+    const preguntaPendiente = ultimaPreguntaBot(history);
+    if (preguntaPendiente === 'vehiculo' && ctx.v) {
+        // El usuario está respondiendo con su vehículo
+        const disponibles = serviciosCompatibles(catalog.services, ctx.v);
+        let out = `¡Perfecto! Has seleccionado **${ctx.label}**. Puedo ayudarte con:\n`;
+        out += '• Ver **servicios** disponibles\n';
+        out += '• **Horarios**: 10:00 a.m. y 2:00 p.m.\n';
+        out += '• **Agendar** una cita\n\n';
+        if (disponibles.length > 0) {
+            out += `Tenemos **${disponibles.length} servicios** para ${ctx.label}. ¿Qué deseas consultar?`;
+        }
+        else {
+            out += '¿Qué deseas consultar?';
+        }
+        return out;
+    }
+    if (preguntaPendiente === 'servicio' && ctx.servEncontrado) {
+        // El usuario respondió con un servicio específico
+        return `📅 **Agendar: ${ctx.servEncontrado.nombre}**\n\nSigue estos pasos:\n1. Entra con tu correo en **"Acceder"**\n2. Selecciona **${ctx.servEncontrado.nombre}**\n3. Escoge fecha y horario (10:00 a.m. o 2:00 p.m.)\n4. Confirma y lista ✅\n\nRecibirás confirmación en tu cuenta.`;
+    }
+    // ── DETECCIÓN DE INTENT PRINCIPAL ───────────────────────────────────────
     let best = null;
     for (const intent of INTENTS) {
         if (intent.name === 'servicio_especifico')
+            continue;
+        if (intentNegado(ctx.lower, intent.name))
             continue;
         const score = scoreIntent(ctx, intent.keywords);
         if (score >= intent.minScore && (!best || score > best.score)) {
@@ -412,6 +483,7 @@ export async function buildChatbotReply(message, vehiculo) {
         if (reply)
             return reply;
     }
+    // ── FALLBACKS POR ORDEN DE ESPECIFICIDAD ────────────────────────────────
     if (ctx.servEncontrado) {
         return `🔧 **${ctx.servEncontrado.nombre}**\n• Duración: ${ctx.servEncontrado.duracion_minutos} minutos\n• ${ctx.servEncontrado.descripcion}\n\n¿Agendamos tu cita? Horarios: 10:00 a.m. o 2:00 p.m.`;
     }
@@ -455,20 +527,36 @@ export async function buildChatbotReply(message, vehiculo) {
         const lines = disponibles.map(s => `• **${s.nombre}**`).join('\n');
         return `📋 **Servicios para ${ctx.label}:**\n${lines}\n\n¿Te gustaría más información sobre alguno en particular o agendar una cita?`;
     }
-    let base = '🤖 No entendí completamente tu mensaje. Puedo ayudarte con:\n• **Servicios** disponibles';
-    if (!ctx.v)
-        return base + '\n• Primero dime: ¿🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
-    const suggestions = [];
-    if (/\b(servicio|hacen|ofrecen|trabajan|producto|lavado|detailing|mecanic|pintur)\b/.test(ctx.lower))
-        suggestions.push('servicios');
-    if (/\b(agendar|cita|turno|reserv|apartar|programar)\b/.test(ctx.lower))
-        suggestions.push('agendar una cita');
-    if (/\b(horario|hora|atienden|abren)\b/.test(ctx.lower))
-        suggestions.push('horarios');
-    if (suggestions.length > 0) {
-        return base + `\n• **${suggestions.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('**\n• **')}**\n\n¿Puedes ser más específico?`;
+    // ── FALLBACK INTELIGENTE ─────────────────────────────────────────────────
+    return buildSmartFallback(ctx, catalog);
+}
+function buildSmartFallback(ctx, catalog) {
+    // Si detectamos tokens cercanos a algún servicio, sugerimos los más parecidos
+    const serviciosCercanos = catalog.services.filter(s => ctx.tokens.some(t => {
+        const st = tokenize(s.nombre);
+        return st.some(stt => fuzzyMatch(t, stt) >= 0.55);
+    })).slice(0, 3);
+    if (serviciosCercanos.length > 0) {
+        const nombres = serviciosCercanos.map(s => `**${s.nombre}**`).join(', ');
+        return `¿Te refieres a alguno de estos servicios? ${nombres}\n\nO cuéntame con más detalle qué necesitas. 😊`;
     }
-    return base + '\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Productos** en tienda\n• **Contacto** y ubicación\n\nEjemplos: "¿Qué servicios tienen?", "¿Cómo agendar una cita?", "Quiero información sobre lavado"';
+    // Si tiene vehículo pero no entendimos la intención
+    if (ctx.v) {
+        const disponibles = serviciosCompatibles(catalog.services, ctx.v);
+        return `No entendí bien tu mensaje 😊 Tienes **${ctx.label}** — puedo ayudarte con:\n• **Servicios** (${disponibles.length} disponibles)\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Cotizar** un servicio\n\n¿Qué necesitas?`;
+    }
+    // Si hay palabras relacionadas con alguna intención conocida
+    const sugerencias = [];
+    if (/\b(servicio|hacen|ofrecen|trabajan|producto|lavado|detailing|mecanic|pintur)\b/.test(ctx.lower))
+        sugerencias.push('ver los **servicios**');
+    if (/\b(agendar|cita|turno|reserv|apartar|programar)\b/.test(ctx.lower))
+        sugerencias.push('**agendar una cita**');
+    if (/\b(horario|hora|atienden|abren)\b/.test(ctx.lower))
+        sugerencias.push('consultar **horarios**');
+    if (sugerencias.length > 0) {
+        return `No entendí bien, ¿quieres ${sugerencias.join(' o ')}?\n\nPrimero dime: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?`;
+    }
+    return '¡Hola! Puedo ayudarte con:\n• **Servicios** de lavado, detailing, mecánica y más\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Productos** en tienda\n• **Contacto** y ubicación\n\nPrimero dime: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
 }
 export function invalidateChatbotCache() {
     cache = null;

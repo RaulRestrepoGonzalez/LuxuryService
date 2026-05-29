@@ -8,7 +8,7 @@ const IMG = {
     FILTER: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=400&q=75',
     BRAKE: 'https://images.unsplash.com/photo-1632823471565-1b2239885473?w=400&q=75',
     TIRE: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&q=75',
-    WIPER: 'https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=400&q=75',
+    WIPER: 'https://llantasypartes.com/storage/images/products/568/plumilla-limpia-parabrisas-bosch-eco-01.webp',
     ELECTRONICS: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&q=75',
     BATTERY: 'https://images.unsplash.com/photo-1620714223084-8fcacc6dfd8d?w=400&q=75',
     CLEANING: 'https://images.unsplash.com/photo-1601362840469-51e4d8d229c0?w=400&q=75',
