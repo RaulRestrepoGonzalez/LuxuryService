@@ -9,7 +9,7 @@ export class ProductsResolver implements Resolve<any[]> {
   constructor(private api: ApiService) {}
 
   resolve(_route: ActivatedRouteSnapshot, _state: RouterStateSnapshot): Observable<any[]> {
-    return this.api.get<any[]>('/products').pipe(
+    return this.api.getFresh<any[]>('/products').pipe(
       catchError(() => of([]))
     );
   }

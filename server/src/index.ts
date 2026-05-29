@@ -255,7 +255,7 @@ app.get('/api/products', async (_req, res) => {
   const docs = await getDb().collection('productos')
     .find({
       activo: { $ne: false },
-      descripcion: { $nin: ['NABHAN INVESMENT SAS - MEGUIARS', 'RED LLANTA S.A', 'FERRO AUTOMOTRIZ S.A.S'] },
+      descripcion: { $nin: ['NABHAN INVESMENT SAS - MEGUIARS', 'FERRO AUTOMOTRIZ S.A.S.'] },
       nombre: {
         $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i
       }
