@@ -72,12 +72,10 @@ export class AuthComponent implements OnDestroy {
     ).subscribe({
       next: res => {
         if (res.exists) {
-          this.step = 'client-welcome';
-          this.userName = res.nombre;
           this.auth.clientAccess(this.email).pipe(
             takeUntil(this.destroy$)
           ).subscribe({
-            next: () => this.router.navigate(['/client/mis-citas']),
+            next: () => this.router.navigate(['/']),
             error: () => {
               this.loading = false;
               this.error = 'No se pudo acceder';
@@ -135,7 +133,7 @@ export class AuthComponent implements OnDestroy {
       takeUntil(this.destroy$),
       this.loadingPipe()
     ).subscribe({
-      next: () => this.router.navigate(['/client/mis-citas']),
+      next: () => this.router.navigate(['/']),
       error: err => {
         this.error = err?.error?.error || 'No se pudo acceder';
       }
@@ -152,14 +150,12 @@ export class AuthComponent implements OnDestroy {
       email: this.email,
       aceptaTerminos: v.aceptaTerminos,
       consentimientoDatos: v.consentimientoDatos
-    }).pipe(
+    }    ).pipe(
       takeUntil(this.destroy$),
       this.loadingPipe()
     ).subscribe({
       next: () => {
-        this.step = 'client-welcome';
-        this.userName = v.nombre;
-        setTimeout(() => this.router.navigate(['/client/mis-citas']), 600);
+        this.router.navigate(['/']);
       },
       error: err => {
         this.error = err?.error?.error || 'No se pudo registrar';
