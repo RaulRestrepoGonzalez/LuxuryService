@@ -176,6 +176,8 @@ const FILTER_OIL_098_IMAGE = 'https://premiumfilters.store/cdn/shop/files/OLP-09
 const COOLANT_1GL_IMAGE = 'https://www.faggidistribuciones.com.co/wp-content/uploads/2020/07/refrigerante-radiador-naranja.jpg';
 // Válvula TR-413 caucho sellomatic (insumosgn.com — Bogotá, Colombia)
 const VALVULA_TR413_IMAGE = 'https://insumosgn.com/wp-content/uploads/2023/02/VALVULA-SELLOMATIC-CAUCHO-TR413.png';
+// Paño microfibra Simoniz (faggidistribuciones.com.co — Pereira, Colombia)
+const MICROFIBER_CLOTH_IMAGE = 'https://www.faggidistribuciones.com.co/wp-content/uploads/2021/05/pano-microfibra.jpg';
 
 export interface Producto {
   id: string;
@@ -763,6 +765,10 @@ export class ShopComponent implements OnInit, OnDestroy {
     // VÁLVULA TR 413
     if (cleanProductName.startsWith('válvulatr413') || cleanProductName.startsWith('valvulatr413')) {
       return VALVULA_TR413_IMAGE;
+    }
+    // PANOLA / MICROFIBRA
+    if (cleanProductName.startsWith('panola/microfibra') || cleanProductName.startsWith('panolamicroriba') || cleanProductName.startsWith('panolas')) {
+      return MICROFIBER_CLOTH_IMAGE;
     }
 
     const keywordImage = this.keywordImageForProduct(p);

@@ -1,31 +1,5 @@
 <div class="book-page page-light">
 
-  @if (payment) {
-    <div class="payment-overlay" (click)="payment = null">
-      <div class="payment-modal" (click)="$event.stopPropagation()">
-        <button type="button" class="payment-close" (click)="payment = null">×</button>
-        <div class="payment-success-icon">✅</div>
-        <h2>¡Cita agendada!</h2>
-        <p class="payment-sub">Realiza el pago para confirmar tu reserva</p>
-        <div class="payment-details">
-          <div class="payment-row"><span>Servicio</span><strong>{{ selectedService?.nombre }} ({{ tipoVehiculo === 'auto' ? 'Automóvil' : 'Camioneta' }})</strong></div>
-          @if (selectedProduct) {
-            <div class="payment-row"><span>Producto</span><strong>{{ selectedProduct.nombre }}</strong></div>
-          }
-          <div class="payment-row"><span>Fecha</span><strong>{{ appointmentForm.get('fecha')?.value }}</strong></div>
-          <div class="payment-row"><span>Horario</span><strong>{{ selectedHorarioLabel() }}</strong></div>
-        </div>
-        <div class="payment-10min-terms">⏱ Tienes <strong>10 minutos</strong> para pagar. Por el alto flujo de clientes, un espacio apartado sin pago es un ingreso que dejamos de percibir. Si no pagas a tiempo, la reserva se libera automáticamente.</div>
-        <div class="payment-qr-wrap">
-          <img [src]="payment.qr" alt="QR de pago" class="payment-qr" />
-          <p class="payment-qr-hint">Escanea con tu banco</p>
-        </div>
-        <a [href]="payment.url" target="_blank" class="payment-btn">Pagar ahora</a>
-        <p class="payment-ref">Ref: {{ payment.reference }}</p>
-      </div>
-    </div>
-  }
-
   <h2 class="catalog-section-title">
     <span class="slash">/</span> AGENDAR CITA <span class="slash">/</span>
   </h2>
@@ -170,15 +144,13 @@
       </section>
     }
 
-    @if (successMsg && !payment) { <div class="book-success">{{ successMsg }}</div> }
+    @if (successMsg) { <div class="book-success">{{ successMsg }}</div> }
     @if (errorMsg) { <div class="book-error">{{ errorMsg }}</div> }
 
-    @if (appointmentForm.get('horario')?.value && !payment && !successMsg) {
-      @if (usandoGiftCard) {
-        <p class="book-terms">⏱ Tienes <strong>10 minutos</strong> para completar el pago. Si no pagas a tiempo, la reserva expira automáticamente.</p>
-      }
+    @if (appointmentForm.get('horario')?.value && !successMsg) {
+      <p class="book-terms">🕐 *Horario de atención:* Lunes a Sábado de 8:00 a.m. a 6:00 p.m. Te responderemos a la brevedad.</p>
       <button type="button" class="btn-hero-primary book-submit" [disabled]="submitting || !auth.isLoggedIn()" (click)="submit()">
-        {{ submitting ? 'Agendando...' : usandoGiftCard ? 'Confirmar cita con Gift Card' : 'Confirmar cita y pagar' }}
+        {{ submitting ? 'Generando ticket...' : 'Agendar cita por WhatsApp' }}
       </button>
     }
   </form>

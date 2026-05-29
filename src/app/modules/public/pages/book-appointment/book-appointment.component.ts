@@ -361,6 +361,13 @@ export class BookAppointmentComponent implements OnInit {
 
   img(p: ProductoItem) { return productImage(p.icono, p.imagen_url); }
 
+  private generateTicket(): string {
+    const prefix = 'LS';
+    const ts = Date.now().toString(36).toUpperCase().slice(-4);
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${prefix}-${ts}${rand}`;
+  }
+
   submit() {
     if (!this.auth.isLoggedIn()) {
       this.router.navigate(['/acceso']);
@@ -377,61 +384,42 @@ export class BookAppointmentComponent implements OnInit {
     }
     this.submitting = true;
     this.errorMsg = '';
-    this.payment = null;
-    let servicioId = this.appointmentForm.get('servicioId')?.value || '';
-    if (servicioId.startsWith('fb-')) {
-      const realId = this.resolveRealId(servicioId);
-      if (realId) servicioId = realId;
-    }
-    if (this.usandoGiftCard && this.totalConRecargo > this.giftCardValid!.monto!) {
-      this.errorMsg = `El total (${this.formatPrice(this.totalConRecargo)}) excede el saldo de la Gift Card (${this.formatPrice(this.giftCardValid!.monto!)}). Elige un servicio más económico o sin productos adicionales.`;
-      this.submitting = false;
-      return;
-    }
 
-    const payload: Record<string, any> = {
-      servicioId,
-      fecha: this.appointmentForm.get('fecha')?.value,
-      horario: this.appointmentForm.get('horario')?.value,
-      tipoVehiculo: this.tipoVehiculo,
-      precio: this.precioServicio,
-      productoPrecio: this.precioProducto,
-      recargoReserva: 10000,
-      total: this.totalConRecargo
-    };
-    if (this.usandoGiftCard) {
-      payload['giftCardCode'] = this.giftCardCode.trim();
-    }
-    if (this.selectedProduct) {
-      payload['productoId'] = this.selectedProduct.id;
-      payload['productoNombre'] = this.selectedProduct.nombre;
-    }
-    this.api.post<any>('/appointments', payload).subscribe({
-      next: res => {
-        this.submitting = false;
-        if (res.cita) {
-          this.successMsg = res.message || '¡Cita confirmada con Gift Card!';
-          this.appointmentForm.reset();
-          this.selectedProduct = null;
-          this.showProductSelection = false;
-          this.giftCardCode = '';
-          this.giftCardValid = null;
-          this.horarios = [];
-        } else {
-          this.successMsg = res.message || '¡Cita agendada!';
-          this.payment = res.payment || null;
-          this.slotCache.clear();
-          this.bookedCache.clear();
-          if (this.payment?.url) {
-            window.location.href = this.payment.url;
-          }
-        }
-      },
-      error: err => {
-        this.submitting = false;
-        this.errorMsg = err?.error?.error || 'No se pudo agendar';
-      }
-    });
+    const ticket = this.generateTicket();
+    const servicio = this.selectedService;
+    const fecha = this.appointmentForm.get('fecha')?.value;
+    const horario = this.selectedHorarioLabel();
+    const tipoLabel = this.tipoVehiculo === 'auto' ? 'Automóvil' : this.tipoVehiculo === 'camioneta' ? 'Camioneta' : 'Moto';
+    const cliente = user.nombre || user.email || 'Cliente';
+    const productoTexto = this.selectedProduct
+      ? `\n🛒 *Producto:* ${this.selectedProduct.nombre}`
+      : '';
+    const giftCardTexto = this.usandoGiftCard
+      ? `\n🎁 *Gift Card:* ${this.giftCardValid?.etiqueta || ''} (Saldo: ${this.formatPrice(this.giftCardValid?.monto || 0)})`
+      : '';
+
+    const msgLines = [
+      '¡Hola! 🚗 Quiero agendar una cita.',
+      '',
+      `🎫 *Ticket:* ${ticket}`,
+      `👤 *Cliente:* ${cliente}`,
+      `📋 *Servicio:* ${servicio?.nombre || ''}`,
+      `🚘 *Vehículo:* ${tipoLabel}`,
+      `📅 *Fecha:* ${fecha}`,
+      `⏰ *Horario:* ${horario}${productoTexto}${giftCardTexto}`,
+      '',
+      'Por favor, confirma mi cita. Estaré atento a tu respuesta.',
+      '',
+      '🕐 *Horario de atención:* Lunes a Sábado de 8:00 a.m. a 6:00 p.m.',
+      '',
+      '¡Gracias! 😊'
+    ];
+    const msg = msgLines.join('\n');
+    const whatsappUrl = `https://wa.me/573006366429?text=${encodeURIComponent(msg)}`;
+
+    this.successMsg = `🎫 Ticket generado: ${ticket}. Serás redirigido a WhatsApp para confirmar tu cita.`;
+    this.submitting = false;
+    window.open(whatsappUrl, '_blank');
   }
 
   clearGiftCard() {
