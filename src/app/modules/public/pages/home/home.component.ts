@@ -45,7 +45,7 @@ export class HomeComponent implements OnInit {
 
   contacto = {
     direccion: 'Av. Principal Manga, Cartagena, Colombia',
-    horario: 'Lunes - Sábado: 8:00 a.m. - 6:00 p.m. · Domingo: cerrado',
+    horario: 'Lunes - Sábado: 7:00 a.m. - 7:00 p.m. · Domingo: 7:00 a.m. - 2:00 p.m',
     telefono: '+57 (605) 234 5678',
     telefonoRaw: '+576052345678',
     email: 'luxury_admon@outlook.com',
