@@ -2,11 +2,11 @@ import { ApplicationConfig, importProvidersFrom } from '@angular/core';
 import { provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter, withPreloading, PreloadAllModules, withInMemoryScrolling, withViewTransitions } from '@angular/router';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
-import { provideHttpClient, withFetch, withInterceptorsFromDi, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 
 import { routes } from './app.routes';
-import { JwtInterceptor } from './core/interceptors/jwt.interceptor';
+import { jwtInterceptor } from './core/interceptors/jwt.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -16,9 +16,8 @@ export const appConfig: ApplicationConfig = {
       withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
       withViewTransitions()
     ),
-    provideHttpClient(withFetch(), withInterceptorsFromDi()),
+    provideHttpClient(withFetch(), withInterceptors([jwtInterceptor])),
     importProvidersFrom(FormsModule),
-    { provide: HTTP_INTERCEPTORS, useClass: JwtInterceptor, multi: true },
     provideClientHydration(withEventReplay())
   ]
 };
