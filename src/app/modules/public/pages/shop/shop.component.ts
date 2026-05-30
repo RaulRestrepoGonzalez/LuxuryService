@@ -577,8 +577,8 @@ export class ShopComponent implements OnInit, OnDestroy {
     if (isChevron20W50) {
       return CHEVRON_20W50_IMAGE;
     }
-    // EXTINTOR 5 LIBRAS (fire extinguisher)
-    if (cleanProductName.startsWith('extintor')) {
+    // EXTINTOR 5 LIBRAS (fire extinguisher) — match any product containing "extintor" in the normalized name
+    if (cleanProductName.includes('extintor')) {
       return EXTINTOR_5_LIBRAS_IMAGE;
     }
     // OIP oil filter products (mapped to Premium Filters OLP images)
