@@ -5,7 +5,7 @@ import { Observable } from 'rxjs';
 @Injectable({ providedIn: 'root' })
 export class ChatbotService {
   constructor(private api: ApiService) {}
-  sendMessage(message: string, vehiculo?: string): Observable<{ reply: string }> {
-    return this.api.post<{ reply: string }>('/chatbot', { message, vehiculo });
+  sendMessage(message: string, vehiculo?: string, sessionId?: string): Observable<{ reply: string }> {
+    return this.api.post<{ reply: string }>('/chatbot', { message, vehiculo, sessionId });
   }
 }
