@@ -1,5 +1,5 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, AfterViewInit, ChangeDetectorRef, PLATFORM_ID, inject } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 
@@ -200,7 +200,9 @@ import { ApiService } from 'src/app/core/services/api.service';
     </div>
   `
 })
-export class InventoryMgmtComponent implements OnInit {
+export class InventoryMgmtComponent implements OnInit, AfterViewInit {
+  private platformId = inject(PLATFORM_ID);
+
   // Products
   productos: any[] = [];
   productoForm: FormGroup;
@@ -233,8 +235,10 @@ export class InventoryMgmtComponent implements OnInit {
     });
   }
 
-  ngOnInit() {
-    if (typeof window !== 'undefined') {
+  ngOnInit() { /* datos se cargan en AfterViewInit solo en el browser */ }
+
+  ngAfterViewInit() {
+    if (isPlatformBrowser(this.platformId)) {
       this.cargarProductos();
       this.cargarServicios();
     }

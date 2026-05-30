@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, AfterViewInit, PLATFORM_ID, inject } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from 'src/app/core/services/auth.service';
@@ -139,7 +139,8 @@ interface Notificacion {
     .admin-link:hover { text-decoration: underline; }
   `]
 })
-export class ProfileComponent implements OnInit {
+export class ProfileComponent implements OnInit, AfterViewInit {
+  private platformId = inject(PLATFORM_ID);
   user: ReturnType<AuthService['getCurrentUser']>;
   notificaciones: Notificacion[] = [];
   loadingNotif = true;
@@ -155,7 +156,10 @@ export class ProfileComponent implements OnInit {
     this.user = this.auth.getCurrentUser();
   }
 
-  ngOnInit() {
+  ngOnInit() { /* datos se cargan en AfterViewInit solo en el browser */ }
+
+  ngAfterViewInit() {
+    if (!isPlatformBrowser(this.platformId)) return;
     if (this.auth.isLoggedIn()) {
       this.api.get<Notificacion[]>('/notifications').subscribe({
         next: res => { this.notificaciones = res; this.loadingNotif = false; },
