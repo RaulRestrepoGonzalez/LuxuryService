@@ -1,5 +1,5 @@
 import { Injectable, PLATFORM_ID, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from 'src/environments/environment';
 import { Observable, of, throwError, Subject } from 'rxjs';
@@ -47,7 +47,8 @@ export class ApiService {
       return this.inflight.get(key)!;
     }
 
-    const req = this.http.get<T>(`${this.baseUrl}${endpoint}`).pipe(
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const req = this.http.get<T>(`${this.baseUrl}${endpoint}${separator}_t=${Date.now()}`).pipe(
       retry(1),
       timeout(8_000),
       tap(value => {
@@ -93,7 +94,8 @@ export class ApiService {
 
   post<T>(endpoint: string, body: any): Observable<T> {
     this.invalidateMutations();
-    return this.http.post<T>(`${this.baseUrl}${endpoint}`, body).pipe(
+    const sep = endpoint.includes('?') ? '&' : '?';
+    return this.http.post<T>(`${this.baseUrl}${endpoint}${sep}_t=${Date.now()}`, body).pipe(
       timeout(8_000),
       tap(() => {
         for (const k of this.persistentKeys) {
@@ -108,7 +110,8 @@ export class ApiService {
   }
   put<T>(endpoint: string, body: any): Observable<T> {
     this.invalidateMutations();
-    return this.http.put<T>(`${this.baseUrl}${endpoint}`, body).pipe(
+    const sep2 = endpoint.includes('?') ? '&' : '?';
+    return this.http.put<T>(`${this.baseUrl}${endpoint}${sep2}_t=${Date.now()}`, body).pipe(
       timeout(8_000),
       tap(() => {
         for (const k of this.persistentKeys) {
@@ -123,7 +126,8 @@ export class ApiService {
   }
   delete<T>(endpoint: string): Observable<T> {
     this.invalidateMutations();
-    return this.http.delete<T>(`${this.baseUrl}${endpoint}`).pipe(
+    const sep3 = endpoint.includes('?') ? '&' : '?';
+    return this.http.delete<T>(`${this.baseUrl}${endpoint}${sep3}_t=${Date.now()}`).pipe(
       timeout(8_000),
       tap(() => {
         for (const k of this.persistentKeys) {

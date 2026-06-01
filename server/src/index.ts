@@ -77,11 +77,11 @@ const PUBLIC_CATALOG_CACHE = 600;
 app.get('/api/health', (_req, res) => res.json({ ok: true, db: 'mongodb' }));
 
 app.use('/api/services', (_req, res, next) => {
-  res.set('Cache-Control', `public, max-age=${PUBLIC_CATALOG_CACHE}, s-maxage=${PUBLIC_CATALOG_CACHE}`);
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   next();
 });
 app.use('/api/products', (_req, res, next) => {
-  res.set('Cache-Control', `public, max-age=${PUBLIC_CATALOG_CACHE}, s-maxage=${PUBLIC_CATALOG_CACHE}`);
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   next();
 });
 app.use('/api/appointments/available', (_req, res, next) => {
