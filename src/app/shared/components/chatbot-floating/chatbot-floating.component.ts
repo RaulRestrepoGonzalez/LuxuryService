@@ -7,7 +7,7 @@ const QUICK_REPLIES: Record<string, (v: string | null) => string | null> = {
   hola: v => v
     ? `¡Hola de nuevo! Tienes **${v === 'auto' ? 'Automóvil' : v === 'camioneta' ? 'Camioneta' : 'Moto'}**. Pregúntame por servicios, horarios, productos o cómo agendar una cita.`
     : '¡Hola! ¿Qué tipo de vehículo tienes? 🚗 Automóvil · 🚙 Camioneta · 🏍️ Moto',
-  horarios: () => '🕐 **Horarios:**\n• Lunes a sábado: 8:00 a.m. - 6:00 p.m.\n• Citas: 10:00 a.m. y 2:00 p.m.\n• Domingos: Cerrado',
+  horarios: () => '🕐 **Horarios:**\n• Lunes a sábado: 7:00 a.m. - 6:00 p.m.\n• Domingos: 7:00 a.m. - 2:00 p.m.\n• Citas: 10:00 a.m. y 2:00 p.m.',
   automovil: () => '¡Perfecto! Seleccionaste **Automóvil** 🚗. Pregúntame por servicios, productos, horarios o cómo agendar una cita.',
   camioneta: () => '¡Perfecto! Seleccionaste **Camioneta** 🚙. Pregúntame por servicios, productos, horarios o cómo agendar una cita.',
   moto: () => '¡Perfecto! Seleccionaste **Moto** 🏍️. Pregúntame por servicios, productos, horarios o cómo agendar una cita.',
