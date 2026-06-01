@@ -329,7 +329,7 @@ const INTENTS: Intent[] = [
       { word: 'horario de atención', weight: 5 }, { word: 'horario laboral', weight: 4 },
     ],
     minScore: 4,
-    handler: () => '🕐 **Horarios de atención:**\n• **Lunes a sábado:** 7:00 a.m. - 6:00 p.m.\n• **Domingos:** 7:00 a.m. - 2:00 p.m.\n• **Citas disponibles:** 10:00 a.m. y 2:00 p.m.\n\n📅 Agenda en la sección "Agendar cita" o dime si quieres apartar tu cita.'
+    handler: () => '🕐 **Horarios de atención:**\n• **Lunes a sábado:** 7:00 a.m. - 7:00 p.m.\n• **Domingos:** 7:00 a.m. - 2:00 p.m.\n• **Citas disponibles:** 10:00 a.m. y 2:00 p.m.\n\n📅 Agenda en la sección "Agendar cita" o dime si quieres apartar tu cita.'
   },
   {
     name: 'agendar',
