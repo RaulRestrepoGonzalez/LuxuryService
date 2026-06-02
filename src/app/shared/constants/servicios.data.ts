@@ -17,6 +17,12 @@ export interface Servicio {
   cotizar_local?: boolean;
 }
 
+export function sortByNombreNatural<T extends { nombre: string }>(list: T[]): T[] {
+  return [...list].sort((a, b) => {
+    return a.nombre.localeCompare(b.nombre, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
 export function groupByCategoria(list: Servicio[]): { categorias: string[]; grouped: Record<string, Servicio[]> } {
   const grouped: Record<string, Servicio[]> = {};
   for (const s of list) {
@@ -63,6 +69,7 @@ export const FALLBACK_SERVICIOS: Servicio[] = [
   { id: 'fb-07', nombre: 'Combo 2: Lavado + Encerado', descripcion: 'Lavado General + Encerado + Hidratación Partes Negras', items: ['Lavado General', 'Encerado', 'Hidratación partes negras'], duracion_minutos: 75, precio_base: 76000, precio_auto: 76000, precio_camioneta: 89000, categoria: 'Combos', icono: 'local_car_wash', imagen_url: DETAIL2, agendable: true, iva_incluido: true },
   { id: 'fb-08', nombre: 'Combo 3: Lavado + Motor + Encerado', descripcion: 'Lavado General + Motor + Encerado', items: ['Lavado General', 'Motor', 'Encerado'], duracion_minutos: 90, precio_base: 108000, precio_auto: 108000, precio_camioneta: 121000, categoria: 'Combos', icono: 'local_car_wash', imagen_url: DETAIL4, agendable: true, iva_incluido: true },
   { id: 'fb-09', nombre: 'Combo 4: Lavado + Encerado + Motor Vapor', descripcion: 'Lavado General + Encerado + Lavado Motor a Vapor', items: ['Lavado General', 'Encerado', 'Motor a vapor'], duracion_minutos: 120, precio_base: 140000, precio_auto: 140000, precio_camioneta: 172000, categoria: 'Combos', icono: 'local_car_wash', imagen_url: STEAM, agendable: true, iva_incluido: true },
+  { id: 'fb-19', nombre: 'Combo 6: Lavado + Encerado', descripcion: 'Lavado General + Encerado', items: ['Lavado General', 'Encerado'], duracion_minutos: 60, precio_base: 60000, precio_auto: 60000, precio_camioneta: 76000, categoria: 'Combos', icono: 'local_car_wash', imagen_url: DETAIL3, agendable: true, iva_incluido: true },
   { id: 'fb-10', nombre: 'Pintura y Acabados', descripcion: 'Corrección de brillo, descontaminado de pintura, tratamiento nanocerámico y pintura anticorrosiva. El valor varía según el tipo y estado de la pintura del vehículo. Cotizar en el local.', duracion_minutos: 0, precio_base: 0, precio_auto: 0, precio_camioneta: 0, categoria: 'Pintura', icono: 'format_paint', imagen_url: PAINT_CORRECT, agendable: false, iva_incluido: true, cotizar_local: true },
   { id: 'fb-12', nombre: 'Limpieza de Techo', descripcion: 'Limpieza profunda de techo interior', duracion_minutos: 60, precio_base: 110000, precio_auto: 110000, precio_camioneta: 130000, categoria: 'Servicios Detailing', icono: 'cleaning_services', imagen_url: INTERIOR, agendable: true, iva_incluido: true },
   { id: 'fb-15', nombre: 'Servicio de Agua Caliente', descripcion: 'Lavado con agua caliente', duracion_minutos: 90, precio_base: 390000, precio_auto: 390000, precio_camioneta: 390000, categoria: 'Servicios Anticorrosivos', icono: 'local_car_wash', imagen_url: HOT_WATER, agendable: true, iva_incluido: true },

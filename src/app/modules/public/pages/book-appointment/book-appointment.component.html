@@ -46,19 +46,19 @@
         <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'">🏍️ Moto</button>
       </div>
       <div class="book-search">
-        <input type="text" class="book-search-input" placeholder="Buscar servicio…" [(ngModel)]="searchServicio" [ngModelOptions]="{standalone: true}" />
+        <input type="text" class="book-search-input" placeholder="Buscar servicio…" [(ngModel)]="searchServicio" [ngModelOptions]="{standalone: true}" (ngModelChange)="onSearchChange()" />
       </div>
       <div class="service-picks">
         @for (s of filteredServicios; track s.id) {
-          <label class="service-pick" [class.selected]="appointmentForm.get('servicioId')?.value === s.id">
-            <input type="radio" formControlName="servicioId" [value]="s.id" />
+          <label class="service-pick" [class.selected]="selectedServiceIds.includes(s.id)">
+            <input type="checkbox" [checked]="selectedServiceIds.includes(s.id)" (change)="toggleService(s.id)" />
             <span class="service-pick-name">{{ s.nombre }}</span>
           </label>
         }
       </div>
     </section>
 
-    @if (appointmentForm.get('servicioId')?.value) {
+    @if (selectedServiceIds.length > 0) {
       <section class="book-panel">
         <h3><span class="book-step">2</span> ¿Deseas agregar un producto?</h3>
         <div class="product-choice">
@@ -87,7 +87,7 @@
       </section>
     }
 
-    @if (appointmentForm.get('servicioId')?.value) {
+    @if (selectedServiceIds.length > 0) {
       <section class="book-panel">
         <h3><span class="book-step">3</span> Selecciona la fecha</h3>
         <div class="calendar">
@@ -147,9 +147,9 @@
     @if (successMsg) { <div class="book-success">{{ successMsg }}</div> }
     @if (errorMsg) { <div class="book-error">{{ errorMsg }}</div> }
 
-    @if (appointmentForm.get('horario')?.value && !successMsg) {
-      <p class="book-terms">🕐 *Horario de atención:* Lunes a Sábado de 8:00 a.m. a 6:00 p.m. Te responderemos a la brevedad.</p>
-      <button type="button" class="btn-hero-primary book-submit" [disabled]="submitting || !auth.isLoggedIn()" (click)="submit()">
+    @if (selectedServiceIds.length > 0 && appointmentForm.get('horario')?.value && !successMsg) {
+      <p class="book-terms">🕐 *Horario de atención:* Lunes a Sábado de 7:00 a.m. a 6:00 p.m., Domingos de 7:00 a.m. a 2:00 p.m. Te responderemos a la brevedad.</p>
+      <button type="button" class="btn-hero-primary book-submit" [disabled]="submitting || !auth.isLoggedIn() || selectedServiceIds.length === 0" (click)="submit()">
         {{ submitting ? 'Generando ticket...' : 'Agendar cita por WhatsApp' }}
       </button>
     }

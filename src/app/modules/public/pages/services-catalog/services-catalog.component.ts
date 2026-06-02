@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService } from 'src/app/core/services/api.service';
-import { Servicio, FALLBACK_SERVICIOS, groupByCategoria } from 'src/app/shared/constants/servicios.data';
+import { Servicio, FALLBACK_SERVICIOS, groupByCategoria, sortByNombreNatural } from 'src/app/shared/constants/servicios.data';
 
 const icon = (file: string) => `<img src="/${file}" alt="" class="svc-custom-icon">`;
 
@@ -75,7 +75,11 @@ export class ServicesCatalogComponent implements OnInit {
   constructor(private api: ApiService, private sanitizer: DomSanitizer) {
     const fb = groupByCategoria(FALLBACK_SERVICIOS);
     this.categorias = fb.categorias;
-    this.grouped = fb.grouped;
+    const sorted: Record<string, Servicio[]> = {};
+    for (const [cat, list] of Object.entries(fb.grouped)) {
+      sorted[cat] = sortByNombreNatural(list);
+    }
+    this.grouped = sorted;
   }
 
   ngOnInit() {
@@ -83,14 +87,22 @@ export class ServicesCatalogComponent implements OnInit {
     this.api.get<{ categorias: string[]; grouped: Record<string, Servicio[]> }>('/services/catalog').subscribe({
       next: res => {
         this.categorias = res.categorias;
-        this.grouped = res.grouped;
+        const sorted: Record<string, Servicio[]> = {};
+        for (const [cat, list] of Object.entries(res.grouped)) {
+          sorted[cat] = sortByNombreNatural(list);
+        }
+        this.grouped = sorted;
       },
       error: () => {
         this.api.get<Servicio[]>('/services').subscribe({
           next: list => {
             const g = groupByCategoria(list);
             this.categorias = g.categorias;
-            this.grouped = g.grouped;
+            const sorted: Record<string, Servicio[]> = {};
+            for (const [cat, catList] of Object.entries(g.grouped)) {
+              sorted[cat] = sortByNombreNatural(catList);
+            }
+            this.grouped = sorted;
           }
         });
       }

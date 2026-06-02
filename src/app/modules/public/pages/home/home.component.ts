@@ -5,7 +5,7 @@ import { ApiService } from 'src/app/core/services/api.service';
 import { HERO_IMAGE } from 'src/app/shared/constants/catalog-images';
 import { MARCAS_MULTIMARCAS } from 'src/app/shared/constants/marcas-multimarcas';
 import { SiteFooterComponent } from 'src/app/shared/components/site-footer/site-footer.component';
-import { FALLBACK_SERVICIOS } from 'src/app/shared/constants/servicios.data';
+import { FALLBACK_SERVICIOS, sortByNombreNatural } from 'src/app/shared/constants/servicios.data';
 
 interface Servicio {
   id: string;
@@ -74,7 +74,8 @@ export class HomeComponent implements OnInit {
       const result: CategoriaVisual[] = [];
       for (const c of cats) {
         let list = grouped[c] || [];
-        list = list.filter(s => !s.cotizar_local).sort((a, b) => a.nombre.localeCompare(b.nombre));
+        list = list.filter(s => !s.cotizar_local);
+        list = sortByNombreNatural(list);
         if (list.length > 0) {
           result.push({
             nombre: c,
@@ -103,7 +104,8 @@ export class HomeComponent implements OnInit {
         for (const c of res.categorias) {
           if (CATEGORIAS_VISIBLES.has(c)) {
             let list = res.grouped[c] || [];
-            list = list.filter(s => !s.cotizar_local).sort((a, b) => a.nombre.localeCompare(b.nombre));
+        list = list.filter(s => !s.cotizar_local);
+        list = sortByNombreNatural(list);
             if (list.length > 0) {
               result.push({ nombre: c, icono: mapIcon(c), servicios: list });
             }
