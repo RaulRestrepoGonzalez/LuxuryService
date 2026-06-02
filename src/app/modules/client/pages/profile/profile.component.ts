@@ -95,8 +95,8 @@ interface Notificacion {
     .profile-actions { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem; }
     .notif-list { display: flex; flex-direction: column; gap: 0.75rem; }
     .notif-item {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: #fff;
+      border: 1px solid #e0e0e0;
       padding: 1rem 1.25rem;
       border-radius: 4px;
     }
@@ -108,8 +108,8 @@ interface Notificacion {
       color: #ff2b2b;
       font-weight: 700;
     }
-    .notif-item h4 { margin: 0.35rem 0; color: #fff; }
-    .notif-item p { margin: 0; color: rgba(255,255,255,0.75); font-size: 0.9rem; }
+    .notif-item h4 { margin: 0.35rem 0; color: #000; }
+    .notif-item p { margin: 0; color: #333; font-size: 0.9rem; }
 
     .admin-servicios { margin: 2rem 0; padding: 1.25rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,43,43,0.15); border-radius: 8px; }
     .admin-servicios-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
