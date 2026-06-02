@@ -5,7 +5,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiService } from 'src/app/core/services/api.service';
 import { AuthService } from 'src/app/core/services/auth.service';
 import { FALLBACK_SERVICIOS, sortByNombreNatural } from 'src/app/shared/constants/servicios.data';
-import { productImage } from 'src/app/shared/constants/catalog-images';
+import { productImage, resolvedProductImage } from 'src/app/shared/constants/catalog-images';
 
 interface HorarioSlot { value: string; label: string; }
 const DEFAULT_SLOTS: HorarioSlot[] = [
@@ -404,7 +404,7 @@ export class BookAppointmentComponent implements OnInit {
     return this.precioActual + 10000;
   }
 
-  img(p: ProductoItem) { return productImage(p.icono, p.imagen_url); }
+  img(p: ProductoItem) { return resolvedProductImage(p); }
 
   private generateTicket(): string {
     const prefix = 'LS';
