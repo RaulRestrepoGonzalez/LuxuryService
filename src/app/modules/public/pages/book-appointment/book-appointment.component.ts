@@ -408,9 +408,16 @@ export class BookAppointmentComponent implements OnInit {
 
   private generateTicket(): string {
     const prefix = 'LS';
-    const ts = Date.now().toString(36).toUpperCase().slice(-4);
-    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}-${ts}${rand}`;
+    const ts = Date.now().toString(36).toUpperCase();
+    const buf = new Uint8Array(6);
+    crypto.getRandomValues(buf);
+    const rand = Array.from(buf, b => b.toString(16).padStart(2, '0').toUpperCase()).join('');
+    const user = this.auth.getCurrentUser();
+    const emailHash = user?.email
+      ? Array.from(user.email).reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0)
+          .toString(36).toUpperCase().replace(/-/, 'Z').slice(-3)
+      : '';
+    return `${prefix}-${ts}${emailHash}${rand}`;
   }
 
   submit() {
