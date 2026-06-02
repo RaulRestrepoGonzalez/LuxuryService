@@ -29,7 +29,6 @@ const DEFAULT_PRODUCT = 'https://images.unsplash.com/photo-1492144534655-ae79c96
 
 export const HERO_IMAGE = 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1200&q=75';
 
-// Product-specific image constants (shared between shop and booking)
 const MOBIL_10W40_IMAGE = 'https://aldauto.co/wp-content/uploads/2024/07/MO-10W40-SP-CT-1.jpg';
 const MOBIL_10W40_GALON_IMAGE = 'https://aldauto.co/wp-content/uploads/2024/07/MO-10W40-SP-GL-1.jpg';
 const MOBIL_20W50_IMAGE = 'https://energiteca.vtexassets.com/arquivos/ids/160372/Aceite-Mobil-SUP-1000-20W-50-1-4.png?v=638852833774370000';
@@ -96,7 +95,7 @@ const CHEVRON_HAVOLINE_CK4_15W40_GL_IMAGE = 'https://tecnifil.com/wp-content/upl
 const CHEVRON_20W50_IMAGE = 'https://shfilters.com/wp-content/uploads/2020/10/hav-motor-oil-sae-20w50-api-sn-lubricante-medellin.png';
 const CHEVRON_20W50_GL_IMAGE = 'https://shfilters.com/wp-content/uploads/2020/10/HAV-MOTOR-OIL-SAE-20W50-API-SN-GALON.jpg';
 const HAVOLINE_5W30_IMAGE = 'https://www.costaoil.com.co/wp-content/uploads/2025/01/223510QAC-20251216.webp';
-export const EXTINTOR_5_LIBRAS_IMAGE = 'https://extintoresenmedellin.com/wp-content/uploads/2025/04/EXTINTOR-MULTIPROPOSITO-ABC.webp';
+const EXTINTOR_5_LIBRAS_IMAGE = 'https://extintoresenmedellin.com/wp-content/uploads/2025/04/EXTINTOR-MULTIPROPOSITO-ABC.webp';
 const WINDSHIELD_CLEANER_IMAGE = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&q=75';
 const SPARK_PLUG_IMAGE = 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400&q=75';
 const OIL_CAN_IMAGE = 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=400&q=75';
@@ -157,8 +156,20 @@ const FILTER_OIL_098_IMAGE = 'https://premiumfilters.store/cdn/shop/files/OLP-09
 const COOLANT_1GL_IMAGE = 'https://www.faggidistribuciones.com.co/wp-content/uploads/2020/07/refrigerante-radiador-naranja.jpg';
 const VALVULA_TR413_IMAGE = 'https://insumosgn.com/wp-content/uploads/2023/02/VALVULA-SELLOMATIC-CAUCHO-TR413.png';
 const MICROFIBER_CLOTH_IMAGE = 'https://www.faggidistribuciones.com.co/wp-content/uploads/2021/05/pano-microfibra.jpg';
+const TIRE_IMAGES = [
+  'https://www.todosobreautos.com/content/images/2024/11/Tipos-de-Llantas-para-Autos.webp',
+];
+const CATEGORY_IMAGES: Record<string, string> = {
+  llantas: TIRE_IMAGES[0],
+  llanta: TIRE_IMAGES[0],
+  neumáticos: TIRE_IMAGES[0],
+  neumaticos: TIRE_IMAGES[0],
+  rines: TIRE_IMAGES[0],
+  'alineación y balanceo': TIRE_IMAGES[0],
+  'alineacion y balanceo': TIRE_IMAGES[0],
+};
 
-export function normalizeText(value: string): string {
+function normalizeText(value: string): string {
   return value
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -167,8 +178,8 @@ export function normalizeText(value: string): string {
     .toLowerCase();
 }
 
-function keywordImageForProduct(nombre: string, categoria?: string): string {
-  const text = normalizeText(`${categoria || ''} ${nombre || ''}`);
+function keywordImageForProduct(p: { nombre: string; categoria?: string }): string {
+  const text = normalizeText(`${p.categoria || ''} ${p.nombre || ''}`);
   if (/\b(beam blade advance|bean blade|titan|softwiper rexion|plumilla|plumillas|plumillaa|plimilla|softwiper|wiper)\b/.test(text)) {
     return WIPER_IMAGE;
   }
@@ -187,8 +198,8 @@ function keywordImageForProduct(nombre: string, categoria?: string): string {
   return '';
 }
 
-function tireImageForProduct(nombre: string, categoria?: string, id?: string): string {
-  const text = `${categoria || ''} ${nombre || ''}`.trim().toLowerCase();
+function tireImageForProduct(p: { nombre: string; categoria?: string; id?: string }): string {
+  const text = `${p.categoria || ''} ${p.nombre || ''}`.trim().toLowerCase();
   const normalizedText = text
     .replace(/á/g, 'a')
     .replace(/é/g, 'e')
@@ -197,16 +208,13 @@ function tireImageForProduct(nombre: string, categoria?: string, id?: string): s
     .replace(/ú/g, 'u')
     .replace(/ñ/g, 'n');
   if (normalizedText.includes('llanta') || normalizedText.includes('neumatico') || normalizedText.includes('rines')) {
-    const hash = Array.from((id || nombre || '').toString()).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    const tireImgs = [TIRE_FALLBACK_IMAGE];
-    return tireImgs[hash % tireImgs.length];
+    const hash = Array.from((p.id || p.nombre || '').toString()).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    return TIRE_IMAGES[hash % TIRE_IMAGES.length];
   }
   return '';
 }
 
 export function resolvedProductImage(p: { nombre: string; categoria?: string; icono?: string; imagen_url?: string | null; id?: string }): string {
-  if (p.imagen_url) return p.imagen_url;
-
   const productName = (p.nombre || '').trim().toLowerCase();
   const cleanProductName = productName.replace(/\s+/g, '').replace(/-/g, '');
   const containsGalon = /galon|gallon|galón/.test(productName);
@@ -592,12 +600,19 @@ export function resolvedProductImage(p: { nombre: string; categoria?: string; ic
     return MICROFIBER_CLOTH_IMAGE;
   }
 
-  const keywordImage = keywordImageForProduct(p.nombre, p.categoria);
+  const keywordImage = keywordImageForProduct(p);
   if (keywordImage) {
     return keywordImage;
   }
 
-  const tireImage = tireImageForProduct(p.nombre, p.categoria, p.id);
+  if (p.categoria) {
+    const categoryKey = p.categoria.trim().toLowerCase();
+    if (CATEGORY_IMAGES[categoryKey]) {
+      return CATEGORY_IMAGES[categoryKey];
+    }
+  }
+
+  const tireImage = tireImageForProduct(p);
   if (tireImage) {
     return tireImage;
   }
