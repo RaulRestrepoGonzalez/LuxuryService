@@ -71,7 +71,7 @@
               <p class="cot-resumen-ejemplo">* Valor de ejemplo. El precio definitivo se establece después de la inspección del vehículo.</p>
             }
             <div class="cot-resumen-ctas">
-              <a routerLink="/agendar-cita" class="cot-agendar-btn">Agenda tu cita →</a>
+              <a [routerLink]="['/agendar-cita']" [queryParams]="{ servicios: seleccionados.map(i => i.id).join(','), tipo: tipoVehiculo }" class="cot-agendar-btn">Agenda tu cita →</a>
               <a routerLink="/servicios" class="cot-ver-btn">Ver servicios</a>
             </div>
           </div>

@@ -100,10 +100,20 @@ export class BookAppointmentComponent implements OnInit {
     if (typeof window === 'undefined') return;
     this.buildCalendar();
 
-    const pre = this.route.snapshot.queryParamMap.get('servicio');
-    if (pre) {
+    const serviciosParam = this.route.snapshot.queryParamMap.get('servicios');
+    const tipoParam = this.route.snapshot.queryParamMap.get('tipo');
+    if (tipoParam === 'auto' || tipoParam === 'camioneta' || tipoParam === 'moto') {
+      this.tipoVehiculo = tipoParam;
+    }
+    if (serviciosParam) {
       this.hasPreSelected = true;
-      this.selectedServiceIds = [pre];
+      this.selectedServiceIds = serviciosParam.split(',').filter(Boolean);
+    } else {
+      const pre = this.route.snapshot.queryParamMap.get('servicio');
+      if (pre) {
+        this.hasPreSelected = true;
+        this.selectedServiceIds = [pre];
+      }
     }
 
     this.api.get<any[]>('/services').subscribe({
