@@ -1,13 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ApiService } from 'src/app/core/services/api.service';
 
 @Component({
   selector: 'app-services-mgmt',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule],
   styles: [`
     :host { display: block; padding: 1.5rem 0; }
     .admin-nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
@@ -20,6 +21,9 @@ import { ApiService } from 'src/app/core/services/api.service';
     .bar button:hover { opacity: .85; }
     .bar button.sec { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
     .bar button.sec:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .bar-search { flex: 1; min-width: 120px; padding: 0.4rem 0.75rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.15); font-size: 0.78rem; font-family: inherit; outline: none; color: #fff; background: rgba(0,0,0,0.3); }
+    .bar-search:focus { border-color: #ff2b2b; }
+    .bar-search::placeholder { color: rgba(255,255,255,0.3); }
     table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     th { text-align: left; padding: 0.6rem 0.75rem; color: rgba(255,255,255,0.4); font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
     td { padding: 0.55rem 0.75rem; color: rgba(255,255,255,0.85); border-bottom: 1px solid rgba(255,255,255,0.04); }
@@ -68,6 +72,8 @@ import { ApiService } from 'src/app/core/services/api.service';
       <button (click)="abrirForm()">
         {{ showForm ? 'Cancelar' : '+ Añadir servicio' }}
       </button>
+      <input type="text" class="bar-search" placeholder="Buscar…" [(ngModel)]="searchTerm" />
+      <span style="font-size:0.78rem;color:rgba(255,255,255,0.4)">{{ serviciosFiltrados.length }} / {{ servicios.length }}</span>
     </div>
 
     @if (showForm) {
@@ -115,7 +121,7 @@ import { ApiService } from 'src/app/core/services/api.service';
         </tr>
       </thead>
       <tbody>
-        @for (s of servicios; track s.id) {
+        @for (s of serviciosFiltrados; track s.id) {
           <tr>
             <td>{{ s.nombre }}@if (s.subcategoria) { <span class="badge badge-cat">{{ s.subcategoria }}</span> }</td>
             <td><span class="badge badge-cat">{{ s.categoria }}</span></td>
@@ -134,8 +140,8 @@ import { ApiService } from 'src/app/core/services/api.service';
         }
       </tbody>
     </table>
-    @if (servicios.length === 0) {
-      <div class="empty">No hay servicios registrados</div>
+    @if (serviciosFiltrados.length === 0) {
+      <div class="empty">{{ servicios.length === 0 ? 'No hay servicios registrados' : 'Sin resultados de búsqueda' }}</div>
     }
   `
 })
@@ -144,6 +150,14 @@ export class ServicesMgmtComponent implements OnInit {
   svcForm: FormGroup;
   showForm = false;
   edt: any = null;
+  searchTerm = '';
+
+  get serviciosFiltrados() {
+    const q = this.searchTerm.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return this.servicios
+      .filter(s => (s.nombre + ' ' + (s.categoria || '')).toLowerCase().includes(q))
+      .sort((a, b) => a.nombre?.localeCompare(b.nombre, 'es', { sensitivity: 'base' }) || 0);
+  }
 
   constructor(private api: ApiService, private fb: FormBuilder) {
     this.svcForm = this.fb.group({

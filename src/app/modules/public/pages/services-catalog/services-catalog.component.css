@@ -123,6 +123,10 @@
 .svc-filter-icon {
   font-size: 3.2rem;
   line-height: 1;
+  color: #ff2b2b;
+}
+.svc-filter-icon svg {
+  fill: #ff2b2b;
 }
 .svc-filter-icon svg,
 .svc-custom-icon {
@@ -526,14 +530,25 @@
 .svc-cta-btn {
   display: inline-block;
   margin-top: 0.75rem;
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: #ff2b2b;
-  text-decoration: none;
+  padding: 0.7rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(135deg, #ff2b2b, #c62828);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
   letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(255, 43, 43, 0.3);
 }
 
-.svc-cta-btn:hover { text-decoration: underline; }
+.svc-cta-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 43, 43, 0.45);
+  color: #fff;
+}
 
 .svc-bottom-cta {
   text-align: center;

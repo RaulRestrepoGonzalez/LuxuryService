@@ -867,6 +867,11 @@ export class ShopComponent implements OnInit, OnDestroy {
     return '';
   }
 
+  formatPrecio(n: number) {
+    if (!n) return '—';
+    return '$' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
+  }
+
   comprar(p: Producto) {
     if (!this.auth.isLoggedIn()) {
       this.showToast('Inicia sesión para comprar');

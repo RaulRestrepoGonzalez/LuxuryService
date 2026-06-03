@@ -90,9 +90,9 @@
                   </div>
                 } @else {
                   @if (s.agendable !== false) {
-                    <a class="svc-cta-btn" [routerLink]="['/agendar-cita']" [queryParams]="{ servicio: s.id }">
+                    <button type="button" class="svc-cta-btn" (click)="agendar(s.id)">
                       Agendar →
-                    </a>
+                    </button>
                   }
                 }
               </div>

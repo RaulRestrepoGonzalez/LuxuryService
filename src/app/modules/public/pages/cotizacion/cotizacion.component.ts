@@ -40,6 +40,7 @@ export class CotizacionComponent implements OnInit {
   categoriasServicios: string[] = [];
   loading = true;
   searchTerm = '';
+  searchFocused = false;
 
   constructor(
     private api: ApiService,
@@ -166,5 +167,22 @@ export class CotizacionComponent implements OnInit {
 
   get total(): number {
     return this.seleccionados.reduce((sum, i) => sum + i.precioReferencia, 0);
+  }
+
+  get recomendados(): CotizacionItem[] {
+    const combos = this.items.filter(i => {
+      const s = this.buscaServicio(i.id);
+      return s?.categoria === 'Combos' && !i.cotizarLocal;
+    });
+    const basicos = this.items.filter(i => {
+      const s = this.buscaServicio(i.id);
+      return s?.categoria === 'Servicios Básicos' && !i.cotizarLocal;
+    });
+    return [...combos, ...basicos].slice(0, 8);
+  }
+
+  buscarRecomendado(item: CotizacionItem) {
+    this.searchTerm = item.nombre;
+    this.searchFocused = false;
   }
 }

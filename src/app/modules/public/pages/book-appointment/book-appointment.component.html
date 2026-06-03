@@ -38,6 +38,7 @@
       }
     </section>
 
+    @if (!hasPreSelected) {
     <section class="book-panel">
       <h3><span class="book-step">1</span> Elige el servicio</h3>
       <div class="svc-tipo-toggle">
@@ -57,6 +58,7 @@
         }
       </div>
     </section>
+    }
 
     @if (selectedServiceIds.length > 0) {
       <section class="book-panel">
@@ -75,6 +77,7 @@
                   <input type="radio" name="producto" [checked]="selectedProduct?.id === p.id" (change)="selectProduct(p)" />
                   <img [src]="img(p)" [alt]="p.nombre" loading="lazy" width="50" height="38" class="product-pick-img" />
                   <span class="product-pick-name">{{ p.nombre }}</span>
+                  <span class="product-pick-price">{{ formatPrecio(p.precio) }}</span>
                 </label>
             }
           </div>

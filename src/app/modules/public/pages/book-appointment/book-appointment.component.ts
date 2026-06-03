@@ -64,7 +64,7 @@ export class BookAppointmentComponent implements OnInit {
   private bookedCache = new Map<string, Set<string>>();
   private slotCache = new Map<string, HorarioSlot[]>();
   private serviciosFromApi = false;
-  private hasPreSelected = false;
+  hasPreSelected = false;
   private resolvingFallback = false;
 
   private autoSelectTimer: any = null;
@@ -405,6 +405,11 @@ export class BookAppointmentComponent implements OnInit {
   }
 
   img(p: ProductoItem) { return resolvedProductImage(p); }
+
+  formatPrecio(n: number) {
+    if (!n) return '—';
+    return '$' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
+  }
 
   private generateTicket(): string {
     const prefix = 'LS';

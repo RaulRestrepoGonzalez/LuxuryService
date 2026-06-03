@@ -365,10 +365,11 @@
 }
 
 .product-pick-price {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #ff2b2b;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #c62828;
   white-space: nowrap;
+  text-shadow: 0 0 6px rgba(198, 40, 40, 0.12);
 }
 
 .product-selected-badge {

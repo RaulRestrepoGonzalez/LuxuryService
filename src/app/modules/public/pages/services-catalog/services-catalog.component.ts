@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService } from 'src/app/core/services/api.service';
 import { Servicio, FALLBACK_SERVICIOS, groupByCategoria, sortByNombreNatural } from 'src/app/shared/constants/servicios.data';
@@ -72,7 +72,7 @@ export class ServicesCatalogComponent implements OnInit {
     return this.CAT_SIEMPRE_VISIBLE.has(cat);
   }
 
-  constructor(private api: ApiService, private sanitizer: DomSanitizer) {
+  constructor(private api: ApiService, private sanitizer: DomSanitizer, private router: Router) {
     const fb = groupByCategoria(FALLBACK_SERVICIOS);
     this.categorias = fb.categorias;
     const sorted: Record<string, Servicio[]> = {};
@@ -127,6 +127,10 @@ export class ServicesCatalogComponent implements OnInit {
 
   showAll() {
     this.activeFilter = 'Todos';
+  }
+
+  agendar(servicioId: string) {
+    this.router.navigate(['/agendar-cita'], { queryParams: { servicio: servicioId } });
   }
 
   totalInCategory(cat: string) {

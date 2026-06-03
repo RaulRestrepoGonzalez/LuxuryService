@@ -16,8 +16,19 @@
     <div class="cot-body">
       <div class="cot-columns">
         <div class="cot-options">
-          <div class="cot-search">
+          <div class="cot-search" (focusin)="searchFocused = true" (focusout)="searchFocused = false">
             <input type="text" class="cot-search-input" placeholder="Buscar servicios…" [(ngModel)]="searchTerm" />
+            @if (searchFocused && !searchTerm && recomendados.length) {
+              <div class="cot-search-dropdown">
+                <div class="cot-search-dd-header">Recomendados</div>
+                @for (item of recomendados; track item.id) {
+                  <button type="button" class="cot-search-dd-item" (mousedown)="buscarRecomendado(item)">
+                    <span class="cot-search-dd-name">{{ item.nombre }}</span>
+                    <span class="cot-search-dd-price">{{ formatPrecio(item.precioReferencia) }}</span>
+                  </button>
+                }
+              </div>
+            }
           </div>
 
           <div class="cot-tipo-toggle">

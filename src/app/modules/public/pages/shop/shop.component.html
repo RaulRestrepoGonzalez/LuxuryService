@@ -16,6 +16,7 @@
             </div>
             <div class="featured-card-body">
               <h3>{{ p.nombre }}</h3>
+              <div class="catalog-price">{{ formatPrecio(p.precio) }}</div>
               <div style="margin-top:0.6rem;">
                 <button
                   type="button"
@@ -73,7 +74,8 @@
               <span class="md-card-meta" style="display:block;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.08em">{{ p.categoria }}</span>
             }
             <h3>{{ p.nombre }}</h3>
-            @if (productDescription(p)) {
+              <div class="catalog-price">{{ formatPrecio(p.precio) }}</div>
+              @if (productDescription(p)) {
               <p class="md-card-desc">{{ productDescription(p) }}</p>
             }
             <div class="md-card-footer">

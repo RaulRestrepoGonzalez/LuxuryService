@@ -1,6 +1,7 @@
 import { Component, OnInit, AfterViewInit, ChangeDetectorRef, PLATFORM_ID, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 
 import { ApiService } from 'src/app/core/services/api.service';
@@ -8,7 +9,7 @@ import { ApiService } from 'src/app/core/services/api.service';
 @Component({
   selector: 'app-inventory-mgmt',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterModule],
   styles: [`
     :host { display: block; padding: 1.5rem 0; }
     .admin-nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
@@ -24,6 +25,9 @@ import { ApiService } from 'src/app/core/services/api.service';
     .bar button:hover { opacity: .85; }
     .bar button.sec { background: #f0f0f0; color: #555; }
     .bar button.sec:hover { background: #e0e0e0; color: #0a0a0a; }
+    .bar-search { flex: 1; min-width: 120px; padding: 0.4rem 0.75rem; border-radius: 999px; border: 1px solid #ddd; font-size: 0.78rem; font-family: inherit; outline: none; color: #0a0a0a; background: #fff; }
+    .bar-search:focus { border-color: #ff2b2b; box-shadow: 0 0 0 2px rgba(255,43,43,0.1); }
+    .bar-search::placeholder { color: #aaa; }
     .scroll-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
     th { text-align: left; padding: 0.55rem 0.6rem; color: #888; font-weight: 700; border-bottom: 2px solid #e8e8e8; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
@@ -74,7 +78,8 @@ import { ApiService } from 'src/app/core/services/api.service';
           <button (click)="showProdForm = !showProdForm; prodEdt = null; productoForm.reset({ stock: 0, precio: 0 })">
             {{ showProdForm ? 'Cancelar' : '+ Añadir' }}
           </button>
-          <span style="font-size:0.75rem;color:rgba(255,255,255,0.35)">{{ productos.length }} registros</span>
+          <input type="text" class="bar-search" placeholder="Buscar…" [(ngModel)]="prodSearch" />
+          <span style="font-size:0.75rem;color:#aaa">{{ productosFiltrados.length }} / {{ productos.length }}</span>
         </div>
 
         @if (showProdForm) {
@@ -104,7 +109,7 @@ import { ApiService } from 'src/app/core/services/api.service';
               <tr><th>Nombre</th><th>Cat</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr>
             </thead>
             <tbody>
-              @for (p of productos; track p.id || p._id) {
+              @for (p of productosFiltrados; track p.id || p._id) {
                 <tr>
                   <td>{{ p.nombre }}</td>
                   <td><span class="badge badge-cat">{{ p.categoria }}</span></td>
@@ -123,8 +128,8 @@ import { ApiService } from 'src/app/core/services/api.service';
             </tbody>
           </table>
         </div>
-        @if (productos.length === 0) {
-          <div class="empty">No hay productos</div>
+        @if (productosFiltrados.length === 0) {
+          <div class="empty">{{ productos.length === 0 ? 'No hay productos' : 'Sin resultados de búsqueda' }}</div>
         }
       </div>
 
@@ -135,7 +140,8 @@ import { ApiService } from 'src/app/core/services/api.service';
           <button (click)="abrirFormSvc()">
             {{ showSvcForm ? 'Cancelar' : '+ Añadir' }}
           </button>
-          <span style="font-size:0.75rem;color:rgba(255,255,255,0.35)">{{ servicios.length }} registros</span>
+          <input type="text" class="bar-search" placeholder="Buscar…" [(ngModel)]="svcSearch" />
+          <span style="font-size:0.75rem;color:#aaa">{{ serviciosFiltrados.length }} / {{ servicios.length }}</span>
         </div>
 
         @if (showSvcForm) {
@@ -172,7 +178,7 @@ import { ApiService } from 'src/app/core/services/api.service';
               <tr><th>Nombre</th><th>Cat</th><th>Auto</th><th>Camioneta</th><th>Dur</th><th>Estado</th><th>Acciones</th></tr>
             </thead>
             <tbody>
-              @for (s of servicios; track s.id || s._id) {
+              @for (s of serviciosFiltrados; track s.id || s._id) {
                 <tr>
                   <td>{{ s.nombre }}@if (s.subcategoria) { <span class="badge badge-cat">{{ s.subcategoria }}</span> }</td>
                   <td><span class="badge badge-cat">{{ s.categoria }}</span></td>
@@ -192,8 +198,8 @@ import { ApiService } from 'src/app/core/services/api.service';
             </tbody>
           </table>
         </div>
-        @if (servicios.length === 0) {
-          <div class="empty">No hay servicios</div>
+        @if (serviciosFiltrados.length === 0) {
+          <div class="empty">{{ servicios.length === 0 ? 'No hay servicios' : 'Sin resultados de búsqueda' }}</div>
         }
       </div>
 
@@ -208,12 +214,28 @@ export class InventoryMgmtComponent implements OnInit, AfterViewInit {
   productoForm: FormGroup;
   showProdForm = false;
   prodEdt: any = null;
+  prodSearch = '';
 
   // Services
   servicios: any[] = [];
   svcForm: FormGroup;
   showSvcForm = false;
   svcEdt: any = null;
+  svcSearch = '';
+
+  get productosFiltrados() {
+    const q = this.prodSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return this.productos
+      .filter(p => (p.nombre + ' ' + (p.categoria || '')).toLowerCase().includes(q))
+      .sort((a, b) => a.nombre?.localeCompare(b.nombre, 'es', { sensitivity: 'base' }) || 0);
+  }
+
+  get serviciosFiltrados() {
+    const q = this.svcSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return this.servicios
+      .filter(s => (s.nombre + ' ' + (s.categoria || '')).toLowerCase().includes(q))
+      .sort((a, b) => a.nombre?.localeCompare(b.nombre, 'es', { sensitivity: 'base' }) || 0);
+  }
 
   constructor(private api: ApiService, private fb: FormBuilder, private cdr: ChangeDetectorRef) {
     this.productoForm = this.fb.group({
