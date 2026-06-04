@@ -27,7 +27,7 @@ const PRODUCT_IMAGES: Record<string, string> = {
 const DEFAULT_SERVICE = 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&q=75';
 const DEFAULT_PRODUCT = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&q=75';
 
-export const HERO_IMAGE = 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=1200&q=75';
+export const HERO_IMAGE = 'https://puromotor.com/wp-content/uploads/2020/10/e3e57a69f786d78de0950f9d1243daab.jpg';
 
 const MOBIL_10W40_IMAGE = 'https://aldauto.co/wp-content/uploads/2024/07/MO-10W40-SP-CT-1.jpg';
 const MOBIL_10W40_GALON_IMAGE = 'https://aldauto.co/wp-content/uploads/2024/07/MO-10W40-SP-GL-1.jpg';

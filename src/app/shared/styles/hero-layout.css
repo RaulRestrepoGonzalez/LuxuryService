@@ -2,12 +2,12 @@
 
 .page-hero {
   position: relative;
-  min-height: 68vh;
+  min-height: 92vh;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 5rem 1.5rem 3.5rem;
+  padding: 5rem 1.5rem 5rem;
   margin: 0 -2rem 0;
   overflow: hidden;
 }
@@ -15,7 +15,7 @@
 .page-hero-content {
   position: relative;
   z-index: 1;
-  max-width: 620px;
+  max-width: 640px;
   animation: md-fade-in 0.7s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
@@ -23,13 +23,44 @@
   position: absolute;
   inset: 0;
   background-size: cover;
-  background-position: center;
-  transform: scale(1.02);
+  background-position: center 30%;
+  transform: scale(1);
   transition: transform 8s ease-out;
 }
 
 .page-hero:hover .page-hero-bg {
-  transform: scale(1.06);
+  transform: scale(1.04);
+}
+
+@media (max-width: 768px) {
+  .page-hero {
+    min-height: 82vh;
+    padding: 4rem 1rem 3rem;
+    margin: 0 -1rem 0;
+  }
+  .page-hero-content {
+    max-width: 100%;
+  }
+  .page-hero h1 {
+    font-size: clamp(1.6rem, 5vw, 2.25rem);
+  }
+  .page-hero p {
+    font-size: clamp(0.85rem, 2.5vw, 1rem);
+    max-width: 100%;
+  }
+  .page-hero-bg {
+    background-position: center 20%;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-hero {
+    min-height: 78vh;
+    padding: 3rem 0.75rem 2rem;
+  }
+  .page-hero h1 {
+    font-size: clamp(1.4rem, 5.5vw, 1.8rem);
+  }
 }
 
 .page-hero-overlay {
@@ -63,13 +94,6 @@
   margin-right: auto;
 }
 
-.hero-cta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: center;
-}
-
 .btn-hero-primary {
   display: inline-block;
   padding: 0.95rem 2rem;
@@ -92,27 +116,6 @@
   color: #fff;
 }
 
-.btn-hero-outline {
-  display: inline-block;
-  padding: 0.95rem 2rem;
-  background: transparent;
-  color: #fff;
-  font-weight: 800;
-  font-size: 0.85rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-decoration: none;
-  border: 2px solid #fff;
-  border-radius: 2px;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
-}
-
-.btn-hero-outline:hover {
-  background: #fff;
-  color: #0a0a0a;
-  transform: translateY(-2px);
-}
-
 .home-services-preview {
   background: #fff;
   padding: 4rem 1.5rem 5rem;
@@ -133,6 +136,16 @@
   margin: 0 -2rem;
   padding: 0;
   color: #0a0a0a;
+}
+
+@media (max-width: 768px) {
+  .home-services-preview {
+    padding: 3rem 1rem 4rem;
+    margin: 0 -1rem;
+  }
+  .page-light {
+    margin: 0 -1rem;
+  }
 }
 
 .catalog-section-title {

@@ -1,160 +1,168 @@
-<div class="book-page page-light">
-
-  <h2 class="catalog-section-title">
-    <span class="slash">/</span> AGENDAR CITA <span class="slash">/</span>
-  </h2>
+<div class="book-page">
 
   @if (!auth.isLoggedIn()) {
     <div class="book-alert">
-      <p>Accede solo con tu correo para agendar y recibir confirmación por notificación.</p>
-      <a routerLink="/acceso" class="btn-hero-primary">Acceder</a>
+      <p>Accede con tu correo para agendar y recibir confirmación.</p>
+      <a routerLink="/acceso" class="book-alert-btn">Acceder</a>
     </div>
   }
 
-  <form [formGroup]="appointmentForm" (ngSubmit)="submit()" class="book-layout">
-    <section class="book-panel">
-      <h3><span class="book-step">–</span> ¿Tienes una Gift Card?</h3>
-      <div class="gc-si-no">
-        <button type="button" class="gc-si-no-btn" [class.active]="showGiftCardInput" (click)="showGiftCardInput = true">Sí</button>
-        <button type="button" class="gc-si-no-btn" [class.active]="!showGiftCardInput && !usandoGiftCard" (click)="clearGiftCard()">No</button>
+  <form [formGroup]="appointmentForm" (ngSubmit)="submit()" class="book-flow">
+
+    <!-- Gift Card -->
+    <div class="book-card">
+      <h3 class="book-card-title">¿Tienes una Gift Card?</h3>
+      <div class="book-gc-toggle">
+        <button type="button" class="book-gc-btn" [class.active]="showGiftCardInput" (click)="showGiftCardInput = true">Sí</button>
+        <button type="button" class="book-gc-btn" [class.active]="!showGiftCardInput && !usandoGiftCard" (click)="clearGiftCard()">No</button>
       </div>
       @if (showGiftCardInput) {
-        <div class="gc-code-row">
-          <input type="text" class="book-search-input" placeholder="Ej: ABCDE-FGHJ2-NPQRS-TUVW3" [(ngModel)]="giftCardCode" [ngModelOptions]="{standalone: true}" style="flex:1;min-width:0;text-transform:uppercase;font-family:monospace;letter-spacing:0.05em" />
-          <button type="button" class="gc-validate-btn" (click)="validateGiftCard()" [disabled]="!giftCardCode.trim() || validatingGiftCard">
+        <div class="book-gc-row">
+          <input type="text" class="book-search" placeholder="Ej: ABCDE-FGHJ2-NPQRS-TUVW3" [(ngModel)]="giftCardCode" [ngModelOptions]="{standalone: true}" style="flex:1;min-width:0;text-transform:uppercase;font-family:monospace;letter-spacing:0.05em" />
+          <button type="button" class="book-gc-validate" (click)="validateGiftCard()" [disabled]="!giftCardCode.trim() || validatingGiftCard">
             {{ validatingGiftCard ? 'Validando…' : 'Validar' }}
           </button>
         </div>
         @if (giftCardValid) {
           @if (giftCardValid.valid) {
-            <div class="gc-valid-badge">
+            <div class="book-gc-badge valid">
               ✅ Gift Card {{ giftCardValid.etiqueta }}
-              <button type="button" class="gc-clear-btn" (click)="clearGiftCard()" title="Quitar gift card">×</button>
+              <button type="button" class="book-gc-clear" (click)="clearGiftCard()">×</button>
             </div>
           } @else if (!errorMsg) {
-            <div class="gc-invalid-badge">❌ {{ giftCardValid.error || 'Gift Card inválida' }}</div>
+            <div class="book-gc-badge invalid">❌ {{ giftCardValid.error || 'Gift Card inválida' }}</div>
           }
         }
       }
-    </section>
+    </div>
 
-    @if (!hasPreSelected) {
-    <section class="book-panel">
-      <h3><span class="book-step">1</span> Elige el servicio</h3>
-      <div class="svc-tipo-toggle">
-        <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'">🚗 Automóvil</button>
-        <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'">🚙 Camioneta</button>
-        <button type="button" class="svc-tipo-btn" [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'">🏍️ Moto</button>
+    <!-- Steps indicator -->
+    <div class="book-steps">
+      <span class="book-step-dot" [class.done]="selectedServiceIds.length > 0">1</span>
+      <span class="book-step-line" [class.done]="selectedServiceIds.length > 0"></span>
+      <span class="book-step-dot" [class.done]="!!appointmentForm.get('fecha')?.value">2</span>
+      <span class="book-step-line" [class.done]="!!appointmentForm.get('horario')?.value"></span>
+      <span class="book-step-dot" [class.done]="!!appointmentForm.get('horario')?.value">3</span>
+    </div>
+
+    <!-- Step 1: Service -->
+    <div class="book-card">
+      <h3 class="book-card-title">Elige tu servicio</h3>
+
+      @if (!hasPreSelected) {
+      <div class="book-vehicle-toggle">
+        <button type="button" class="book-vehicle-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'">🚗 Auto</button>
+        <button type="button" class="book-vehicle-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'">🚙 Camioneta</button>
+        <button type="button" class="book-vehicle-btn" [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'">🏍️ Moto</button>
       </div>
-      <div class="book-search">
-        <input type="text" class="book-search-input" placeholder="Buscar servicio…" [(ngModel)]="searchServicio" [ngModelOptions]="{standalone: true}" (ngModelChange)="onSearchChange()" />
+      }
+
+      <div class="book-search-box">
+        <input type="text" class="book-search" placeholder="Buscar servicio…" [(ngModel)]="searchServicio" [ngModelOptions]="{standalone: true}" (ngModelChange)="onSearchChange()" />
       </div>
-      <div class="service-picks">
+
+      <div class="book-svc-list">
         @for (s of filteredServicios; track s.id) {
-          <label class="service-pick" [class.selected]="selectedServiceIds.includes(s.id)">
+          <label class="book-svc-item" [class.selected]="selectedServiceIds.includes(s.id)">
             <input type="checkbox" [checked]="selectedServiceIds.includes(s.id)" (change)="toggleService(s.id)" />
-            <span class="service-pick-name">{{ s.nombre }}</span>
+            <span class="book-svc-check"></span>
+            <span class="book-svc-name">{{ s.nombre }}</span>
           </label>
         }
       </div>
-    </section>
-    }
+    </div>
 
     @if (selectedServiceIds.length > 0) {
-      <section class="book-panel">
-        <h3><span class="book-step">2</span> ¿Deseas agregar un producto?</h3>
-        <div class="product-choice">
-          <button type="button" class="product-choice-btn" [class.active]="showProductSelection" (click)="toggleProductSelection(true)">Sí</button>
-          <button type="button" class="product-choice-btn" [class.active]="!showProductSelection && selectedProduct === null" (click)="toggleProductSelection(false)">No</button>
-        </div>
-        @if (showProductSelection) {
-          <div class="book-search">
-            <input type="text" class="book-search-input" placeholder="Buscar producto…" [(ngModel)]="searchProducto" [ngModelOptions]="{standalone: true}" />
-          </div>
-          <div class="product-picks">
-            @for (p of filteredProductos; track p.id) {
-                <label class="product-pick" [class.selected]="selectedProduct?.id === p.id">
-                  <input type="radio" name="producto" [checked]="selectedProduct?.id === p.id" (change)="selectProduct(p)" />
-                  <img [src]="img(p)" [alt]="p.nombre" loading="lazy" width="50" height="38" class="product-pick-img" />
-                  <span class="product-pick-name">{{ p.nombre }}</span>
-                  <span class="product-pick-price">{{ formatPrecio(p.precio) }}</span>
-                </label>
-            }
-          </div>
-        }
-        @if (selectedProduct) {
-          <div class="product-selected-badge">
-            Producto seleccionado: <strong>{{ selectedProduct.nombre }}</strong>
-          </div>
-        }
-      </section>
-    }
+      <!-- Step 2: Date & Product -->
+      <div class="book-card">
+        <h3 class="book-card-title">Elige fecha</h3>
 
-    @if (selectedServiceIds.length > 0) {
-      <section class="book-panel">
-        <h3><span class="book-step">3</span> Selecciona la fecha</h3>
-        <div class="calendar">
-          <div class="calendar-nav">
-            <button type="button" class="cal-nav-btn" (click)="prevMonth()">‹</button>
-            <span class="cal-month">{{ monthLabel() }}</span>
-            <button type="button" class="cal-nav-btn" (click)="nextMonth()">›</button>
+        <div class="book-cal">
+          <div class="book-cal-nav">
+            <button type="button" class="book-cal-nav-btn" (click)="prevMonth()">‹</button>
+            <span class="book-cal-month">{{ monthLabel() }}</span>
+            <button type="button" class="book-cal-nav-btn" (click)="nextMonth()">›</button>
           </div>
-          <div class="calendar-weekdays">
+          <div class="book-cal-weekdays">
             @for (d of weekDays; track d) { <span>{{ d }}</span> }
           </div>
-          <div class="calendar-grid">
+          <div class="book-cal-grid">
             @for (day of calendarDays; track day.iso) {
-              <button
-                type="button"
-                class="cal-day"
-                [class.other-month]="!day.inMonth"
+              <button type="button" class="book-cal-day"
+                [class.other]="!day.inMonth"
                 [class.disabled]="day.disabled"
-                [class.booked]="day.fullyBooked"
                 [class.selected]="isSelectedDate(day.iso)"
                 [disabled]="day.disabled"
-                (click)="selectDate(day.iso, day.disabled)"
-              >
+                (click)="selectDate(day.iso, day.disabled)">
                 {{ day.date.getDate() }}
               </button>
             }
           </div>
-          <p class="cal-legend"><span class="dot booked"></span> Día completo · Horarios: 10:00 a.m. y 2:00 p.m.</p>
         </div>
-      </section>
+      </div>
     }
 
     @if (appointmentForm.get('fecha')?.value) {
-      <section class="book-panel">
-        <h3><span class="book-step">4</span> Elige el horario</h3>
+      <!-- Time slots -->
+      <div class="book-card">
+        <h3 class="book-card-title">Elige horario</h3>
+
         @if (loadingSlots) {
-          <p class="book-hint">Cargando horarios...</p>
+          <p class="book-muted">Cargando horarios…</p>
         } @else if (horarios.length === 0) {
-          <p class="book-hint">No hay horarios disponibles este día</p>
+          <p class="book-muted">No hay horarios disponibles este día</p>
         } @else {
-          <div class="time-slots">
+          <div class="book-slots">
             @for (h of horarios; track h.value) {
-              <button
-                type="button"
-                class="time-slot"
+              <button type="button" class="book-slot"
                 [class.selected]="appointmentForm.get('horario')?.value === h.value"
-                (click)="selectHorario(h)"
-              >
+                (click)="selectHorario(h)">
                 {{ h.label }}
               </button>
             }
           </div>
         }
-      </section>
+
+        @if (appointmentForm.get('horario')?.value && !successMsg) {
+          <div class="book-extras">
+            <details class="book-details">
+              <summary>Agregar producto (opcional)</summary>
+              <div class="book-search-box">
+                <input type="text" class="book-search" placeholder="Buscar producto…" [(ngModel)]="searchProducto" [ngModelOptions]="{standalone: true}" />
+              </div>
+              <div class="book-prod-list">
+                @for (p of filteredProductos; track p.id) {
+                  <div class="book-prod-item" [class.selected]="selectedProduct?.id === p.id" (click)="selectProduct(p)">
+                    <img [src]="img(p)" [alt]="p.nombre" loading="lazy" class="book-prod-img" />
+                    <span class="book-prod-name">{{ p.nombre }}</span>
+                    <span class="book-prod-price">{{ formatPrecio(p.precio) }}</span>
+                  </div>
+                }
+              </div>
+            </details>
+          </div>
+        }
+      </div>
     }
 
-    @if (successMsg) { <div class="book-success">{{ successMsg }}</div> }
-    @if (errorMsg) { <div class="book-error">{{ errorMsg }}</div> }
+    @if (successMsg) { <div class="book-msg success">{{ successMsg }}</div> }
+    @if (errorMsg) { <div class="book-msg error">{{ errorMsg }}</div> }
 
+    <!-- CTA -->
     @if (selectedServiceIds.length > 0 && appointmentForm.get('horario')?.value && !successMsg) {
-      <p class="book-terms">🕐 *Horario de atención:* Lunes a Sábado de 7:00 a.m. a 6:00 p.m., Domingos de 7:00 a.m. a 2:00 p.m. Te responderemos a la brevedad.</p>
-      <button type="button" class="btn-hero-primary book-submit" [disabled]="submitting || !auth.isLoggedIn() || selectedServiceIds.length === 0" (click)="submit()">
-        {{ submitting ? 'Generando ticket...' : 'Agendar cita por WhatsApp' }}
-      </button>
+      <div class="book-cta-card">
+        <div class="book-cta-summary">
+          <span class="book-cta-svc">{{ selectedServiceNames }}</span>
+          @if (selectedProduct) {
+            <span class="book-cta-prod">+ {{ selectedProduct.nombre }}</span>
+          }
+        </div>
+        <button type="button" class="book-cta-btn" [disabled]="submitting" (click)="submit()">
+          {{ submitting ? 'Generando…' : 'Confirmar cita por WhatsApp' }}
+        </button>
+        <p class="book-cta-info">Lun - Sáb 8:00 a.m. - 6:00 p.m.</p>
+      </div>
     }
+
   </form>
 </div>

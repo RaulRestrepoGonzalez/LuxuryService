@@ -5,12 +5,10 @@
   </button>
   <nav class="site-nav" [class.open]="menuOpen">
     <div class="site-nav-group">
-      <a routerLink="/" routerLinkActive="nav-active" [routerLinkActiveOptions]="{exact:true}" (click)="closeMenu()">Inicio</a>
-      <a routerLink="/servicios" routerLinkActive="nav-active" (click)="closeMenu()">Servicios</a>
-      <a routerLink="/cotizar" routerLinkActive="nav-active" (click)="closeMenu()">Cotizar</a>
-      <a routerLink="/tienda" routerLinkActive="nav-active" (click)="closeMenu()">Productos</a>
-      <a routerLink="/tarjeta-regalo" routerLinkActive="nav-active" (click)="closeMenu()">Gift Card</a>
-      <a routerLink="/agendar-cita" routerLinkActive="nav-active" (click)="closeMenu()">Agendar cita</a>
+      <a routerLink="/" routerLinkActive="nav-active" [routerLinkActiveOptions]="{exact:true}" (click)="closeMenu()">🏠 Inicio</a>
+      <a routerLink="/agendar-cita" routerLinkActive="nav-active" (click)="closeMenu()">📅 Agendar cita</a>
+      <a routerLink="/tienda" routerLinkActive="nav-active" (click)="closeMenu()">🛍️ Productos</a>
+      <a routerLink="/tarjeta-regalo" routerLinkActive="nav-active" (click)="closeMenu()">🎁 Gift Card</a>
     </div>
     @if (auth.currentUser$ | async; as user) {
       <div class="site-nav-group site-nav-group-user">

@@ -129,6 +129,10 @@ export class ServicesCatalogComponent implements OnInit {
     this.activeFilter = 'Todos';
   }
 
+  toggleDetail(servicioId: string) {
+    this.hoveredCard = this.hoveredCard === servicioId ? null : servicioId;
+  }
+
   agendar(servicioId: string) {
     this.router.navigate(['/agendar-cita'], { queryParams: { servicio: servicioId } });
   }

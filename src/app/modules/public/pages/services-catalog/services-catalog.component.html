@@ -62,7 +62,7 @@
 
         <div class="svc-list">
           @for (s of filteredGrouped[cat]; track s.id) {
-            <div class="svc-list-item" [class.expanded]="hoveredCard === s.id" (mouseenter)="hoveredCard = s.id" (mouseleave)="hoveredCard = null">
+            <div class="svc-list-item" [class.expanded]="hoveredCard === s.id" (mouseenter)="hoveredCard = s.id" (mouseleave)="hoveredCard = null" (click)="toggleDetail(s.id)">
               <div class="svc-list-front">
                 <span class="svc-list-name">{{ s.nombre }}</span>
                 @if (s.cotizar_local) {
@@ -104,7 +104,7 @@
   </div>
 
   <div class="svc-bottom-cta">
-    <p>¿Listo para agendar? Horarios: <strong>10:00 a.m.</strong> y <strong>2:00 p.m.</strong></p>
+    <p>¿Listo para agendar? Horarios: <strong>8:00 a.m.</strong> a <strong>6:00 p.m.</strong></p>
     <a routerLink="/agendar-cita" class="btn-hero-primary">Agendar cita</a>
   </div>
 </div>

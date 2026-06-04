@@ -5,11 +5,58 @@
     <p class="hero-brand-line"><img src="/logo.png" alt="Luxury Service" class="hero-logo" loading="lazy" fetchpriority="high" /></p>
     <h1>Expertos en servicio automotriz premium</h1>
     <p>IVA incluido · Autos y camionetas</p>
-    <div class="hero-cta-row">
-      <a routerLink="/agendar-cita" class="btn-hero-primary">Solicitar servicio</a>
-      <a routerLink="/servicios" class="btn-hero-outline">Ver servicios</a>
+
+    <!-- Cotizar -->
+    <div class="hero-cotizar">
+      <div class="cotizar-post">
+        <div class="cotizar-post-body">
+          @if (!selected) {
+            <div class="cotizar-search-wrap" (focusin)="searchFocused = true" (focusout)="searchFocused = false">
+              <input type="text" class="cotizar-search-input" placeholder="Busca un servicio o combo…" [(ngModel)]="searchTerm" />
+              @if (searchFocused && recomendadosFiltrados.length) {
+                <div class="cotizar-search-dd">
+                  @for (s of recomendadosFiltrados; track s.id) {
+                    <div class="cotizar-search-dd-item">
+                      <div class="cotizar-search-dd-info">
+                        <span class="cotizar-search-dd-name">{{ s.nombre }}</span>
+                        <span class="cotizar-search-dd-price">Desde {{ formatPrecio(s.precio_base) }}</span>
+                      </div>
+                      <button type="button" class="cotizar-search-dd-btn" (mousedown)="seleccionar(s)">Seleccionar</button>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+            <div class="cotizar-sugerencias">
+              <span class="cotizar-sug-label">Populares:</span>
+              <button type="button" class="cotizar-sug-btn" (click)="searchTerm = 'Combo'">Combos</button>
+              <button type="button" class="cotizar-sug-btn" (click)="searchTerm = 'Lavado'">Lavado</button>
+              <button type="button" class="cotizar-sug-btn" (click)="searchTerm = 'Detailing'">Detailing</button>
+              <button type="button" class="cotizar-sug-btn" (click)="searchTerm = 'Encerado'">Encerado</button>
+            </div>
+          } @else {
+            <div class="cotizar-selected">
+              <div class="cotizar-selected-head">
+                <span class="cotizar-selected-name">{{ selected.nombre }}</span>
+                <button type="button" class="cotizar-selected-clear" (click)="limpiarSeleccion()">✕</button>
+              </div>
+              <div class="cotizar-selected-prices">
+                <div class="cotizar-selected-price-box">
+                  <span class="cotizar-selected-price-label">Desde</span>
+                  <span class="cotizar-selected-price-val">{{ formatPrecio(selected.precio_auto) }}</span>
+                </div>
+                <div class="cotizar-selected-price-box">
+                  <span class="cotizar-selected-price-label">Hasta</span>
+                  <span class="cotizar-selected-price-val">{{ formatPrecio(selected.precio_camioneta) }}</span>
+                </div>
+              </div>
+              <p class="cotizar-selected-nota">Estos valores son una referencia. El precio final puede variar según el estado, tamaño y condiciones particulares de tu vehículo.</p>
+              <button type="button" class="cotizar-selected-btn" (click)="agendar()">Agendar cita →</button>
+            </div>
+          }
+        </div>
+      </div>
     </div>
-    <p class="hero-hours">Te esperamos de lunes a s&aacute;bado, de 7:00 a.m. a 7:00 p.m. &mdash; los domingos de 7:00 a.m. a 2:00 p.m.</p>
   </div>
 </section>
 
@@ -24,46 +71,6 @@
         </div>
       }
     </div>
-  </div>
-</section>
-
-<section class="home-tarifario">
-  <div class="tarifario-header">
-    <div class="tarifario-brand">
-      <span class="tarifario-logo">LS</span>
-      <div>
-        <strong>Luxury Service</strong>
-        <em>Manga</em>
-      </div>
-    </div>
-  </div>
-
-  @if (loadingTarifario) {
-    <p class="tarifario-loading">Cargando...</p>
-  } @else {
-    <div class="tarifario-categories-wrap">
-      @for (cat of categoriasVisuales; track cat.nombre) {
-        <div class="tarifario-cat-block">
-          <div class="tarifario-cat-header">
-            <div class="tarifario-cat-title">
-              <span class="cat-icon">{{ cat.icono }}</span>
-              <h4>{{ cat.nombre }}</h4>
-            </div>
-            <span class="tarifario-cat-count">{{ cat.servicios.length }} servicios</span>
-          </div>
-          <div class="tarifario-table">
-            @for (s of cat.servicios; track s.id; let i = $index) {
-              <span class="tarifario-tag" [class.tag-outline]="i < 2">{{ s.nombre }}</span>
-            }
-          </div>
-        </div>
-      }
-    </div>
-  }
-
-  <div class="home-services-cta">
-    <a routerLink="/servicios" class="btn-hero-primary">Ver catálogo completo</a>
-    <a routerLink="/agendar-cita" class="btn-hero-outline-dark">Agendar cita</a>
   </div>
 </section>
 

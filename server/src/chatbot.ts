@@ -1,7 +1,20 @@
-import { getDb } from './db.js';
+import crypto from 'crypto';
+import { getDb, ObjectId } from './db.js';
 
-export const HORARIOS_LABEL = ['10:00 a.m.', '2:00 p.m.'] as const;
-export const HORARIOS = ['10:00', '14:00'] as const;
+export const HORARIO_LABELS: Record<string, string> = {
+  '08:00': '8:00 a.m.',
+  '09:00': '9:00 a.m.',
+  '10:00': '10:00 a.m.',
+  '11:00': '11:00 a.m.',
+  '12:00': '12:00 p.m.',
+  '13:00': '1:00 p.m.',
+  '14:00': '2:00 p.m.',
+  '15:00': '3:00 p.m.',
+  '16:00': '4:00 p.m.',
+  '17:00': '5:00 p.m.',
+  '18:00': '6:00 p.m.'
+};
+export const HORARIOS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'] as const;
 
 export type Vehiculo = 'auto' | 'camioneta' | 'moto';
 
@@ -12,9 +25,31 @@ export interface ChatTurn {
   intent?: string;
 }
 
+interface ServiceItem {
+  _id?: string;
+  nombre: string;
+  descripcion: string;
+  duracion_minutos: number;
+  categoria?: string;
+  cotizar_local?: boolean;
+  precio_base?: number;
+  precio_auto?: number;
+  precio_camioneta?: number;
+  precio_moto?: number;
+}
+
+interface ProductItem {
+  _id?: string;
+  nombre: string;
+  descripcion: string;
+  stock: number;
+  categoria?: string;
+  precio?: number;
+}
+
 interface CatalogCache {
-  services: { nombre: string; descripcion: string; duracion_minutos: number; categoria?: string; cotizar_local?: boolean }[];
-  products: { nombre: string; descripcion: string; stock: number; categoria?: string }[];
+  services: ServiceItem[];
+  products: ProductItem[];
   loadedAt: number;
 }
 
@@ -68,12 +103,18 @@ async function getCatalog(): Promise<CatalogCache> {
   try {
     const db = getDb();
     const [services, products] = await Promise.all([
-      db.collection('servicios').find({ activo: true }).project({ nombre: 1, descripcion: 1, duracion_minutos: 1, categoria: 1, cotizar_local: 1 }).toArray(),
-      db.collection('productos').find({ nombre: { $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i } }).project({ nombre: 1, descripcion: 1, stock: 1, categoria: 1 }).toArray()
+      db.collection('servicios').find({ activo: true })
+        .project({ nombre: 1, descripcion: 1, duracion_minutos: 1, categoria: 1, cotizar_local: 1, precio_base: 1, precio_auto: 1, precio_camioneta: 1, precio_moto: 1 })
+        .toArray(),
+      db.collection('productos').find({
+        nombre: { $not: /\b(CAFE|CAFÉ|TINTO|CAPUCCINO|CAPUCHINO|COCOSET|COCOSETTE|ABUELITA|NESCAFE|LATTES|LATTE|CHOCOLATE|CERVEZA|GASEOSA|GATORADE|JUGO|GALLETA|CHIPS|CHEETOS|DORITOS|DETODITO|FRITOLAY|CHOKIS|MONSTER ENERGY|RED BULL|PALETA|PALETTA|PALETT)\b/i }
+        })
+        .project({ nombre: 1, descripcion: 1, stock: 1, categoria: 1, precio: 1 })
+        .toArray()
     ]);
     cache = {
-      services: services as CatalogCache['services'],
-      products: products as CatalogCache['products'],
+      services: services as unknown as ServiceItem[],
+      products: products as unknown as ProductItem[],
       loadedAt: Date.now()
     };
   } catch (err) {
@@ -118,12 +159,38 @@ const SINONIMOS_SERVICIOS: Record<string, string[]> = {
   'Frenos': ['frenos', 'frenar', 'pastillas', 'discos', 'liquido frenos', 'freno'],
 };
 
-interface Intent {
-  name: string;
-  keywords: { word: string; weight: number }[];
-  minScore: number;
-  handler: (ctx: ChatContext) => string | null;
+const HORARIO_LINEA = HORARIOS.map(h => HORARIO_LABELS[h] || h);
+const HORARIOS_TEXTO = HORARIO_LINEA.slice(0, 3).join(', ') + ', ' + HORARIO_LINEA.slice(3, -1).join(', ') + ' y ' + HORARIO_LINEA[HORARIO_LINEA.length - 1];
+
+// ── Helpers ──────────────────────────────────────────────────────
+
+function precioServicio(s: ServiceItem, v?: Vehiculo | null): number | null {
+  if (!v) return s.precio_base ?? null;
+  if (v === 'auto') return s.precio_auto ?? s.precio_base ?? null;
+  if (v === 'camioneta') return s.precio_camioneta ?? s.precio_base ?? null;
+  return s.precio_moto ?? s.precio_base ?? null;
 }
+
+function formatPeso(n: number): string {
+  return '$' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
+}
+
+function formatoServicio(s: ServiceItem, v?: Vehiculo | null): string {
+  const p = precioServicio(s, v);
+  const precio = p !== null && p > 0 ? ` — ${formatPeso(p)}` : '';
+  return `• **${s.nombre}**${precio}`;
+}
+
+function servicioDetalle(s: ServiceItem, v?: Vehiculo | null): string {
+  let out = `🔧 **${s.nombre}**\n`;
+  out += `   ⏱ ${s.duracion_minutos} min`;
+  const p = precioServicio(s, v);
+  if (p !== null && p > 0) out += ` · 💰 ${formatPeso(p)}`;
+  if (s.descripcion) out += `\n   ${s.descripcion}`;
+  return out;
+}
+
+// ── Context ───────────────────────────────────────────────────────
 
 interface ChatContext {
   raw: string;
@@ -132,46 +199,64 @@ interface ChatContext {
   v: Vehiculo | null;
   label: string | null;
   catalog: CatalogCache;
-  servEncontrado: { nombre: string; descripcion: string; duracion_minutos: number; categoria?: string } | null;
-  prodEncontrado: { nombre: string; descripcion: string; stock: number; categoria?: string } | null;
+  serviciosEncontrados: ServiceItem[];
+  productosEncontrados: ProductItem[];
 }
 
-function buildContext(raw: string, vehiculo: Vehiculo | undefined, catalog: CatalogCache): ChatContext {
+function buildContext(raw: string, vehiculo: Vehiculo | null | undefined, catalog: CatalogCache): ChatContext {
   const lower = norm(raw);
   const tokens = tokenize(raw);
   const v = vehiculo || detectarVehiculo(raw) || null;
   const label = v ? (v === 'auto' ? 'Automóvil' : v === 'camioneta' ? 'Camioneta' : 'Moto') : null;
 
-  const svcNorm = catalog.services.map(s => ({
-    ...s,
-    _key: norm(s.nombre),
-    _tokens: tokenize(s.nombre)
-  }));
-
-  let servEncontrado: ChatContext['servEncontrado'] = null;
-  for (const s of svcNorm) {
-    if (lower.includes(s._key) || fuzzyIncludes(lower, s._key)) { servEncontrado = s; break; }
-    const fraseTokens = s._tokens.filter(t => t.length > 3);
-    if (fraseTokens.length > 0 && fraseTokens.every(t => lower.includes(t) || fuzzyIncludes(lower, t))) { servEncontrado = s; break; }
+  // Find matching services sorted by relevance
+  const scoredServices: { item: ServiceItem; score: number }[] = [];
+  for (const s of catalog.services) {
+    const key = norm(s.nombre);
+    let score = 0;
+    if (lower.includes(key)) score += 5;
+    if (fuzzyIncludes(lower, key)) score += 3;
+    const tokens = tokenize(s.nombre).filter(t => t.length > 3);
+    for (const t of tokens) {
+      if (lower.includes(t)) score += 2;
+      else if (fuzzyIncludes(lower, t)) score += 1;
+    }
+    if (score > 0) scoredServices.push({ item: s, score });
   }
+  scoredServices.sort((a, b) => b.score - a.score);
+  const serviciosEncontrados = scoredServices.slice(0, 5).map(s => s.item);
 
-  let prodEncontrado: ChatContext['prodEncontrado'] = null;
+  // Find matching products
+  const scoredProducts: { item: ProductItem; score: number }[] = [];
   for (const p of catalog.products) {
     const key = norm(p.nombre);
-    if (lower.includes(key) || fuzzyIncludes(lower, key)) { prodEncontrado = p; break; }
+    let score = 0;
+    if (lower.includes(key)) score += 5;
+    if (fuzzyIncludes(lower, key)) score += 3;
+    const tokens = tokenize(p.nombre).filter(t => t.length > 3);
+    for (const t of tokens) {
+      if (lower.includes(t)) score += 2;
+      else if (fuzzyIncludes(lower, t)) score += 1;
+    }
+    if (score > 0) scoredProducts.push({ item: p, score });
   }
+  scoredProducts.sort((a, b) => b.score - a.score);
+  const productosEncontrados = scoredProducts.slice(0, 5).map(p => p.item);
 
-  return { raw, lower, tokens, v, label, catalog, servEncontrado, prodEncontrado };
+  return { raw, lower, tokens, v, label, catalog, serviciosEncontrados, productosEncontrados };
 }
 
-function serviciosCompatibles(services: CatalogCache['services'], v?: Vehiculo | null) {
-  const compatibles = services.filter((s: any) => !s.cotizar_local);
-  const cotizables = services.filter((s: any) => s.cotizar_local);
-  return compatibles;
+function serviciosCompatibles(services: ServiceItem[], v?: Vehiculo | null) {
+  return services.filter((s: any) => !s.cotizar_local);
 }
 
-function serviciosCotizables(services: CatalogCache['services']): typeof services {
-  return services.filter((s: any) => s.cotizar_local);
+// ── Intent system ─────────────────────────────────────────────────
+
+interface Intent {
+  name: string;
+  keywords: { word: string; weight: number }[];
+  minScore: number;
+  handler: (ctx: ChatContext) => string | null;
 }
 
 function scoreIntent(ctx: ChatContext, keywords: { word: string; weight: number }[]): number {
@@ -189,7 +274,6 @@ function scoreIntent(ctx: ChatContext, keywords: { word: string; weight: number 
   return score;
 }
 
-// Detecta si el usuario está negando una intención
 function intentNegado(lower: string, intentName: string): boolean {
   const negaciones = ['no quiero', 'no necesito', 'no me interesa', 'no deseo', 'sin', 'solo quiero informacion', 'solo precio', 'solo quiero saber'];
   for (const neg of negaciones) {
@@ -202,7 +286,6 @@ function intentNegado(lower: string, intentName: string): boolean {
   return false;
 }
 
-// Extrae el vehículo del historial reciente
 function vehiculoDesdeHistorial(history: ChatTurn[]): Vehiculo | undefined {
   for (let i = history.length - 1; i >= 0; i--) {
     if (history[i].vehiculo) return history[i].vehiculo;
@@ -212,38 +295,24 @@ function vehiculoDesdeHistorial(history: ChatTurn[]): Vehiculo | undefined {
   return undefined;
 }
 
-// Detecta si el bot hizo una pregunta específica en el último turno
-function ultimaPreguntaBot(history: ChatTurn[]): 'vehiculo' | 'servicio' | 'fecha' | 'producto' | null {
+function ultimaPreguntaBot(history: ChatTurn[]): string | null {
   const ultimoBot = [...history].reverse().find(t => t.role === 'bot');
   if (!ultimoBot) return null;
   const t = ultimoBot.text;
-  if (
-    (t.includes('Automóvil') && t.includes('Camioneta') && t.includes('Moto')) ||
-    t.includes('¿tu vehículo es') ||
-    t.includes('tipo de vehículo') ||
-    t.includes('tu vehículo es') ||
-    t.includes('qué tipo de vehículo')
-  ) return 'vehiculo';
-  if (
-    t.includes('Tienes algún servicio') ||
-    t.includes('algún servicio en mente') ||
-    t.includes('Qué servicio') ||
-    t.includes('servicio en mente')
-  ) return 'servicio';
-  if (
-    t.includes('Qué fecha') ||
-    t.includes('selecciona fecha') ||
-    t.includes('Selecciona fecha') ||
-    t.includes('qué fecha')
-  ) return 'fecha';
-  if (
-    t.includes('producto en particular') ||
-    t.includes('Buscas algo en particular') ||
-    t.includes('Buscas algún producto') ||
-    t.includes('buscas algo')
-  ) return 'producto';
+  if (t.includes('__SLOT__VEHICULO__')) return 'vehiculo';
+  if (t.includes('__SLOT__SERVICIO__')) return 'servicio';
+  if (t.includes('__SLOT__FECHA__')) return 'fecha';
+  if (t.includes('__SLOT__PRODUCTO__')) return 'producto';
+  if (t.includes('__SLOT__CONFIRMAR_CITA__')) return 'confirmar_cita';
   return null;
 }
+
+function formatHorarios(): string {
+  const items = HORARIO_LINEA.map(h => `• ${h}`);
+  return items.join('\n');
+}
+
+// ── Intents ───────────────────────────────────────────────────────
 
 const INTENTS: Intent[] = [
   {
@@ -252,17 +321,16 @@ const INTENTS: Intent[] = [
       { word: 'hola', weight: 5 }, { word: 'buenas', weight: 5 }, { word: 'buenos', weight: 5 },
       { word: 'saludos', weight: 5 }, { word: 'hey', weight: 4 }, { word: 'buen dia', weight: 5 },
       { word: 'que mas', weight: 4 }, { word: 'q mas', weight: 4 }, { word: 'buenas tardes', weight: 5 },
-      { word: 'buenas noches', weight: 5 }, { word: 'buen dia', weight: 5 }, { word: 'como estas', weight: 3 },
-      { word: 'como vas', weight: 3 }, { word: 'que tal', weight: 4 }, { word: 'que hay', weight: 3 },
-      { word: 'buen dia tenga', weight: 4 }, { word: 'muy buenas', weight: 4 }, { word: 'hola buenas', weight: 5 },
-      { word: 'hola que tal', weight: 4 }, { word: 'hola como estas', weight: 4 }, { word: 'buenas tardes tenga', weight: 4 },
+      { word: 'buenas noches', weight: 5 }, { word: 'como estas', weight: 3 },
+      { word: 'que tal', weight: 4 }, { word: 'que hay', weight: 3 },
+      { word: 'muy buenas', weight: 4 }, { word: 'hola buenas', weight: 5 },
       { word: 'alo', weight: 3 }, { word: 'ola', weight: 3 },
     ],
     minScore: 4,
     handler: (ctx) => {
       const base = '¡Hola! Soy el asistente virtual de **Luxury Service Manga** 🚗✨';
-      if (!ctx.v) return base + '\n\n¿Qué tipo de vehículo tienes?\n• 🚗 **Automóvil**\n• 🚙 **Camioneta**\n• 🏍️ **Moto**\n\nTambién puedes preguntarme por servicios, productos u horarios.';
-      return base + `\n\nVeo que tienes **${ctx.label}**. ¿En qué puedo ayudarte?\n• Servicios disponibles\n• Productos en tienda\n• Horarios: 10:00 a.m. y 2:00 p.m.\n• Agendar una cita`;
+      if (!ctx.v) return base + '\n\n¿Qué tipo de vehículo tienes? __SLOT__VEHICULO__\n• 🚗 **Automóvil**\n• 🚙 **Camioneta**\n• 🏍️ **Moto**\n\nTambién puedes preguntarme por servicios, productos u horarios.';
+      return base + `\n\nVeo que tienes **${ctx.label}**. ¿En qué puedo ayudarte?\n• **Servicios** disponibles para ${ctx.label}\n• **Productos** en tienda\n• **Cotizar** un servicio\n• **Agendar** una cita`;
     }
   },
   {
@@ -272,9 +340,8 @@ const INTENTS: Intent[] = [
       { word: 'hasta luego', weight: 6 }, { word: 'nos vemos', weight: 6 }, { word: 'eso seria todo', weight: 5 },
       { word: 'gracias por tu', weight: 4 }, { word: 'gracias por su', weight: 4 }, { word: 'hasta pronto', weight: 6 },
       { word: 'que tengas buen', weight: 3 }, { word: 'feliz dia', weight: 3 }, { word: 'fue un placer', weight: 3 },
-      { word: 'hasta la vista', weight: 5 }, { word: 'nos vemos luego', weight: 5 }, { word: 'que estes bien', weight: 3 },
-      { word: 'cuídate', weight: 3 }, { word: 'cuidate', weight: 3 }, { word: 'gracias adios', weight: 5 },
-      { word: 'fue una atencion', weight: 3 }, { word: 'muchas gracias adios', weight: 5 },
+      { word: 'nos vemos luego', weight: 5 }, { word: 'cuídate', weight: 3 }, { word: 'cuidate', weight: 3 },
+      { word: 'gracias adios', weight: 5 }, { word: 'muchas gracias adios', weight: 5 },
     ],
     minScore: 3,
     handler: () => '¡Hasta luego! Gracias por contactarnos. En **Luxury Service** estamos para servirte. Vuelve cuando necesites 🚗✨'
@@ -283,92 +350,82 @@ const INTENTS: Intent[] = [
     name: 'ubicacion',
     keywords: [
       { word: 'donde', weight: 5 }, { word: 'ubicacion', weight: 6 }, { word: 'direccion', weight: 6 },
-      { word: 'como llegar', weight: 6 }, { word: 'maps', weight: 5 }, { word: 'estan ubicados', weight: 6 },
+      { word: 'como llegar', weight: 6 }, { word: 'estan ubicados', weight: 6 },
       { word: 'mapa', weight: 5 }, { word: 'ubicado', weight: 5 }, { word: 'queda', weight: 4 },
-      { word: 'qeda', weight: 3 }, { word: 'sede', weight: 4 }, { word: 'estan', weight: 3 },
-      { word: 'local', weight: 3 }, { word: 'lugar', weight: 3 }, { word: 'punto', weight: 3 },
-      { word: 'direccion exacta', weight: 6 }, { word: 'en que direccion', weight: 5 }, { word: 'como llego', weight: 5 },
-      { word: 'donde queda', weight: 5 }, { word: 'donde estan', weight: 5 }, { word: 'ubicacion exacta', weight: 6 },
-      { word: 'coordenadas', weight: 4 }, { word: 'waze', weight: 4 }, { word: 'google maps', weight: 5 },
+      { word: 'sede', weight: 4 }, { word: 'local', weight: 3 }, { word: 'lugar', weight: 3 },
+      { word: 'direccion exacta', weight: 6 }, { word: 'como llego', weight: 5 },
+      { word: 'donde queda', weight: 5 }, { word: 'coordenadas', weight: 4 },
+      { word: 'waze', weight: 4 }, { word: 'google maps', weight: 5 },
     ],
     minScore: 4,
-    handler: () => '📍 **Luxury Service Manga** en **Cartagena, Colombia**.\n\nAv. Principal Manga — a una cuadra del parque principal.\n\n📌 <https://maps.google.com/?q=Manga,+Cartagena,+Colombia>\n\n¿Necesitas el número para contactarnos o prefieres agendar una cita?'
+    handler: () => '📍 **Luxury Service Manga** en **Cartagena, Colombia**.\n\nAv. Principal Manga — a una cuadra del parque principal.\n\n📌 https://maps.google.com/?q=Manga,+Cartagena,+Colombia\n\n¿Necesitas el número para contactarnos o prefieres agendar una cita?'
   },
   {
     name: 'contacto',
     keywords: [
       { word: 'contacto', weight: 6 }, { word: 'telefono', weight: 6 }, { word: 'whatsapp', weight: 6 },
       { word: 'correo', weight: 5 }, { word: 'email', weight: 5 }, { word: 'llamar', weight: 5 },
-      { word: 'celular', weight: 5 }, { word: 'wsp', weight: 5 }, { word: 'hablar', weight: 4 },
-      { word: 'asesor', weight: 5 }, { word: 'comunicar', weight: 5 }, { word: 'comunico', weight: 4 },
-      { word: 'ayuda', weight: 3 }, { word: 'atencion', weight: 4 }, { word: 'clientes', weight: 3 },
-      { word: 'numero', weight: 4 }, { word: 'escribir', weight: 4 }, { word: 'mensaje', weight: 3 },
-      { word: 'contactarnos', weight: 5 }, { word: 'ponerme en contacto', weight: 6 },
-      { word: 'numero de telefono', weight: 6 }, { word: 'numero de contacto', weight: 6 },
-      { word: 'telefono de contacto', weight: 6 }, { word: 'hablar con alguien', weight: 5 },
-      { word: 'hablar con un asesor', weight: 6 }, { word: 'atención al cliente', weight: 5 },
-      { word: 'contactar', weight: 5 }, { word: 'comunicarme', weight: 5 }, { word: 'llamame', weight: 4 },
-      { word: 'escribeme', weight: 4 }, { word: 'enviar mensaje', weight: 4 },
+      { word: 'celular', weight: 5 }, { word: 'asesor', weight: 5 }, { word: 'comunicar', weight: 5 },
+      { word: 'numero', weight: 4 }, { word: 'escribir', weight: 4 },
+      { word: 'numero de telefono', weight: 6 }, { word: 'hablar con un asesor', weight: 6 },
+      { word: 'contactar', weight: 5 }, { word: 'comunicarme', weight: 5 },
       { word: 'correo electronico', weight: 5 }, { word: 'whats', weight: 4 }, { word: 'wp', weight: 4 },
+      { word: 'atención al cliente', weight: 5 },
     ],
     minScore: 4,
-    handler: () => '📬 **Comunícate con nosotros:**\n\n📞 **Teléfono:** +57 300 636 6429\n💬 **WhatsApp:** wa.me/573006366429\n✉️ **Correo:** luxury_admon@outlook.com\n\n✅ También puedes agendar directamente en la web con tu correo y te confirmamos todo.\n\n¿Necesitas ayuda con algo más?'
+    handler: () => '📬 **Comunícate con nosotros:**\n\n📞 **Teléfono:** +57 300 636 6429\n💬 **WhatsApp:** wa.me/573006366429\n✉️ **Correo:** luxury_admon@outlook.com\n\n✅ También puedes agendar directamente desde aquí — dime tu servicio y te ayudo.'
   },
   {
     name: 'horarios',
     keywords: [
       { word: 'horario', weight: 6 }, { word: 'hora', weight: 4 }, { word: 'cuando atienden', weight: 6 },
       { word: 'a que hora', weight: 5 }, { word: 'abren', weight: 5 }, { word: 'cierran', weight: 5 },
-      { word: 'disponible', weight: 4 }, { word: 'atienden', weight: 5 }, { word: 'abierto', weight: 4 },
+      { word: 'atienden', weight: 5 }, { word: 'abierto', weight: 4 },
       { word: 'horarios', weight: 6 }, { word: 'turno', weight: 4 }, { word: 'horario atencion', weight: 6 },
-      { word: 'que horas', weight: 4 }, { word: 'en que horario', weight: 5 }, { word: 'que horario tienen', weight: 5 },
-      { word: 'a que hora abren', weight: 5 }, { word: 'a que hora cierran', weight: 5 },
-      { word: 'en que hora', weight: 4 }, { word: 'horario de trabajo', weight: 5 },
+      { word: 'que horario tienen', weight: 5 }, { word: 'a que hora abren', weight: 5 },
       { word: 'dias de atencion', weight: 5 }, { word: 'que dias atienden', weight: 5 },
-      { word: 'atienden domingo', weight: 4 }, { word: 'atienden sabado', weight: 4 },
       { word: 'horario de atención', weight: 5 }, { word: 'horario laboral', weight: 4 },
     ],
     minScore: 4,
-    handler: () => '🕐 **Horarios de atención:**\n• **Lunes a sábado:** 7:00 a.m. - 7:00 p.m.\n• **Domingos:** 7:00 a.m. - 2:00 p.m.\n• **Citas disponibles:** 10:00 a.m. y 2:00 p.m.\n\n📅 Agenda en la sección "Agendar cita" o dime si quieres apartar tu cita.'
+    handler: () => {
+      return `🕐 **Horarios de atención:**\n• **Lunes a sábado:** 8:00 a.m. - 6:00 p.m.\n\n**Horarios disponibles para citas:**\n${formatHorarios()}\n\n¿Te gustaría **agendar** una cita?`;
+    }
   },
   {
     name: 'agendar',
     keywords: [
       { word: 'agendar', weight: 6 }, { word: 'cita', weight: 5 }, { word: 'reservar', weight: 5 },
       { word: 'apartar', weight: 5 }, { word: 'turno', weight: 4 }, { word: 'programar', weight: 4 },
-      { word: 'quiero una cita', weight: 6 }, { word: 'pedir cita', weight: 6 }, { word: 'registrar cita', weight: 5 },
-      { word: 'sacar cita', weight: 5 }, { word: 'agenda', weight: 5 }, { word: 'quiero agendar', weight: 6 },
-      { word: 'necesito cita', weight: 5 }, { word: 'puedo agendar', weight: 5 }, { word: 'como agendo', weight: 5 },
-      { word: 'quikero agendar', weight: 3 }, { word: 'agendarr', weight: 3 }, { word: 'ajendar', weight: 3 },
-      { word: 'quiciera agendar', weight: 5 }, { word: 'quisiera agendar', weight: 5 },
-      { word: 'necesito agendar', weight: 5 }, { word: 'quiero apartar', weight: 5 },
-      { word: 'quiero reservar', weight: 5 }, { word: 'como agendo una cita', weight: 6 },
-      { word: 'darme cita', weight: 4 }, { word: 'me das una cita', weight: 5 },
+      { word: 'quiero una cita', weight: 6 }, { word: 'pedir cita', weight: 6 },
+      { word: 'sacar cita', weight: 5 }, { word: 'quiero agendar', weight: 6 },
+      { word: 'necesito cita', weight: 5 }, { word: 'quiero apartar', weight: 5 },
+      { word: 'quiero reservar', weight: 5 }, { word: 'darme cita', weight: 4 },
       { word: 'agendame', weight: 5 }, { word: 'apartame', weight: 5 },
-      { word: 'quiero una cita para', weight: 5 }, { word: 'cita para servicio', weight: 5 },
-      { word: 'programar servicio', weight: 4 }, { word: 'agendar servicio', weight: 5 },
+      { word: 'cita para servicio', weight: 5 }, { word: 'agendar servicio', weight: 5 },
+      { word: 'registrar cita', weight: 5 }, { word: 'programar servicio', weight: 4 },
     ],
     minScore: 4,
     handler: (ctx) => {
-      if (ctx.servEncontrado) {
-        return `📅 **Agendar: ${ctx.servEncontrado.nombre}**\n\nSigue estos pasos:\n1. Entra con tu correo en **"Acceder"**\n2. Selecciona **${ctx.servEncontrado.nombre}**\n3. Escoge fecha y horario (10:00 a.m. o 2:00 p.m.)\n4. Confirma y lista ✅\n\nRecibirás confirmación en tu cuenta.`;
+      if (!ctx.v) return 'Claro, para agendar una cita necesito saber: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__';
+      if (ctx.serviciosEncontrados.length > 0) {
+        const s = ctx.serviciosEncontrados[0];
+        return `📅 **Agendar: ${s.nombre}**\n\n${servicioDetalle(s, ctx.v)}\n\nDime la **fecha** que prefieres (ej: "mañana" o "15 de junio") y te reviso disponibilidad. __SLOT__FECHA__`;
       }
-      return '📅 **Para agendar una cita:**\n\n1. Entra con tu correo en **"Acceder"** (solo correo, sin contraseña)\n2. Elige el **servicio** que deseas\n3. Selecciona **fecha** en el calendario\n4. Escoge **horario**: 10:00 a.m. o 2:00 p.m.\n\nRecibirás confirmación por notificación en tu cuenta. ¿Tienes algún servicio en mente?';
+      return '📅 Para agendar, primero dime: ¿qué servicio necesitas? __SLOT__SERVICIO__\n\nPor ejemplo: lavado, detailing, cambio de aceite, etc.';
     }
   },
   {
     name: 'promociones',
     keywords: [
       { word: 'promocion', weight: 6 }, { word: 'descuento', weight: 6 }, { word: 'oferta', weight: 6 },
-      { word: 'beneficio', weight: 4 }, { word: 'combo promocional', weight: 6 }, { word: 'notificacion', weight: 3 },
-      { word: 'promo', weight: 5 }, { word: 'descuent0', weight: 3 }, { word: 'combos', weight: 4 },
+      { word: 'beneficio', weight: 4 }, { word: 'combo promocional', weight: 5 },
+      { word: 'promo', weight: 5 }, { word: 'combos', weight: 4 },
       { word: 'plan', weight: 3 }, { word: 'paquete', weight: 3 }, { word: 'rebaja', weight: 4 },
-      { word: 'precio especial', weight: 4 }, { word: 'descuentos', weight: 5 }, { word: 'dto', weight: 3 },
-      { word: 'pack', weight: 3 }, { word: 'promociones vigentes', weight: 5 }, { word: 'que promocion', weight: 4 },
-      { word: 'alguna oferta', weight: 4 }, { word: 'hay descuento', weight: 4 },
+      { word: 'precio especial', weight: 4 }, { word: 'pack', weight: 3 },
+      { word: 'que promocion', weight: 4 }, { word: 'hay descuento', weight: 4 },
     ],
     minScore: 4,
-    handler: () => '🎉 **Promociones:**\n\nAl registrarte solo con tu correo recibirás **notificaciones de promociones** y **confirmación de citas**.\n\nActualmente manejamos precios especiales en combos de lavado + detailing. Pregunta por nuestros paquetes al agendar.\n\n¿Te gustaría saber más sobre algún servicio en especial?'
+    handler: () => '🎉 **Promociones:**\n\nAl registrarte con tu correo recibirás **notificaciones de promociones** y confirmación de citas.\n\nActualmente manejamos precios especiales en combos de lavado + detailing. ¿Te gustaría saber más sobre algún servicio?'
   },
   {
     name: 'agradecimiento',
@@ -377,42 +434,41 @@ const INTENTS: Intent[] = [
       { word: 'listo', weight: 4 }, { word: 'genial', weight: 4 }, { word: 'excelente', weight: 4 },
       { word: 'de acuerdo', weight: 4 }, { word: 'muy bien', weight: 4 }, { word: 'super', weight: 3 },
       { word: 'vale', weight: 3 }, { word: 'entendido', weight: 4 }, { word: 'claro', weight: 3 },
-      { word: 'gracias totales', weight: 5 }, { word: 'muchas gracias', weight: 6 }, { word: 'gracias por la info', weight: 5 },
-      { word: 'te agradezco', weight: 4 }, { word: 'agradecido', weight: 4 }, { word: 'buena info', weight: 3 },
-      { word: 'gracias por tu ayuda', weight: 5 }, { word: 'gracias por todo', weight: 5 },
-      { word: 'mil gracias', weight: 5 }, { word: 'muchisimas gracias', weight: 5 },
+      { word: 'muchas gracias', weight: 6 }, { word: 'gracias por la info', weight: 5 },
+      { word: 'te agradezco', weight: 4 }, { word: 'gracias por tu ayuda', weight: 5 },
+      { word: 'mil gracias', weight: 5 },
     ],
     minScore: 3,
-    handler: () => '¡Con gusto! 😊 Estoy aquí para lo que necesites. **Luxury Service** a tu disposición.\n\n¿Hay algo más en que pueda ayudarte?'
+    handler: () => '¡Con gusto! 😊 Estoy aquí para lo que necesites.\n\n¿Hay algo más en que pueda ayudarte?'
   },
   {
     name: 'cotizacion',
     keywords: [
       { word: 'cotizar', weight: 6 }, { word: 'cotizacion', weight: 6 }, { word: 'presupuesto', weight: 6 },
       { word: 'cuanto vale', weight: 5 }, { word: 'cuanto cuesta', weight: 5 }, { word: 'cuanto cobran', weight: 5 },
-      { word: 'cuanto sale', weight: 5 }, { word: 'precio tiene', weight: 5 }, { word: 'a como', weight: 4 },
-      { word: 'tarifa', weight: 5 }, { word: 'me cotiza', weight: 6 }, { word: 'valor', weight: 4 },
+      { word: 'precio tiene', weight: 5 }, { word: 'tarifa', weight: 5 },
       { word: 'precio', weight: 4 }, { word: 'precios', weight: 4 },
       { word: 'costo', weight: 4 }, { word: 'costos', weight: 4 }, { word: 'quiero cotizar', weight: 6 },
-      { word: 'cotizame', weight: 5 }, { word: 'cotiza', weight: 5 }, { word: 'presupuestame', weight: 5 },
-      { word: 'qiero cotizar', weight: 3 }, { word: 'cuanto dan', weight: 3 },
-      { word: 'cuanto me cobran', weight: 5 }, { word: 'que precio tiene', weight: 5 },
-      { word: 'cuanto sale el servicio', weight: 5 }, { word: 'cuanto vale el', weight: 4 },
-      { word: 'cuanto vale la', weight: 4 }, { word: 'precios servicios', weight: 5 },
-      { word: 'lista de precios', weight: 5 }, { word: 'tabla de precios', weight: 4 },
-      { word: 'me das un precio', weight: 5 }, { word: 'me cotizas', weight: 5 },
-      { word: 'quiero un presupuesto', weight: 5 }, { word: 'solicitar cotizacion', weight: 5 },
-      { word: 'cotiza por favor', weight: 4 },
+      { word: 'cotizame', weight: 5 }, { word: 'cotiza', weight: 5 },
+      { word: 'que precio tiene', weight: 5 }, { word: 'cuanto sale el servicio', weight: 5 },
+      { word: 'precios servicios', weight: 5 }, { word: 'lista de precios', weight: 5 },
+      { word: 'me das un precio', weight: 5 }, { word: 'quiero un presupuesto', weight: 5 },
     ],
     minScore: 4,
     handler: (ctx) => {
-      if (!ctx.v) return 'Para darte una cotización necesito saber: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
-      const disponibles = serviciosCompatibles(ctx.catalog.services, ctx.v);
-      if (ctx.servEncontrado) {
-        return `📋 **${ctx.servEncontrado.nombre}**\n• Duración: ${ctx.servEncontrado.duracion_minutos} minutos\n• ${ctx.servEncontrado.descripcion}\n\nLos precios de referencia los encuentras en la sección **Cotizar** de nuestra web. ¿Agendamos tu cita?`;
+      if (!ctx.v) return 'Para darte una cotización necesito saber: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__';
+      if (ctx.serviciosEncontrados.length > 0) {
+        const lines = ctx.serviciosEncontrados.map(s => {
+          const p = precioServicio(s, ctx.v);
+          const precio = p !== null && p > 0 ? ` — 💰 ${formatPeso(p)}` : '';
+          return `• **${s.nombre}**${precio}\n   ⏱ ${s.duracion_minutos} min`;
+        });
+        return `📋 **Cotización ${ctx.label}:**\n\n${lines.join('\n')}\n\n¿Quieres **agendar** alguno de estos servicios?`;
       }
+      const disponibles = serviciosCompatibles(ctx.catalog.services, ctx.v);
+      if (disponibles.length === 0) return 'No tengo servicios disponibles para cotizar en este momento.';
       let out = `📋 **SERVICIOS DISPONIBLES para ${ctx.label}:**\n\n`;
-      const categorias = new Map<string, typeof disponibles>();
+      const categorias = new Map<string, ServiceItem[]>();
       for (const s of disponibles) {
         const cat = s.categoria || 'OTROS';
         if (!categorias.has(cat)) categorias.set(cat, []);
@@ -420,9 +476,9 @@ const INTENTS: Intent[] = [
       }
       for (const [cat, items] of categorias) {
         out += `**${cat}:**\n`;
-        out += items.slice(0, 5).map(s => `• ${s.nombre}`).join('\n') + '\n\n';
+        out += items.slice(0, 5).map(s => formatoServicio(s, ctx.v)).join('\n') + '\n\n';
       }
-      out += '¿Te gustaría agendar alguno?';
+      out += '¿Te gustaría agendar alguno? Dime el nombre del servicio. __SLOT__SERVICIO__';
       return out;
     }
   },
@@ -430,22 +486,19 @@ const INTENTS: Intent[] = [
     name: 'servicios',
     keywords: [
       { word: 'servicios', weight: 6 }, { word: 'servicio', weight: 5 }, { word: 'catalogo', weight: 5 },
-      { word: 'mantenimiento', weight: 4 }, { word: 'que servicios', weight: 6 }, { word: 'que hacen', weight: 4 },
-      { word: 'que ofrecen', weight: 5 }, { word: 'menu', weight: 3 }, { word: 'servicios tienen', weight: 5 },
-      { word: 'trabajan', weight: 3 }, { word: 'listado', weight: 3 }, { word: 'carta', weight: 2 },
-      { word: 'portafolio', weight: 3 }, { word: 'que tipo', weight: 4 }, { word: 'tipos de', weight: 4 },
-      { word: 'que tienen', weight: 4 }, { word: 'hay disponible', weight: 4 },
-      { word: 'todo lo que hacen', weight: 4 }, { word: 'en que trabajan', weight: 4 },
-      { word: 'servicios de', weight: 4 }, { word: 'clases de servicios', weight: 4 },
-      { word: 'tipos de servicio', weight: 4 }, { word: 'cuales son los servicios', weight: 5 },
-      { word: 'que servicios prestan', weight: 5 }, { word: 'servicios ofrecidos', weight: 4 },
+      { word: 'mantenimiento', weight: 4 }, { word: 'que servicios', weight: 6 },
+      { word: 'que ofrecen', weight: 5 }, { word: 'servicios tienen', weight: 5 },
+      { word: 'trabajan', weight: 3 }, { word: 'portafolio', weight: 3 },
+      { word: 'tipos de', weight: 4 }, { word: 'hay disponible', weight: 4 },
+      { word: 'cuales son los servicios', weight: 5 }, { word: 'que servicios prestan', weight: 5 },
       { word: 'servicios disponibles', weight: 4 },
     ],
     minScore: 4,
     handler: (ctx) => {
       const disponibles = serviciosCompatibles(ctx.catalog.services, ctx.v);
+      if (disponibles.length === 0) return 'No hay servicios disponibles en este momento.';
       let out = `📋 **SERVICIOS LUXURY SERVICE MANGA**${ctx.v ? ` (${ctx.label})` : ''}:\n`;
-      const categorias = new Map<string, typeof disponibles>();
+      const categorias = new Map<string, ServiceItem[]>();
       for (const s of disponibles) {
         const cat = s.categoria || 'OTROS';
         if (!categorias.has(cat)) categorias.set(cat, []);
@@ -453,7 +506,7 @@ const INTENTS: Intent[] = [
       }
       for (const [cat, items] of categorias) {
         out += `\n**${cat.toUpperCase()}:**\n`;
-        out += items.slice(0, 8).map(x => `• ${x.nombre}`).join('\n');
+        out += items.slice(0, 8).map(s => formatoServicio(s, ctx.v)).join('\n');
         if (items.length > 8) out += `\n... y ${items.length - 8} más`;
       }
       out += '\n\n¿Te gustaría **cotizar** algún servicio o **agendar** una cita?';
@@ -465,35 +518,38 @@ const INTENTS: Intent[] = [
     keywords: [
       { word: 'producto', weight: 6 }, { word: 'productos', weight: 6 }, { word: 'tienda', weight: 5 },
       { word: 'comprar', weight: 5 }, { word: 'stock', weight: 4 }, { word: 'articulo', weight: 4 },
-      { word: 'quiero comprar', weight: 5 }, { word: 'me interesa un producto', weight: 5 },
-      { word: 'articulos', weight: 4 }, { word: 'venden', weight: 4 }, { word: 'venta', weight: 3 },
-      { word: 'compras', weight: 3 }, { word: 'productos tienes', weight: 4 },
-      { word: 'que productos', weight: 4 }, { word: 'que venden', weight: 4 },
-      { word: 'que productos tienen', weight: 4 }, { word: 'tienen productos', weight: 4 },
-      { word: 'catalogo de productos', weight: 5 }, { word: 'listado de productos', weight: 4 },
-      { word: 'quiero ver productos', weight: 5 }, { word: 'quiero comprar algo', weight: 4 },
+      { word: 'venden', weight: 4 }, { word: 'que productos', weight: 4 },
+      { word: 'que venden', weight: 4 }, { word: 'tienen productos', weight: 4 },
+      { word: 'catalogo de productos', weight: 5 },
       { word: 'aceite', weight: 3 }, { word: 'filtro', weight: 3 }, { word: 'llanta', weight: 3 },
-      { word: 'bujia', weight: 2 }, { word: 'plumilla', weight: 2 },
     ],
     minScore: 4,
     handler: (ctx) => {
       if (ctx.catalog.products.length === 0) return 'Por el momento no hay productos en tienda.';
 
-      if (ctx.prodEncontrado) {
-        return `🛒 **${ctx.prodEncontrado.nombre}**\n${ctx.prodEncontrado.descripcion}\nStock: ${ctx.prodEncontrado.stock > 0 ? '✅ ' + ctx.prodEncontrado.stock + ' unidades' : '❌ Agotado'}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
+      if (ctx.productosEncontrados.length > 0) {
+        const lines = ctx.productosEncontrados.map(p => {
+          const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
+          const stock = p.stock > 0 ? `✅ ${p.stock} und.` : '❌ Agotado';
+          return `• **${p.nombre}**${precio} (${stock})`;
+        });
+        return `🛒 **Productos encontrados:**\n${lines.join('\n')}\n\nCompra en la sección **Tienda** con tu correo registrado. ¿Buscas algo en particular?`;
       }
 
-      // Check if user mentioned a product category
       const prodCatMatch = matchProductCategory(ctx.lower, ctx.catalog.products);
       if (prodCatMatch) {
         let out = `🛒 **${prodCatMatch.category}** — Productos disponibles:\n\n`;
-        out += prodCatMatch.items.slice(0, 8).map(p => `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} unidades` : '❌ Agotado'}`).join('\n');
+        out += prodCatMatch.items.slice(0, 8).map(p => {
+          const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
+          const stock = p.stock > 0 ? `✅ ${p.stock} und.` : '❌ Agotado';
+          return `• **${p.nombre}**${precio} (${stock})`;
+        }).join('\n');
         if (prodCatMatch.items.length > 8) out += `\n... y ${prodCatMatch.items.length - 8} más`;
-        out += '\n\nCompra en la sección **Tienda** con tu correo registrado. ¿Buscas algo en particular?';
+        out += '\n\nCompra en la sección **Tienda** con tu correo. ¿Buscas algo en particular?';
         return out;
       }
 
-      const catMap = new Map<string, typeof ctx.catalog.products>();
+      const catMap = new Map<string, ProductItem[]>();
       for (const p of ctx.catalog.products) {
         const cat = p.categoria || 'OTROS';
         if (!catMap.has(cat)) catMap.set(cat, []);
@@ -502,9 +558,12 @@ const INTENTS: Intent[] = [
       let out = '🛒 **Catálogo de productos:**\n\n';
       for (const [cat, items] of catMap) {
         out += `**${cat}:**\n`;
-        out += items.slice(0, 5).map(p => `• ${p.nombre} — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`).join('\n') + '\n\n';
+        out += items.slice(0, 5).map(p => {
+          const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
+          return `• ${p.nombre}${precio} — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`;
+        }).join('\n') + '\n\n';
       }
-      out += 'Compra en la sección **Tienda** con tu correo registrado. ¿Buscas algo en particular?';
+      out += 'Compra en la sección **Tienda** con tu correo. ¿Buscas algo en particular?';
       return out;
     }
   },
@@ -514,17 +573,19 @@ const INTENTS: Intent[] = [
       { word: 'automovil', weight: 3 }, { word: 'camioneta', weight: 3 }, { word: 'moto', weight: 3 },
       { word: 'carro', weight: 3 }, { word: 'auto', weight: 3 }, { word: 'vehiculo', weight: 2 },
       { word: 'motocicleta', weight: 3 }, { word: '4x4', weight: 2 }, { word: 'suv', weight: 2 },
-      { word: 'troca', weight: 2 }, { word: 'pickup', weight: 2 }, { word: 'pistera', weight: 2 },
     ],
     minScore: 3,
     handler: (ctx) => {
       const msgWords = ctx.lower.split(/\s+/).filter(Boolean);
       if (msgWords.length > 4) return null;
-      if (!ctx.v) return '¿Tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
-      return `¡Perfecto! Has seleccionado **${ctx.label}** 🚗.\n\nPuedo ayudarte con:\n• Ver **servicios** disponibles para ${ctx.label}\n• Ver **productos** en tienda\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n\n¿Qué deseas consultar?`;
+      if (!ctx.v) return '¿Tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__';
+      const disponibles = serviciosCompatibles(ctx.catalog.services, ctx.v);
+      return `¡Perfecto! Has seleccionado **${ctx.label}** 🚗.\n\nPuedo ayudarte con:\n• Ver **servicios** (${disponibles.length} disponibles)\n• **Cotizar** un servicio\n• **Agendar** una cita\n\n¿Qué deseas consultar?`;
     }
   },
 ];
+
+// ── Category & Product matching ──────────────────────────────────
 
 const CATEGORIA_MAP: [RegExp, string[]][] = [
   [/\b(lavados?|hidroblast|chasis|vapores?|encerados?|combos?|express|generales?|espumas?|enjuagues?|lavar|limpieza exterior|limpiar|lavada|lavadero|aseo|enjuagar|lavo)/, ['Servicios Básicos', 'Combos', 'Lavado']],
@@ -541,30 +602,23 @@ const CATEGORIA_MAP: [RegExp, string[]][] = [
   [/\b(farolas?|faros?|luz|iluminacion|optic|iluminar)/, ['Farolas']],
 ];
 
-// Match a product category from user text (e.g. "tienen filtros de aceite?" → "FILTRO DE ACEITE")
-function matchProductCategory(text: string, products: CatalogCache['products']): { category: string; items: typeof products } | null {
-  const cats = new Map<string, typeof products>();
+function matchProductCategory(text: string, products: ProductItem[]): { category: string; items: ProductItem[] } | null {
+  const cats = new Map<string, ProductItem[]>();
   for (const p of products) {
     const cat = p.categoria || 'OTROS';
     if (!cats.has(cat)) cats.set(cat, []);
     cats.get(cat)!.push(p);
   }
-
-  // Normalize user text for matching
   const t = norm(text);
-
   for (const [cat, items] of cats) {
     const catLower = norm(cat);
     if (t.includes(catLower)) return { category: cat, items };
-    // Fuzzy match words
     const catTokens = tokenize(cat);
     const matchedTokens = catTokens.filter(ct => t.includes(ct) || fuzzyIncludes(t, ct, 0.7));
     if (matchedTokens.length >= catTokens.length * 0.6) return { category: cat, items };
   }
-
-  // Also try to match by known category synonyms
   const CAT_SYNONYMS: Record<string, string[]> = {
-    'ACEITES': ['aceite', 'aceites', 'lubricante', 'lubricantes', 'oil', 'mobil', 'cheuron', 'chevron', 'havoline', 'shell'],
+    'ACEITES': ['aceite', 'aceites', 'lubricante', 'lubricantes', 'oil', 'mobil', 'chevron', 'havoline', 'shell'],
     'FILTRO DE ACEITE': ['filtro aceite', 'filtro de aceite', 'filtros aceite', 'oil filter', 'filtro aceitera'],
     'FILTROS DE AIRE': ['filtro aire', 'filtro de aire', 'filtros aire', 'air filter'],
     'LLANTAS': ['llanta', 'llantas', 'neumatico', 'neumaticos', 'caucho', 'cauchos', 'rueda', 'ruedas'],
@@ -577,18 +631,165 @@ function matchProductCategory(text: string, products: CatalogCache['products']):
       if (items && items.length > 0) return { category: cat, items };
     }
   }
+  return null;
+}
+
+// ── Slot helpers ─────────────────────────────────────────────────
+
+function parseFecha(texto: string): string | null {
+  const t = norm(texto);
+  const today = new Date();
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+
+  if (t.includes('hoy') || t.includes('ahora')) return toIso(today);
+  if (t.includes('mañana') || t.includes('manana')) return toIso(tomorrow);
+  if (t.includes('pasado mañana') || t.includes('pasado manana')) {
+    const d = new Date(today); d.setDate(d.getDate() + 2);
+    return toIso(d);
+  }
+
+  const meses: Record<string, number> = {
+    'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
+    'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11,
+    'ene': 0, 'feb': 1, 'mar': 2, 'abr': 3, 'may': 4, 'jun': 5,
+    'jul': 6, 'ago': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dic': 11
+  };
+
+  // "15 de junio" or "15 junio"
+  const diaMes = t.match(/(\d{1,2})\s*de?\s*([a-záéíóú]+)/i);
+  if (diaMes) {
+    const dia = parseInt(diaMes[1]);
+    const mes = meses[norm(diaMes[2])];
+    if (mes !== undefined && dia >= 1 && dia <= 31) {
+      const d = new Date(today.getFullYear(), mes, dia);
+      if (d >= today) return toIso(d);
+      d.setFullYear(d.getFullYear() + 1);
+      return toIso(d);
+    }
+  }
+
+  // "lunes", "martes", etc.
+  const diasSemana: Record<string, number> = {
+    'domingo': 0, 'lunes': 1, 'martes': 2, 'miercoles': 3, 'jueves': 4, 'viernes': 5, 'sabado': 6
+  };
+  for (const [name, dayIndex] of Object.entries(diasSemana)) {
+    if (t.includes(name)) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + ((dayIndex + 7 - d.getDay()) % 7));
+      if (d <= today) d.setDate(d.getDate() + 7);
+      return toIso(d);
+    }
+  }
+
+  // YYYY-MM-DD
+  const isoMatch = t.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return isoMatch[0];
 
   return null;
 }
 
+function toIso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function parseHorario(texto: string): string | null {
+  const t = norm(texto);
+  // "8", "8:00", "8 am", "8:00 am", "8 a.m."
+  const match = t.match(/(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/);
+  if (!match) return null;
+  let h = parseInt(match[1]);
+  const m = match[2] ? parseInt(match[2]) : 0;
+  const ampm = match[3];
+  if (ampm?.startsWith('p') && h < 12) h += 12;
+  if (ampm?.startsWith('a') && h === 12) h = 0;
+  if (h < 8 || h > 18) return null;
+  if (m !== 0) return null;
+  return `${String(h).padStart(2, '0')}:00`;
+}
+
+// ── Appointment helpers ──────────────────────────────────────────
+
+async function verificarDisponibilidad(servicioId: string, fecha: string): Promise<string[]> {
+  try {
+    const db = getDb();
+    const ocupados = await db.collection('citas').find({
+      fecha,
+      servicio_id: new ObjectId(servicioId),
+      estado: { $ne: 'cancelada' }
+    }).toArray();
+    const set = new Set(ocupados.map(c => c.horario));
+    return HORARIOS.filter(h => !set.has(h)) as unknown as string[];
+  } catch {
+    return HORARIOS as unknown as string[];
+  }
+}
+
+async function crearCita(datos: {
+  servicioId: string;
+  fecha: string;
+  horario: string;
+  tipoVehiculo: string;
+  email: string;
+  nombre: string;
+}): Promise<{ ok: boolean; error?: string; ticket?: string }> {
+  try {
+    const db = getDb();
+    const existing = await db.collection('citas').findOne({
+      fecha: datos.fecha,
+      horario: datos.horario,
+      servicio_id: new ObjectId(datos.servicioId),
+      estado: { $ne: 'cancelada' }
+    });
+    if (existing) return { ok: false, error: 'Ese horario ya está ocupado. Por favor elige otro.' };
+
+    const servicio = await db.collection('servicios').findOne({ _id: new ObjectId(datos.servicioId) });
+    if (!servicio) return { ok: false, error: 'Servicio no encontrado.' };
+
+    const user = await db.collection('usuarios').findOne({ email: datos.email });
+    if (!user) return { ok: false, error: 'Debes tener una cuenta con tu correo para agendar.' };
+
+    const ticket = generateTicket();
+    await db.collection('citas').insertOne({
+      servicio_id: new ObjectId(datos.servicioId),
+      fecha: datos.fecha,
+      horario: datos.horario,
+      tipo_vehiculo: datos.tipoVehiculo,
+      email: datos.email,
+      nombre: datos.nombre,
+      ticket,
+      estado: 'pendiente',
+      created_at: new Date()
+    });
+    return { ok: true, ticket };
+  } catch (err) {
+    return { ok: false, error: 'Error al crear la cita. Intenta de nuevo.' };
+  }
+}
+
+let ticketCounter = 0;
+
+function generateTicket(): string {
+  const prefix = 'LS';
+  const ts = Date.now().toString(36).toUpperCase().slice(-4);
+  ticketCounter = (ticketCounter + 1) % 9999;
+  const seq = String(ticketCounter).padStart(4, '0');
+  const buf = new Uint8Array(2);
+  crypto.getRandomValues?.(buf);
+  const rand = buf ? Array.from(buf, b => b.toString(16).toUpperCase()).join('') : 'ZZ';
+  return `${prefix}-${ts}${seq}${rand}`;
+}
+
+// ── Main reply builder ───────────────────────────────────────────
+
 export async function buildChatbotReply(
   message: string,
   history: ChatTurn[] = [],
-  vehiculoExplicito?: Vehiculo
+  vehiculoExplicito?: Vehiculo,
+  userEmail?: string,
+  userName?: string
 ): Promise<string> {
   const catalog = await getCatalog();
 
-  // Hereda el vehículo del historial si no viene explícito ni en el mensaje actual
   const vehiculoDetectadoMensaje = detectarVehiculo(message);
   const vehiculoHeredado: Vehiculo | undefined =
     vehiculoExplicito ??
@@ -598,7 +799,7 @@ export async function buildChatbotReply(
 
   const ctx = buildContext(message, vehiculoHeredado, catalog);
 
-  // ── SLOT FILLING: responde según la última pregunta del bot ──────────────
+  // ── SLOT FILLING ────────────────────────────────────────────────
   const preguntaPendiente = ultimaPreguntaBot(history);
 
   if (preguntaPendiente === 'vehiculo' && ctx.v) {
@@ -607,21 +808,106 @@ export async function buildChatbotReply(
     let out = `¡Perfecto! Has seleccionado **${ctx.label}** 🚗.\n\n`;
     out += `📋 **Para ${ctx.label}** tenemos:\n`;
     out += `• **${disponibles.length} servicios** disponibles\n`;
-    out += `• **${prodCount} productos** en tienda\n`;
-    out += `• **Horarios**: 10:00 a.m. y 2:00 p.m.\n\n`;
-    out += '¿Qué deseas consultar?';
+    out += `• **${prodCount} productos** en tienda\n\n`;
+    out += '¿Qué deseas consultar? Puedo ayudarte con **cotizar**, **agendar** o ver **servicios**.';
     return out;
   }
 
-  if (preguntaPendiente === 'servicio' && ctx.servEncontrado) {
-    return `📅 **Agendar: ${ctx.servEncontrado.nombre}**\n\nSigue estos pasos:\n1. Entra con tu correo en **"Acceder"**\n2. Selecciona **${ctx.servEncontrado.nombre}**\n3. Escoge fecha y horario (10:00 a.m. o 2:00 p.m.)\n4. Confirma y lista ✅\n\nRecibirás confirmación en tu cuenta.`;
+  if (preguntaPendiente === 'servicio' && ctx.serviciosEncontrados.length > 0) {
+    const s = ctx.serviciosEncontrados[0];
+    return `📅 **${s.nombre}**\n\n${servicioDetalle(s, ctx.v)}\n\nDime la **fecha** que prefieres para agendar (ej: "mañana" o "15 de junio"). __SLOT__FECHA__`;
   }
 
-  if (preguntaPendiente === 'producto' && ctx.prodEncontrado) {
-    return `🛒 **${ctx.prodEncontrado.nombre}**\n${ctx.prodEncontrado.descripcion}\nStock: ${ctx.prodEncontrado.stock > 0 ? '✅ ' + ctx.prodEncontrado.stock + ' unidades' : '❌ Agotado'}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
+  // Fecha slot: check availability
+  if (preguntaPendiente === 'fecha') {
+    const fecha = parseFecha(message);
+    if (!fecha) return 'No entendí la fecha. ¿Puedes decirla de nuevo? (ej: "mañana", "15 de junio", "lunes") __SLOT__FECHA__';
+
+    // Get the service from context (last mentioned or from history)
+    const ultimoMensajeBuscando = [...history].reverse().find(t => t.role === 'user');
+    const ctxForService = ultimoMensajeBuscando ? buildContext(ultimoMensajeBuscando.text, vehiculoHeredado, catalog) : ctx;
+    const servicio = ctxForService.serviciosEncontrados[0] || ctx.serviciosEncontrados[0];
+    if (!servicio) return `Entendido, **${fecha}**. Pero no tengo claro el servicio. ¿Puedes decirme cuál necesitas? __SLOT__SERVICIO__`;
+
+    const serviceId = (servicio as any)._id;
+    if (!serviceId) return `Entendido, **${fecha}**. Pero no puedo verificar disponibilidad para ese servicio. Agenda directamente en la web.`;
+
+    const disponibles = await verificarDisponibilidad(serviceId, fecha);
+    if (disponibles.length === 0) return `Lo siento, no hay horarios disponibles para **${fecha}**. ¿Puedes elegir otra fecha? __SLOT__FECHA__`;
+
+    return `✅ Hay **${disponibles.length} horarios** disponibles para **${fecha}**:\n\n${disponibles.map(h => `• ${HORARIO_LABELS[h] || h}`).join('\n')}\n\n¿Qué hora prefieres? __SLOT__CONFIRMAR_CITA__`;
   }
 
-  // ── DETECCIÓN DE INTENT PRINCIPAL ───────────────────────────────────────
+  // Confirmar cita: process the booking
+  if (preguntaPendiente === 'confirmar_cita') {
+    if (!userEmail) return 'Para agendar necesito tu correo electrónico. Escríbelo por favor.';
+
+    const horarioElegido = parseHorario(message);
+    if (!horarioElegido) {
+      return 'No entendí la hora. Los horarios disponibles son:\n\n' + formatHorarios() + '\n\n¿Qué hora prefieres? (ej: "10:00", "2 pm") __SLOT__CONFIRMAR_CITA__';
+    }
+
+    // Get fecha and servicio from conversation
+    const historialTextos = history.filter(t => t.role === 'bot').map(t => t.text);
+    let fecha = '';
+    let servicio: ServiceItem | null = null;
+
+    // Extract fecha from bot messages
+    for (const t of historialTextos) {
+      const match = t.match(/(\d{4}-\d{2}-\d{2})/);
+      if (match) { fecha = match[1]; break; }
+    }
+    // If not found, try user messages
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].role === 'user') {
+        const parsed = parseFecha(history[i].text);
+        if (parsed) { fecha = parsed; break; }
+      }
+    }
+    if (!fecha) return 'Disculpa, perdí la fecha. ¿Puedes decirla de nuevo? __SLOT__FECHA__';
+
+    // Get servicio from last service mentions
+    const allTexts = history.filter(t => t.role === 'user').map(t => t.text).concat(message);
+    for (const txt of allTexts) {
+      const c = buildContext(txt, ctx.v, catalog);
+      if (c.serviciosEncontrados.length > 0) { servicio = c.serviciosEncontrados[0]; break; }
+    }
+    if (!servicio) servicio = ctx.serviciosEncontrados[0];
+    if (!servicio) return 'Disculpa, no recuerdo el servicio. ¿Cuál necesitas? __SLOT__SERVICIO__';
+
+    const serviceId = (servicio as any)._id;
+    if (!serviceId) return 'No puedo agendar ese servicio por chat. Por favor agenda en la web.';
+
+    const disponibles = await verificarDisponibilidad(serviceId, fecha);
+    if (!disponibles.includes(horarioElegido)) {
+      return `Ese horario no está disponible o ya fue tomado. Horarios disponibles para esa fecha:\n\n${disponibles.map(h => `• ${HORARIO_LABELS[h] || h}`).join('\n')}\n\n¿Cuál prefieres? __SLOT__CONFIRMAR_CITA__`;
+    }
+
+    const tipo = ctx.v || 'auto';
+    const nombre = userName || userEmail;
+
+    const result = await crearCita({
+      servicioId: serviceId,
+      fecha,
+      horario: horarioElegido,
+      tipoVehiculo: tipo,
+      email: userEmail,
+      nombre
+    });
+
+    if (!result.ok) return `❌ ${result.error || 'No se pudo agendar la cita.'}`;
+
+    return `✅ **Cita agendada con éxito!** 🎉\n\n📋 **Resumen:**\n• **Servicio:** ${servicio.nombre}\n• **Vehículo:** ${ctx.label || 'Automóvil'}\n• **Fecha:** ${fecha}\n• **Hora:** ${HORARIO_LABELS[horarioElegido] || horarioElegido}\n• **Ticket:** ${result.ticket}\n\n📩 Recibirás confirmación en tu correo.\n¿Necesitas algo más?`;
+  }
+
+  if (preguntaPendiente === 'producto' && ctx.productosEncontrados.length > 0) {
+    const p = ctx.productosEncontrados[0];
+    const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
+    const stock = p.stock > 0 ? `✅ ${p.stock} unidades` : '❌ Agotado';
+    return `🛒 **${p.nombre}**${precio}\n${p.descripcion}\nStock: ${stock}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
+  }
+
+  // ── INTENT DETECTION ────────────────────────────────────────────
   let best: { intent: Intent; score: number } | null = null;
 
   for (const intent of INTENTS) {
@@ -638,10 +924,15 @@ export async function buildChatbotReply(
     if (reply) return reply;
   }
 
-  // ── FALLBACKS POR ORDEN DE ESPECIFICIDAD ────────────────────────────────
+  // ── FALLBACKS ───────────────────────────────────────────────────
 
-  if (ctx.servEncontrado) {
-    return `🔧 **${ctx.servEncontrado.nombre}**\n• Duración: ${ctx.servEncontrado.duracion_minutos} minutos\n• ${ctx.servEncontrado.descripcion}\n\n¿Agendamos tu cita? Horarios: 10:00 a.m. o 2:00 p.m.`;
+  if (ctx.serviciosEncontrados.length > 0) {
+    if (ctx.serviciosEncontrados.length === 1) {
+      const s = ctx.serviciosEncontrados[0];
+      return `${servicioDetalle(s, ctx.v)}\n\n¿Quieres **agendar** este servicio o **cotizar**?`;
+    }
+    const lines = ctx.serviciosEncontrados.map(s => formatoServicio(s, ctx.v));
+    return `Encontré varios servicios:\n${lines.join('\n')}\n\n¿Cuál te interesa?`;
   }
 
   let catMatch: string[] | null = null;
@@ -652,23 +943,29 @@ export async function buildChatbotReply(
     const disponibles = serviciosCompatibles(catalog.services, ctx.v);
     const items = disponibles.filter(s => catMatch!.includes(s.categoria || ''));
     if (items.length > 0) {
-      const lines = items.map(s => `• **${s.nombre}**`);
-      return `🔧 **${items[0].categoria?.toUpperCase() || 'SERVICIOS'}**${ctx.label ? ` (${ctx.label})` : ''}:\n${lines.join('\n')}\n\n¿Te interesa alguno? Puedo darte más detalles.`;
+      const lines = items.map(s => formatoServicio(s, ctx.v));
+      return `🔧 **${items[0].categoria?.toUpperCase() || 'SERVICIOS'}**${ctx.label ? ` (${ctx.label})` : ''}:\n${lines.join('\n')}\n\n¿Te interesa alguno?`;
     }
   }
 
-  // Try product match by name
-  if (ctx.prodEncontrado) {
-    return `🛒 **${ctx.prodEncontrado.nombre}**\n${ctx.prodEncontrado.descripcion}\nStock: ${ctx.prodEncontrado.stock > 0 ? '✅ ' + ctx.prodEncontrado.stock + ' unidades' : '❌ Agotado'}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
+  if (ctx.productosEncontrados.length > 0) {
+    const lines = ctx.productosEncontrados.map(p => {
+      const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
+      const stock = p.stock > 0 ? `✅ ${p.stock} und.` : '❌ Agotado';
+      return `• **${p.nombre}**${precio} (${stock})`;
+    });
+    return `🛒 **Productos:**\n${lines.join('\n')}\n\nCompra en la sección **Tienda** con tu correo. ¿Buscas algo en particular?`;
   }
 
-  // Try product match by category (e.g. "tienen filtros de aceite?")
   const prodCatMatch = matchProductCategory(ctx.lower, catalog.products);
   if (prodCatMatch) {
-    let out = `🛒 **${prodCatMatch.category}** — Productos disponibles:\n\n`;
-    out += prodCatMatch.items.slice(0, 8).map(p => `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} unidades` : '❌ Agotado'}`).join('\n');
+    let out = `🛒 **${prodCatMatch.category}** — Productos:\n\n`;
+    out += prodCatMatch.items.slice(0, 8).map(p => {
+      const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
+      return `• **${p.nombre}**${precio} — ${p.stock > 0 ? `${p.stock} und.` : 'agotado'}`;
+    }).join('\n');
     if (prodCatMatch.items.length > 8) out += `\n... y ${prodCatMatch.items.length - 8} más`;
-    out += '\n\nCompra en la sección **Tienda** con tu correo registrado. ¿Buscas algo en particular?';
+    out += '\n\nCompra en la sección **Tienda**. ¿Buscas algo en particular?';
     return out;
   }
 
@@ -677,33 +974,16 @@ export async function buildChatbotReply(
   );
   if (detectedCategory) {
     const disponibles = serviciosCompatibles(catalog.services, ctx.v);
-    const items = disponibles.filter(s => s.categoria === detectedCategory[0] || s.nombre.toLowerCase().includes(detectedCategory[0].toLowerCase()));
+    const items = disponibles.filter(s => s.categoria === detectedCategory[0] || norm(s.nombre).includes(norm(detectedCategory[0])));
     if (items.length > 0) {
-      const lines = items.map(s => `• **${s.nombre}**`);
-      return `🔧 **${detectedCategory[0].toUpperCase()}**${ctx.label ? ` (${ctx.label})` : ''}:\n${lines.join('\n')}\n\n¿Te interesa alguno? Puedo darte más detalles.`;
+      const lines = items.map(s => formatoServicio(s, ctx.v));
+      return `🔧 **${detectedCategory[0].toUpperCase()}**${ctx.label ? ` (${ctx.label})` : ''}:\n${lines.join('\n')}\n\n¿Te interesa alguno?`;
     }
   }
 
-  const mentionsService = ctx.tokens.some(t => {
-    for (const s of catalog.services) {
-      const st = tokenize(s.nombre);
-      if (st.some(stt => fuzzyMatch(t, stt) >= 0.7)) return true;
-    }
-    return false;
-  });
+  // ── SMART FALLBACK ──────────────────────────────────────────────
 
-  if (ctx.v && mentionsService) {
-    const disponibles = serviciosCompatibles(catalog.services, ctx.v).slice(0, 18);
-    const lines = disponibles.map(s => `• **${s.nombre}**`).join('\n');
-    return `📋 **Servicios para ${ctx.label}:**\n${lines}\n\n¿Te gustaría más información sobre alguno en particular o agendar una cita?`;
-  }
-
-  // ── FALLBACK INTELIGENTE ─────────────────────────────────────────────────
-  return buildSmartFallback(ctx, catalog);
-}
-
-function buildSmartFallback(ctx: ChatContext, catalog: CatalogCache): string {
-  // Check if user might be asking about products
+  // Product mention via fuzzy
   const prodMention = ctx.tokens.some(t => {
     return catalog.products.some(p => {
       const pt = tokenize(p.nombre);
@@ -715,12 +995,11 @@ function buildSmartFallback(ctx: ChatContext, catalog: CatalogCache): string {
       ctx.tokens.some(t => tokenize(p.nombre).some(ptt => fuzzyMatch(t, ptt) >= 0.6))
     ).slice(0, 5);
     if (cerca.length > 0) {
-      const lines = cerca.map(p => `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`).join('\n');
-      return `¿Buscas algún producto? Encontré estos:\n${lines}\n\nCompra en la sección **Tienda** con tu correo. ¿Te gusta alguno?`;
+      const lines = cerca.map(p => `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`);
+      return `¿Buscas algún producto? Encontré estos:\n${lines.join('\n')}\n\nCompra en la sección **Tienda**. ¿Te gusta alguno?`;
     }
   }
 
-  // Check for fuzzy service name matches
   const serviciosCercanos = catalog.services.filter(s =>
     ctx.tokens.some(t => {
       const st = tokenize(s.nombre);
@@ -733,26 +1012,24 @@ function buildSmartFallback(ctx: ChatContext, catalog: CatalogCache): string {
     return `¿Te refieres a alguno de estos servicios? ${nombres}\n\nO cuéntame con más detalle qué necesitas. 😊`;
   }
 
-  // Already has vehicle but we didn't understand
   if (ctx.v) {
     const disponibles = serviciosCompatibles(catalog.services, ctx.v);
-    return `No entendí bien tu mensaje 😊 Tienes **${ctx.label}** — puedo ayudarte con:\n• **Servicios** (${disponibles.length} disponibles)\n• **Productos** en tienda (${catalog.products.length} productos)\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Cotizar** un servicio\n\n¿Qué necesitas?`;
+    return `No entendí bien tu mensaje 😊 Tienes **${ctx.label}** — puedo ayudarte con:\n• **Servicios** (${disponibles.length} disponibles)\n• **Productos** en tienda (${catalog.products.length} productos)\n• **Agendar** una cita\n• **Cotizar** un servicio\n\n¿Qué necesitas?`;
   }
 
-  // Has context words suggesting intent
   const sugerencias: string[] = [];
   if (/\b(servicio|hacen|ofrecen|trabajan|producto|lavado|detailing|mecanic|pintur|aceite|filtro|llanta)\b/.test(ctx.lower)) sugerencias.push('ver los **servicios**');
   if (/\b(agendar|cita|turno|reserv|apartar|programar)\b/.test(ctx.lower)) sugerencias.push('**agendar una cita**');
-  if (/\b(horario|hora|atienden|abren|abierto|turno)\b/.test(ctx.lower)) sugerencias.push('consultar **horarios**');
+  if (/\b(horario|hora|atienden|abren|abierto)\b/.test(ctx.lower)) sugerencias.push('consultar **horarios**');
   if (/\b(producto|comprar|tienda|articulo|precio|aceite|filtro|llanta|bujia)\b/.test(ctx.lower)) sugerencias.push('ver **productos**');
   if (/\b(ubicacion|direccion|donde|mapa|como llegar)\b/.test(ctx.lower)) sugerencias.push('saber la **ubicación**');
   if (/\b(contacto|telefono|whatsapp|correo|llamar)\b/.test(ctx.lower)) sugerencias.push('los datos de **contacto**');
 
   if (sugerencias.length > 0) {
-    return `No entendí bien, ¿quieres ${sugerencias.join(' o ')}?\n\nPrimero dime: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?`;
+    return `No entendí bien, ¿quieres ${sugerencias.join(' o ')}?\n\nPrimero dime: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__`;
   }
 
-  return '¡Hola! Puedo ayudarte con:\n\n• **Servicios** de lavado, detailing, mecánica y más\n• **Productos** en tienda (aceites, filtros, llantas y más)\n• **Horarios**: 10:00 a.m. y 2:00 p.m.\n• **Agendar** una cita\n• **Contacto** y **ubicación**\n\nPara empezar, ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**?';
+  return '¡Hola! Puedo ayudarte con:\n\n• **Servicios** de lavado, detailing, mecánica y más\n• **Productos** en tienda (aceites, filtros, llantas y más)\n• **Agendar** una cita\n• **Cotizar** servicios\n• **Contacto** y **ubicación**\n\nPara empezar, ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__';
 }
 
 export function invalidateChatbotCache() {

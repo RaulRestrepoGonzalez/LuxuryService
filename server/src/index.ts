@@ -3,7 +3,7 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { connectDb, getDb, ObjectId, toApiId, toApiList, uri, dbName } from './db.js';
-import { buildChatbotReply, HORARIOS, invalidateChatbotCache, initChatbotCache } from './chatbot.js';
+import { buildChatbotReply, HORARIOS, HORARIO_LABELS, invalidateChatbotCache, initChatbotCache } from './chatbot.js';
 import { processChatMessage } from './chatSession.js';
 import { notificarCitaAgendada, notificarBienvenidaCliente } from './notifications.js';
 import { createCheckout, processWebhook } from './payments.js';
@@ -23,7 +23,6 @@ const TERMINOS_VERSION = '1.0.0-2026';
 const POLITICA_VERSION = '1.0.0-2026';
 const ADMIN_EMAIL = 'admin@luxuryservice.co';
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=[\]{}|;:,.<>~`])[A-Za-z\d@$!%*?&#^()_+\-=[\]{}|;:,.<>~`]{8,}$/;
-const HORARIO_LABELS: Record<string, string> = { '10:00': '10:00 a.m.', '14:00': '2:00 p.m.' };
 
 interface JwtUser { id: string; email: string; rol: string; }
 
@@ -352,10 +351,12 @@ function isValidObjectId(id: string): boolean {
 
 app.get('/api/appointments/available', async (req, res) => {
   const fecha = req.query.fecha as string;
-  const servicioId = req.query.servicioId as string;
-  if (!fecha || !servicioId || !isValidObjectId(servicioId)) return res.json(HORARIOS.map(h => ({ value: h, label: HORARIO_LABELS[h] || h })));
+  const servicioIds = (req.query.servicioId as string || '').split(',').filter(Boolean);
+  if (!fecha || servicioIds.length === 0) return res.json(HORARIOS.map(h => ({ value: h, label: HORARIO_LABELS[h] || h })));
+  const validIds = servicioIds.filter(isValidObjectId);
+  if (validIds.length === 0) return res.json(HORARIOS.map(h => ({ value: h, label: HORARIO_LABELS[h] || h })));
   const ocupados = await getDb().collection('citas').find({
-    fecha, servicio_id: new ObjectId(servicioId), estado: { $ne: 'cancelada' }
+    fecha, servicio_id: { $in: validIds.map(id => new ObjectId(id)) }, estado: { $ne: 'cancelada' }
   }).toArray();
   const set = new Set(ocupados.map(c => c.horario));
   const slots = HORARIOS.filter(h => !set.has(h)).map(h => ({ value: h, label: HORARIO_LABELS[h] || h }));
@@ -363,13 +364,14 @@ app.get('/api/appointments/available', async (req, res) => {
 });
 
 app.get('/api/appointments/calendar', async (req, res) => {
-  const servicioId = req.query.servicioId as string;
+  const servicioIds = (req.query.servicioId as string || '').split(',').filter(Boolean);
   const year = Number(req.query.year);
   const month = Number(req.query.month);
-  if (!servicioId || !year || !month || !isValidObjectId(servicioId)) return res.json({ bookedDates: [] });
+  const validIds = servicioIds.filter(isValidObjectId);
+  if (validIds.length === 0 || !year || !month) return res.json({ bookedDates: [] });
   const prefix = `${year}-${String(month).padStart(2, '0')}`;
   const citas = await getDb().collection('citas').find({
-    servicio_id: new ObjectId(servicioId),
+    servicio_id: { $in: validIds.map(id => new ObjectId(id)) },
     fecha: { $regex: `^${prefix}` },
     estado: { $ne: 'cancelada' }
   }).toArray();
@@ -1233,12 +1235,12 @@ app.post('/api/contact', async (req, res) => {
 
 app.post('/api/chatbot', async (req, res) => {
   try {
-    const { message, sessionId } = req.body;
+    const { message, sessionId, userEmail, userName } = req.body;
     if (sessionId) {
-      const result = await processChatMessage(sessionId, String(message || ''));
+      const result = await processChatMessage(sessionId, String(message || ''), userEmail, userName);
       return res.json(result);
     }
-    const reply = await buildChatbotReply(String(message || ''), [], req.body.vehiculo);
+    const reply = await buildChatbotReply(String(message || ''), [], req.body.vehiculo, userEmail, userName);
     res.json({ reply });
   } catch (err) {
     console.error('[chatbot] Error:', err);

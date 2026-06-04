@@ -8,10 +8,11 @@ import { FALLBACK_SERVICIOS, sortByNombreNatural } from 'src/app/shared/constant
 import { productImage, resolvedProductImage } from 'src/app/shared/constants/catalog-images';
 
 interface HorarioSlot { value: string; label: string; }
-const DEFAULT_SLOTS: HorarioSlot[] = [
-  { value: '10:00', label: '10:00 a.m.' },
-  { value: '14:00', label: '2:00 p.m.' }
-];
+const DEFAULT_SLOTS: HorarioSlot[] = Array.from({ length: 11 }, (_, i) => {
+  const h = i + 8;
+  const label = h < 12 ? `${h}:00 a.m.` : h === 12 ? `12:00 p.m.` : `${h - 12}:00 p.m.`;
+  return { value: `${String(h).padStart(2, '0')}:00`, label };
+});
 
 interface ProductoItem {
   id: string;
@@ -174,6 +175,8 @@ export class BookAppointmentComponent implements OnInit {
     this.selectedProduct = null;
     this.giftCardCode = '';
     this.giftCardValid = null;
+    this.slotCache.clear();
+    this.bookedCache.clear();
     if (this.selectedServiceIds.length > 0) {
       this.loadMonthBookings();
     }
@@ -231,12 +234,22 @@ export class BookAppointmentComponent implements OnInit {
     return `${sid}|${y}|${m}`;
   }
 
+  private resolvedServiceIds(): string[] {
+    return this.selectedServiceIds
+      .map(id => this.resolveRealId(id))
+      .filter((id): id is string => !!id && !id.startsWith('fb-'));
+  }
+
+  private serviceIdsParam(): string {
+    return this.resolvedServiceIds().join(',');
+  }
+
   loadMonthBookings() {
-    const sid = this.selectedServiceIds[0] ? this.resolveRealId(this.selectedServiceIds[0]) : null;
-    if (!sid) return;
+    const ids = this.resolvedServiceIds();
+    if (ids.length === 0) return;
     const y = this.calendarMonth.getFullYear();
     const m = this.calendarMonth.getMonth() + 1;
-    const key = this.cacheKey(sid, y, m);
+    const key = ids.join('_') + '|' + y + '|' + m;
     const cached = this.bookedCache.get(key);
     if (cached) {
       this.bookedDates = cached;
@@ -244,7 +257,7 @@ export class BookAppointmentComponent implements OnInit {
       return;
     }
     this.loadingCalendar = true;
-    this.api.get<{ bookedDates: string[] }>(`/appointments/calendar?servicioId=${sid}&year=${y}&month=${m}`).subscribe({
+    this.api.get<{ bookedDates: string[] }>(`/appointments/calendar?servicioId=${this.serviceIdsParam()}&year=${y}&month=${m}`).subscribe({
       next: res => {
         const s = new Set(res.bookedDates);
         this.bookedCache.set(key, s);
@@ -321,15 +334,18 @@ export class BookAppointmentComponent implements OnInit {
   private retrySlots: string | null = null;
 
   loadSlots(fecha: string) {
-    const sid = this.selectedServiceIds[0] ? this.resolveRealId(this.selectedServiceIds[0]) : null;
-    if (!sid) return;
-    if (sid.startsWith('fb-') && !this.serviciosFromApi) {
-      this.retrySlots = fecha;
-      this.loadingSlots = true;
+    const ids = this.resolvedServiceIds();
+    if (ids.length === 0) {
+      const sid = this.selectedServiceIds[0] ? this.resolveRealId(this.selectedServiceIds[0]) : null;
+      if (sid && sid.startsWith('fb-') && !this.serviciosFromApi) {
+        this.retrySlots = fecha;
+        this.loadingSlots = true;
+        return;
+      }
       return;
     }
     this.retrySlots = null;
-    const key = `${sid}|${fecha}`;
+    const key = ids.join('_') + '|' + fecha;
     const cached = this.slotCache.get(key);
     if (cached) {
       this.horarios = cached;
@@ -337,7 +353,7 @@ export class BookAppointmentComponent implements OnInit {
     }
 
     this.loadingSlots = true;
-    this.api.get<HorarioSlot[]>(`/appointments/available?fecha=${fecha}&servicioId=${sid}`).subscribe({
+    this.api.get<HorarioSlot[]>(`/appointments/available?fecha=${fecha}&servicioId=${this.serviceIdsParam()}`).subscribe({
       next: res => {
         this.slotCache.set(key, res);
         this.horarios = res;
@@ -355,6 +371,27 @@ export class BookAppointmentComponent implements OnInit {
     this.payment = null;
     this.successMsg = '';
     this.errorMsg = '';
+    this.verifySlotStillAvailable(h.value);
+  }
+
+  private verifySlotStillAvailable(horario: string) {
+    const fecha = this.appointmentForm.get('fecha')?.value;
+    if (!fecha) return;
+    const ids = this.resolvedServiceIds();
+    if (ids.length === 0) return;
+    const label = this.horarios.find(h => h.value === horario)?.label || horario;
+    this.api.get<HorarioSlot[]>(`/appointments/available?fecha=${fecha}&servicioId=${this.serviceIdsParam()}&_=${Date.now()}`).subscribe({
+      next: slots => {
+        const stillFree = slots.some(s => s.value === horario);
+        if (!stillFree) {
+          this.appointmentForm.patchValue({ horario: '' });
+          this.errorMsg = `⚠️ El horario de las ${label} ya fue tomado por otro cliente. Por favor selecciona otro.`;
+          const key = ids.join('_') + '|' + fecha;
+          this.slotCache.set(key, slots);
+          this.horarios = slots;
+        }
+      }
+    });
   }
 
   selectedHorarioLabel(): string {
@@ -471,7 +508,7 @@ export class BookAppointmentComponent implements OnInit {
       '',
       'Por favor, confirma mi cita. Estaré atento a tu respuesta.',
       '',
-      '🕐 *Horario de atención:* Lunes a Sábado de 7:00 a.m. a 7:00 p.m., Domingos de 7:00 a.m. a 2:00 p.m.',
+      '🕐 *Horario de atención:* Lunes a Sábado de 8:00 a.m. a 6:00 p.m.',
       '',
       '¡Gracias! 😊'
     ];

@@ -320,7 +320,48 @@
 }
 
 @media (max-width: 768px) {
+  .catalog-page {
+    padding: 2rem 1rem 3rem;
+  }
   .catalog-grid {
     grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .md-card-body {
+    padding: 1rem 0.85rem 1.25rem;
+  }
+  .md-card h3 {
+    font-size: 1rem;
+  }
+  .md-card-desc {
+    font-size: 0.85rem;
+  }
+  .catalog-filters {
+    gap: 0.4rem;
+    margin: 1rem 0 1.5rem;
+  }
+  .catalog-chip {
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+  }
+  .catalog-grid.carousel .md-card {
+    flex: 0 0 min(280px, 80vw);
+  }
+  .catalog-section-title {
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+    margin-bottom: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .catalog-page {
+    padding: 1.5rem 0.75rem 2.5rem;
+  }
+  .catalog-chip {
+    padding: 0.35rem 0.85rem;
+    font-size: 0.7rem;
+  }
+  .md-card-image-wrap {
+    aspect-ratio: 3/2;
   }
 }

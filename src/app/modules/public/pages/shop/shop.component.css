@@ -151,3 +151,49 @@
   font-size: 1.1rem;
 }
 
+@media (max-width: 768px) {
+  .featured-carousel {
+    height: 320px;
+  }
+  .featured-card {
+    flex: 0 0 220px;
+  }
+  .featured-card-body {
+    padding: 0.5rem 0.6rem 0.75rem;
+  }
+  .featured-card-body h3 {
+    font-size: 0.8rem;
+  }
+  .featured-card-body .catalog-price {
+    font-size: 0.95rem;
+  }
+  .catalog-payment-note {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+    margin: -1rem auto 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .featured-carousel {
+    height: 260px;
+  }
+  .featured-card {
+    flex: 0 0 170px;
+  }
+  .featured-card-body {
+    padding: 0.4rem 0.5rem 0.6rem;
+  }
+  .featured-card-body h3 {
+    font-size: 0.7rem;
+    min-height: 1.8em;
+  }
+  .featured-card-body .catalog-price {
+    font-size: 0.85rem;
+  }
+  .featured-card .md-btn-filled {
+    font-size: 0.65rem;
+    padding: 0.4rem;
+  }
+}
+
