@@ -5,7 +5,6 @@ Aplicación web para **detailing automotriz premium** en **Manga, Cartagena**. C
 ## Stack
 
 | Capa | Tecnología | Despliegue |
-|---|---|---|---|
 | Frontend | Angular 21 + Chart.js 4 | Cloudflare Pages |
 | Backend API | Express 5 + MongoDB Atlas | VPS / Railway / Render |
 | Pasarela de pago | Credibanco Checkout | API externa |
