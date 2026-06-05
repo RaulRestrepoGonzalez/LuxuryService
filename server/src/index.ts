@@ -3,7 +3,7 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { connectDb, getDb, ObjectId, toApiId, toApiList, uri, dbName } from './db.js';
-import { buildChatbotReply, HORARIOS, HORARIO_LABELS, invalidateChatbotCache, initChatbotCache } from './chatbot.js';
+import { buildChatbotReply, HORARIOS, HORARIOS_DOMINGO, HORARIO_LABELS, invalidateChatbotCache, initChatbotCache } from './chatbot.js';
 import { processChatMessage } from './chatSession.js';
 import { notificarCitaAgendada, notificarBienvenidaCliente } from './notifications.js';
 import { createCheckout, processWebhook } from './payments.js';
@@ -349,17 +349,27 @@ function isValidObjectId(id: string): boolean {
   try { new ObjectId(id); return true; } catch { return false; }
 }
 
+function esDomingo(fecha: string): boolean {
+  const d = new Date(fecha + 'T12:00:00');
+  return d.getDay() === 0;
+}
+
+function slotsDelDia(fecha: string): readonly string[] {
+  return esDomingo(fecha) ? HORARIOS_DOMINGO : HORARIOS;
+}
+
 app.get('/api/appointments/available', async (req, res) => {
   const fecha = req.query.fecha as string;
   const servicioIds = (req.query.servicioId as string || '').split(',').filter(Boolean);
-  if (!fecha || servicioIds.length === 0) return res.json(HORARIOS.map(h => ({ value: h, label: HORARIO_LABELS[h] || h })));
+  const slotsBase = slotsDelDia(fecha);
+  if (!fecha || servicioIds.length === 0) return res.json(slotsBase.map(h => ({ value: h, label: HORARIO_LABELS[h] || h })));
   const validIds = servicioIds.filter(isValidObjectId);
-  if (validIds.length === 0) return res.json(HORARIOS.map(h => ({ value: h, label: HORARIO_LABELS[h] || h })));
+  if (validIds.length === 0) return res.json(slotsBase.map(h => ({ value: h, label: HORARIO_LABELS[h] || h })));
   const ocupados = await getDb().collection('citas').find({
     fecha, servicio_id: { $in: validIds.map(id => new ObjectId(id)) }, estado: { $ne: 'cancelada' }
   }).toArray();
   const set = new Set(ocupados.map(c => c.horario));
-  const slots = HORARIOS.filter(h => !set.has(h)).map(h => ({ value: h, label: HORARIO_LABELS[h] || h }));
+  const slots = slotsBase.filter(h => !set.has(h)).map(h => ({ value: h, label: HORARIO_LABELS[h] || h }));
   res.json(slots);
 });
 
@@ -380,8 +390,8 @@ app.get('/api/appointments/calendar', async (req, res) => {
     if (!byDate[c.fecha]) byDate[c.fecha] = [];
     byDate[c.fecha].push(c.horario);
   }
-  const fullyBooked = Object.entries(byDate).filter(([, h]) => h.length >= HORARIOS.length).map(([d]) => d);
-  res.json({ bookedDates: fullyBooked, horarios: HORARIOS.map(h => ({ value: h, label: HORARIO_LABELS[h] })) });
+  const fullyBooked = Object.entries(byDate).filter(([d, h]) => h.length >= slotsDelDia(d).length).map(([d]) => d);
+  res.json({ bookedDates: fullyBooked });
 });
 
 app.post('/api/appointments', auth, async (req, res) => {

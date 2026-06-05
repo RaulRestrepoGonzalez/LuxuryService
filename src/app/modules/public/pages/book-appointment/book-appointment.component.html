@@ -141,8 +141,9 @@
             [class.in-month]="d.inMonth"
             [class.disabled]="d.disabled"
             [class.selected]="isSelectedDate(d.iso)"
+            [class.today]="d.iso === todayIso"
             (click)="selectDate(d.iso, d.disabled)">
-            {{ d.date.getDate() }}
+            <span class="cal-day-num">{{ d.date.getDate() }}</span>
           </div>
         </div>
       </div>
@@ -192,7 +193,7 @@
       {{ submitting ? 'Confirmando…' : 'Confirmar cita por WhatsApp' }}
     </button>
 
-    <p class="hours-note">🕐 Horario de atención: Lun – Sáb 7:00 a.m. – 7:00 p.m.</p>
+    <p class="hours-note">🕐 Horario de atención: Lun – Sáb 7:00 a.m. – 7:00 p.m. | Dom 7:00 a.m. – 2:00 p.m.</p>
   </div>
 
   <!-- STEP 4: Done -->
@@ -200,7 +201,7 @@
     <div class="done-icon">✅</div>
     <h2 class="step-title">Casi listo</h2>
     <p>{{ successMsg }}</p>
-    <p class="hours-note">Te recordamos que nuestro horario de atención es Lun – Sáb de 7:00 a.m. a 7:00 p.m.</p>
+    <p class="hours-note">Te recordamos que nuestro horario de atención es Lun – Sáb de 7:00 a.m. a 7:00 p.m. y Dom de 7:00 a.m. a 2:00 p.m.</p>
     <button class="btn-primary" routerLink="/">Volver al inicio</button>
   </div>
 

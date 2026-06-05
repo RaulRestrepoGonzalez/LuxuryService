@@ -54,6 +54,7 @@ export class BookAppointmentComponent implements OnInit {
 
   selectedServiceIds: string[] = [];
   collapsedCategories = new Set<string>();
+  todayIso = this.toIso(new Date());
 
   private bookedCache = new Map<string, Set<string>>();
   private serviciosFromApi = false;
@@ -255,7 +256,7 @@ export class BookAppointmentComponent implements OnInit {
     for (let i = 0; i < 42; i++) {
       const d = new Date(start); d.setDate(start.getDate() + i);
       const iso = this.toIso(d);
-      const disabled = d < today || d.getDay() === 0 || this.bookedDates.has(iso);
+      const disabled = d < today || this.bookedDates.has(iso);
       this.calendarDays.push({ date: d, inMonth: d.getMonth() === m, iso, disabled, fullyBooked: this.bookedDates.has(iso) });
     }
   }
@@ -389,7 +390,7 @@ export class BookAppointmentComponent implements OnInit {
       `🎫 *Ticket:* ${ticket}`, `👤 *Cliente:* ${cliente}`, `📋 *Servicios:* ${serviciosList}`,
       `🚘 *Vehículo:* ${tipoLabel}`, `📅 *Fecha:* ${fecha}`, `⏰ *Horario:* ${horario}${productoTexto}${giftCardTexto}`,
       '', 'Por favor, confirma mi cita. Estaré atento a tu respuesta.',
-      '', '🕐 *Horario de atención:* Lunes a Sábado de 7:00 a.m. a 7:00 p.m.', '', '¡Gracias! 😊'
+      '', '🕐 *Horario de atención:* Lun – Sáb 7:00 a.m. – 7:00 p.m., Dom 7:00 a.m. – 2:00 p.m.', '', '¡Gracias! 😊'
     ].join('\n');
 
     this.successMsg = `🎫 Ticket generado: ${ticket}. Serás redirigido a WhatsApp para confirmar tu cita.`;
