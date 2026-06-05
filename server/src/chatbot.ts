@@ -167,28 +167,13 @@ const HORARIOS_TEXTO = HORARIO_LINEA.slice(0, 3).join(', ') + ', ' + HORARIO_LIN
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function precioServicio(s: ServiceItem, v?: Vehiculo | null): number | null {
-  if (!v) return s.precio_base ?? null;
-  if (v === 'auto') return s.precio_auto ?? s.precio_base ?? null;
-  if (v === 'camioneta') return s.precio_camioneta ?? s.precio_base ?? null;
-  return s.precio_moto ?? s.precio_base ?? null;
-}
-
-function formatPeso(n: number): string {
-  return '$' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
-}
-
 function formatoServicio(s: ServiceItem, v?: Vehiculo | null): string {
-  const p = precioServicio(s, v);
-  const precio = p !== null && p > 0 ? ` — ${formatPeso(p)}` : '';
-  return `• **${s.nombre}**${precio}`;
+  return `• **${s.nombre}** — ⏱ ${s.duracion_minutos} min`;
 }
 
 function servicioDetalle(s: ServiceItem, v?: Vehiculo | null): string {
   let out = `🔧 **${s.nombre}**\n`;
   out += `   ⏱ ${s.duracion_minutos} min`;
-  const p = precioServicio(s, v);
-  if (p !== null && p > 0) out += ` · 💰 ${formatPeso(p)}`;
   if (s.descripcion) out += `\n   ${s.descripcion}`;
   return out;
 }
@@ -391,7 +376,7 @@ const INTENTS: Intent[] = [
     ],
     minScore: 4,
     handler: () => {
-      return `🕐 **Horarios de atención:**\n• **Lunes a sábado:** 8:00 a.m. - 6:00 p.m.\n\n**Horarios disponibles para citas:**\n${formatHorarios()}\n\n¿Te gustaría **agendar** una cita?`;
+      return `🕐 **Horarios de atención:**\n• **Lunes a sábado:** 7:00 a.m. - 7:00 p.m.\n• **Domingo:** 7:00 a.m. - 2:00 p.m.\n\n**Horarios disponibles para citas:**\n${formatHorarios()}\n\n¿Te gustaría **agendar** una cita?`;
     }
   },
   {
@@ -462,11 +447,9 @@ const INTENTS: Intent[] = [
       if (!ctx.v) return 'Para darte una cotización necesito saber: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__';
       if (ctx.serviciosEncontrados.length > 0) {
         const lines = ctx.serviciosEncontrados.map(s => {
-          const p = precioServicio(s, ctx.v);
-          const precio = p !== null && p > 0 ? ` — 💰 ${formatPeso(p)}` : '';
-          return `• **${s.nombre}**${precio}\n   ⏱ ${s.duracion_minutos} min`;
+          return `• **${s.nombre}** (⏱ ${s.duracion_minutos} min)`;
         });
-        return `📋 **Cotización ${ctx.label}:**\n\n${lines.join('\n')}\n\n¿Quieres **agendar** alguno de estos servicios?`;
+        return `📋 **Servicios compatibles con ${ctx.label}:**\n\n${lines.join('\n')}\n\n¿Quieres **agendar** alguno de estos servicios?`;
       }
       const disponibles = serviciosCompatibles(ctx.catalog.services, ctx.v);
       if (disponibles.length === 0) return 'No tengo servicios disponibles para cotizar en este momento.';
@@ -532,9 +515,8 @@ const INTENTS: Intent[] = [
 
       if (ctx.productosEncontrados.length > 0) {
         const lines = ctx.productosEncontrados.map(p => {
-          const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
           const stock = p.stock > 0 ? `✅ ${p.stock} und.` : '❌ Agotado';
-          return `• **${p.nombre}**${precio} (${stock})`;
+          return `• **${p.nombre}** (${stock})`;
         });
         return `🛒 **Productos encontrados:**\n${lines.join('\n')}\n\nCompra en la sección **Tienda** con tu correo registrado. ¿Buscas algo en particular?`;
       }
@@ -543,9 +525,8 @@ const INTENTS: Intent[] = [
       if (prodCatMatch) {
         let out = `🛒 **${prodCatMatch.category}** — Productos disponibles:\n\n`;
         out += prodCatMatch.items.slice(0, 8).map(p => {
-          const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
           const stock = p.stock > 0 ? `✅ ${p.stock} und.` : '❌ Agotado';
-          return `• **${p.nombre}**${precio} (${stock})`;
+          return `• **${p.nombre}** (${stock})`;
         }).join('\n');
         if (prodCatMatch.items.length > 8) out += `\n... y ${prodCatMatch.items.length - 8} más`;
         out += '\n\nCompra en la sección **Tienda** con tu correo. ¿Buscas algo en particular?';
@@ -562,8 +543,7 @@ const INTENTS: Intent[] = [
       for (const [cat, items] of catMap) {
         out += `**${cat}:**\n`;
         out += items.slice(0, 5).map(p => {
-          const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
-          return `• ${p.nombre}${precio} — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`;
+          return `• ${p.nombre} — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`;
         }).join('\n') + '\n\n';
       }
       out += 'Compra en la sección **Tienda** con tu correo. ¿Buscas algo en particular?';
@@ -905,9 +885,8 @@ export async function buildChatbotReply(
 
   if (preguntaPendiente === 'producto' && ctx.productosEncontrados.length > 0) {
     const p = ctx.productosEncontrados[0];
-    const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
     const stock = p.stock > 0 ? `✅ ${p.stock} unidades` : '❌ Agotado';
-    return `🛒 **${p.nombre}**${precio}\n${p.descripcion}\nStock: ${stock}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
+    return `🛒 **${p.nombre}**\n${p.descripcion}\nStock: ${stock}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
   }
 
   // ── INTENT DETECTION ────────────────────────────────────────────
@@ -953,9 +932,8 @@ export async function buildChatbotReply(
 
   if (ctx.productosEncontrados.length > 0) {
     const lines = ctx.productosEncontrados.map(p => {
-      const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
       const stock = p.stock > 0 ? `✅ ${p.stock} und.` : '❌ Agotado';
-      return `• **${p.nombre}**${precio} (${stock})`;
+      return `• **${p.nombre}** (${stock})`;
     });
     return `🛒 **Productos:**\n${lines.join('\n')}\n\nCompra en la sección **Tienda** con tu correo. ¿Buscas algo en particular?`;
   }
@@ -964,8 +942,7 @@ export async function buildChatbotReply(
   if (prodCatMatch) {
     let out = `🛒 **${prodCatMatch.category}** — Productos:\n\n`;
     out += prodCatMatch.items.slice(0, 8).map(p => {
-      const precio = p.precio ? ` — ${formatPeso(p.precio)}` : '';
-      return `• **${p.nombre}**${precio} — ${p.stock > 0 ? `${p.stock} und.` : 'agotado'}`;
+      return `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} und.` : 'agotado'}`;
     }).join('\n');
     if (prodCatMatch.items.length > 8) out += `\n... y ${prodCatMatch.items.length - 8} más`;
     out += '\n\nCompra en la sección **Tienda**. ¿Buscas algo en particular?';
