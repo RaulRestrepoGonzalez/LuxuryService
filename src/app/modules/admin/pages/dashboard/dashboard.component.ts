@@ -15,7 +15,7 @@ const CHART_COLORS = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  pendiente: '#eab308', confirmada: '#22c55e', completada: '#3b82f6', cancelada: '#ef4444'
+  pendiente: '#eab308', pendiente_pago: '#f97316', confirmada: '#22c55e', completada: '#3b82f6', cancelada: '#ef4444'
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -607,15 +607,14 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
   private renderAppointmentsLine() {
     const el = this.citasCanvas.first?.nativeElement;
     if (!el) return;
-    const items = this.filteredRevenue();
+    const items = this.filterData(this.analytics.appointmentsTrend || []);
     if (!items.length) { el.parentElement!.innerHTML = '<div class="empty-state">Sin datos de citas</div>'; return; }
-    const fake = items.map((_: any, i: number) => Math.floor(Math.random() * 20 + 5));
     const chart = new Chart(el, {
       type: 'line',
       data: {
         labels: items.map((i: any) => i._id),
         datasets: [{
-          label: 'Citas', data: fake,
+          label: 'Citas', data: items.map((i: any) => i.count),
           borderColor: CHART_COLORS.green[2], backgroundColor: CHART_COLORS.green[1],
           fill: true, tension: 0.3, pointRadius: 4, pointHoverRadius: 6,
           pointBackgroundColor: CHART_COLORS.green[2]

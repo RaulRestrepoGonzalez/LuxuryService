@@ -713,10 +713,14 @@ app.get('/api/admin/dashboard/analytics', auth, adminRequired, async (_req, res)
     { $group: { _id: { $ifNull: ['$servicio.nombre', 'Desconocido'] }, count: { $sum: 1 } } },
     { $sort: { count: -1 } }
   ]).toArray();
+  const appointmentsTrend = await db.collection('citas').aggregate([
+    { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$created_at' } }, count: { $sum: 1 } } },
+    { $sort: { _id: 1 } }
+  ]).toArray();
   const totalClients = await db.collection('usuarios').countDocuments({ rol: 'cliente' });
   const totalAppointments = await db.collection('citas').countDocuments();
   const totalServices = await db.collection('servicios').countDocuments({ activo: true });
-  analyticsCache.data = { revenueTrend, appointmentsByStatus, clientsTrend, servicesBooked, totalClients, totalAppointments, totalServices };
+  analyticsCache.data = { revenueTrend, appointmentsByStatus, clientsTrend, servicesBooked, appointmentsTrend, totalClients, totalAppointments, totalServices };
   analyticsCache.loadedAt = Date.now();
   res.json(analyticsCache.data);
 });
