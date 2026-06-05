@@ -1,25 +1,26 @@
 .chatbot-button {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: clamp(16px, 4vw, 28px);
+  right: clamp(16px, 4vw, 28px);
   background: #ff2b2b;
   border: none;
   border-radius: 50%;
-  width: 56px;
-  height: 56px;
-  font-size: 1.5rem;
+  width: clamp(60px, 12vw, 80px);
+  height: clamp(60px, 12vw, 80px);
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
   cursor: pointer;
   z-index: 1000;
   box-shadow: 0 8px 24px rgba(255, 43, 43, 0.45);
   transition: transform 0.2s ease;
+  display: flex; align-items: center; justify-content: center;
 }
 
-.chatbot-button:hover { transform: scale(1.05); }
+.chatbot-button:hover { transform: scale(1.08); }
 
 .chatbot-window {
   position: fixed;
-  bottom: 88px;
-  right: 20px;
+  bottom: clamp(84px, 16vw, 108px);
+  right: clamp(16px, 4vw, 28px);
   width: min(380px, calc(100vw - 40px));
   background: #ffffff;
   border: 1px solid #e8e8e8;
