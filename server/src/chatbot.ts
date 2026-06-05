@@ -168,13 +168,15 @@ const HORARIOS_TEXTO = HORARIO_LINEA.slice(0, 3).join(', ') + ', ' + HORARIO_LIN
 // ── Helpers ──────────────────────────────────────────────────────
 
 function formatoServicio(s: ServiceItem, v?: Vehiculo | null): string {
-  return `• **${s.nombre}** — ⏱ ${s.duracion_minutos} min`;
+  const desc = s.descripcion ? s.descripcion.slice(0, 60) : '';
+  const extras = s.duracion_minutos > 0 ? `⏱ ${s.duracion_minutos} min` : '';
+  return `• **${s.nombre}** ${extras ? `— ${extras}` : ''}${desc ? `\n   ${desc}${s.descripcion.length > 60 ? '…' : ''}` : ''}`;
 }
 
 function servicioDetalle(s: ServiceItem, v?: Vehiculo | null): string {
-  let out = `🔧 **${s.nombre}**\n`;
-  out += `   ⏱ ${s.duracion_minutos} min`;
-  if (s.descripcion) out += `\n   ${s.descripcion}`;
+  let out = `🔧 **${s.nombre}**`;
+  if (s.duracion_minutos > 0) out += ` — ⏱ Aprox. ${s.duracion_minutos} min`;
+  if (s.descripcion) out += `\n📝 ${s.descripcion}`;
   return out;
 }
 
@@ -297,7 +299,7 @@ function ultimaPreguntaBot(history: ChatTurn[]): string | null {
 
 function formatHorarios(): string {
   const items = HORARIO_LINEA.map(h => `• ${h}`);
-  return items.join('\n');
+  return items.join('\n') + `\n\n⏰ *Puedes agendar en cualquiera de estos horarios, sujeto a disponibilidad.*`;
 }
 
 // ── Intents ───────────────────────────────────────────────────────
@@ -316,9 +318,9 @@ const INTENTS: Intent[] = [
     ],
     minScore: 4,
     handler: (ctx) => {
-      const base = '¡Hola! Soy el asistente virtual de **Luxury Service Manga** 🚗✨';
-      if (!ctx.v) return base + '\n\n¿Qué tipo de vehículo tienes? __SLOT__VEHICULO__\n• 🚗 **Automóvil**\n• 🚙 **Camioneta**\n• 🏍️ **Moto**\n\nTambién puedes preguntarme por servicios, productos u horarios.';
-      return base + `\n\nVeo que tienes **${ctx.label}**. ¿En qué puedo ayudarte?\n• **Servicios** disponibles para ${ctx.label}\n• **Productos** en tienda\n• **Cotizar** un servicio\n• **Agendar** una cita`;
+      const base = '¡Hola! Soy el asistente virtual de **Luxury Service Manga** 🚗✨ ¿En qué puedo ayudarte hoy?';
+      if (!ctx.v) return base + '\n\nPara empezar, ¿qué tipo de vehículo tienes? __SLOT__VEHICULO__\n• 🚗 **Automóvil**\n• 🚙 **Camioneta**\n• 🏍️ **Moto**\n\nPuedes preguntarme por servicios, productos, horarios o agendar una cita directamente.';
+      return base + `\n\nVeo que tienes **${ctx.label}** 🚗. Dime qué necesitas y con gusto te ayudo:\n\n• 🔧 **Servicios** — Ver todos los servicios disponibles para ${ctx.label}\n• 🛒 **Productos** — Lo que tenemos en tienda\n• 📅 **Agendar** — Apartar una cita\n• 💬 **Consultar** — Cualquier otra pregunta`;
     }
   },
   {
@@ -332,7 +334,7 @@ const INTENTS: Intent[] = [
       { word: 'gracias adios', weight: 5 }, { word: 'muchas gracias adios', weight: 5 },
     ],
     minScore: 3,
-    handler: () => '¡Hasta luego! Gracias por contactarnos. En **Luxury Service** estamos para servirte. Vuelve cuando necesites 🚗✨'
+    handler: () => '¡Hasta luego! 🙋‍♂️ Fue un placer atenderte. En **Luxury Service Manga** estamos siempre listos para ayudarte con tu vehículo 🚗✨\n\nRecuerda que puedes agendar tus citas en cualquier momento desde nuestra página web. ¡Cuídate y vuelve pronto!'
   },
   {
     name: 'ubicacion',
@@ -346,7 +348,7 @@ const INTENTS: Intent[] = [
       { word: 'waze', weight: 4 }, { word: 'google maps', weight: 5 },
     ],
     minScore: 4,
-    handler: () => '📍 **Luxury Service Manga** en **Cartagena, Colombia**.\n\nAv. Principal Manga — a una cuadra del parque principal.\n\n📌 https://maps.google.com/?q=Manga,+Cartagena,+Colombia\n\n¿Necesitas el número para contactarnos o prefieres agendar una cita?'
+    handler: () => '📍 **Luxury Service Manga** — **Cartagena, Colombia**\n\nEstamos en la **Av. Principal de Manga**, a una cuadra del parque principal. Fácil de encontrar y con espacio para tu vehículo.\n\n📌 Abrir en Google Maps: https://maps.google.com/?q=Manga,+Cartagena,+Colombia\n\n¿Necesitas el número para contactarnos o prefieres **agendar una cita** directamente desde aquí?'
   },
   {
     name: 'contacto',
@@ -361,7 +363,7 @@ const INTENTS: Intent[] = [
       { word: 'atención al cliente', weight: 5 },
     ],
     minScore: 4,
-    handler: () => '📬 **Comunícate con nosotros:**\n\n📞 **Teléfono:** +57 300 636 6429\n💬 **WhatsApp:** wa.me/573006366429\n✉️ **Correo:** luxury_admon@outlook.com\n\n✅ También puedes agendar directamente desde aquí — dime tu servicio y te ayudo.'
+    handler: () => '📬 **Puedes contactarnos por estos medios:**\n\n📞 **Teléfono:** +57 300 636 6429\n💬 **WhatsApp:** wa.me/573006366429\n✉️ **Correo:** luxury_admon@outlook.com\n\n⏰ **Horario de atención:** Lun–Sáb 7am–7pm, Dom 7am–2pm\n\n✅ También puedo **agendar una cita** para ti directamente desde aquí. Solo dime qué servicio necesitas.'
   },
   {
     name: 'horarios',
@@ -376,7 +378,7 @@ const INTENTS: Intent[] = [
     ],
     minScore: 4,
     handler: () => {
-      return `🕐 **Horarios de atención:**\n• **Lunes a sábado:** 7:00 a.m. - 7:00 p.m.\n• **Domingo:** 7:00 a.m. - 2:00 p.m.\n\n**Horarios disponibles para citas:**\n${formatHorarios()}\n\n¿Te gustaría **agendar** una cita?`;
+      return `🕐 **Horarios de atención:**\n• **Lunes a sábado:** 7:00 a.m. - 7:00 p.m.\n• **Domingo:** 7:00 a.m. - 2:00 p.m.\n\n**Horarios disponibles para citas:**\n${formatHorarios()}\n\n¿Te gustaría **agendar** una cita? Solo dime el servicio y la fecha.`;
     }
   },
   {
@@ -394,12 +396,12 @@ const INTENTS: Intent[] = [
     ],
     minScore: 4,
     handler: (ctx) => {
-      if (!ctx.v) return 'Claro, para agendar una cita necesito saber: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__';
+      if (!ctx.v) return 'Claro, con gusto te ayudo a agendar una cita. Primero necesito saber: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__';
       if (ctx.serviciosEncontrados.length > 0) {
         const s = ctx.serviciosEncontrados[0];
-        return `📅 **Agendar: ${s.nombre}**\n\n${servicioDetalle(s, ctx.v)}\n\nDime la **fecha** que prefieres (ej: "mañana" o "15 de junio") y te reviso disponibilidad. __SLOT__FECHA__`;
+        return `📅 **Agendar: ${s.nombre}**\n\n${servicioDetalle(s, ctx.v)}\n\n¿Qué **fecha** te gustaría? Por ejemplo: *"mañana"*, *"15 de junio"*, *"este viernes"*. Te confirmaré disponibilidad. __SLOT__FECHA__`;
       }
-      return '📅 Para agendar, primero dime: ¿qué servicio necesitas? __SLOT__SERVICIO__\n\nPor ejemplo: lavado, detailing, cambio de aceite, etc.';
+      return '📅 Para agendar una cita, primero dime: ¿qué servicio necesitas? __SLOT__SERVICIO__\n\nPor ejemplo: *"lavado general"*, *"cambio de aceite"*, *"detailing completo"*, o *"polarizados"*.\n\nTambién puedo mostrarte la lista completa de servicios si me dices *"ver servicios"*.';
     }
   },
   {
@@ -413,7 +415,7 @@ const INTENTS: Intent[] = [
       { word: 'que promocion', weight: 4 }, { word: 'hay descuento', weight: 4 },
     ],
     minScore: 4,
-    handler: () => '🎉 **Promociones:**\n\nAl registrarte con tu correo recibirás **notificaciones de promociones** y confirmación de citas.\n\nActualmente manejamos precios especiales en combos de lavado + detailing. ¿Te gustaría saber más sobre algún servicio?'
+    handler: () => '🎉 **Promociones y ofertas:**\n\nActualmente tenemos combos especiales en lavado + detailing y promociones en nuestros servicios de mecánica básica.\n\n💡 *Para conocer las promociones vigentes y precios actualizados, visita nuestra página web o la tienda física en Manga.*\n\n¿Te gustaría conocer los **servicios** disponibles o prefieres **agendar** una cita? Puedo ayudarte con ambas.'
   },
   {
     name: 'agradecimiento',
@@ -427,7 +429,7 @@ const INTENTS: Intent[] = [
       { word: 'mil gracias', weight: 5 },
     ],
     minScore: 3,
-    handler: () => '¡Con gusto! 😊 Estoy aquí para lo que necesites.\n\n¿Hay algo más en que pueda ayudarte?'
+    handler: () => '¡Con gusto! 😊 Para eso estoy — para ayudarte con lo que necesites.\n\n¿Hay algo más en que pueda servirte? ¿Quieres **agendar** una cita o te gustaría ver nuestros **servicios**?'
   },
   {
     name: 'cotizacion',
@@ -444,15 +446,16 @@ const INTENTS: Intent[] = [
     ],
     minScore: 4,
     handler: (ctx) => {
-      if (!ctx.v) return 'Para darte una cotización necesito saber: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__';
+      const disclaimer = '\n\n💡 *Los precios y promociones actualizados los encuentras en nuestra página web en la sección de servicios, o directamente en la tienda física.*';
+      if (!ctx.v) return 'Para ayudarte con los precios necesito saber: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__' + disclaimer;
       if (ctx.serviciosEncontrados.length > 0) {
         const lines = ctx.serviciosEncontrados.map(s => {
-          return `• **${s.nombre}** (⏱ ${s.duracion_minutos} min)`;
+          return `• **${s.nombre}** — ⏱ ${s.duracion_minutos} min${s.descripcion ? `\n  📝 ${s.descripcion.slice(0, 80)}${s.descripcion.length > 80 ? '…' : ''}` : ''}`;
         });
-        return `📋 **Servicios compatibles con ${ctx.label}:**\n\n${lines.join('\n')}\n\n¿Quieres **agendar** alguno de estos servicios?`;
+        return `📋 **Servicios para ${ctx.label}:**\n\n${lines.join('\n')}\n\n¿Te gustaría **agendar** alguno? Solo dime el nombre. __SLOT__SERVICIO__` + disclaimer;
       }
       const disponibles = serviciosCompatibles(ctx.catalog.services, ctx.v);
-      if (disponibles.length === 0) return 'No tengo servicios disponibles para cotizar en este momento.';
+      if (disponibles.length === 0) return 'En este momento no tengo servicios registrados para tu vehículo.' + disclaimer;
       let out = `📋 **SERVICIOS DISPONIBLES para ${ctx.label}:**\n\n`;
       const categorias = new Map<string, ServiceItem[]>();
       for (const s of disponibles) {
@@ -464,7 +467,7 @@ const INTENTS: Intent[] = [
         out += `**${cat}:**\n`;
         out += items.slice(0, 5).map(s => formatoServicio(s, ctx.v)).join('\n') + '\n\n';
       }
-      out += '¿Te gustaría agendar alguno? Dime el nombre del servicio. __SLOT__SERVICIO__';
+      out += '¿Te gustaría agendar alguno? Dime el nombre del servicio. __SLOT__SERVICIO__' + disclaimer;
       return out;
     }
   },
@@ -495,7 +498,7 @@ const INTENTS: Intent[] = [
         out += items.slice(0, 8).map(s => formatoServicio(s, ctx.v)).join('\n');
         if (items.length > 8) out += `\n... y ${items.length - 8} más`;
       }
-      out += '\n\n¿Te gustaría **cotizar** algún servicio o **agendar** una cita?';
+      out += '\n\n¿Te gustaría **agendar** alguno? Dime el nombre y te ayudo.';
       return out;
     }
   },
@@ -511,25 +514,26 @@ const INTENTS: Intent[] = [
     ],
     minScore: 4,
     handler: (ctx) => {
-      if (ctx.catalog.products.length === 0) return 'Por el momento no hay productos en tienda.';
+      if (ctx.catalog.products.length === 0) return 'Actualmente no tenemos productos disponibles en tienda. ¿Quieres consultar nuestros **servicios**?';
 
       if (ctx.productosEncontrados.length > 0) {
         const lines = ctx.productosEncontrados.map(p => {
-          const stock = p.stock > 0 ? `✅ ${p.stock} und.` : '❌ Agotado';
-          return `• **${p.nombre}** (${stock})`;
+          const stock = p.stock > 0 ? `✅ ${p.stock} und. disponibles` : '❌ Agotado temporalmente';
+          const desc = p.descripcion ? `\n   ${p.descripcion.slice(0, 80)}${p.descripcion.length > 80 ? '…' : ''}` : '';
+          return `• **${p.nombre}** — ${stock}${desc}`;
         });
-        return `🛒 **Productos encontrados:**\n${lines.join('\n')}\n\nCompra en la sección **Tienda** con tu correo registrado. ¿Buscas algo en particular?`;
+        return `🛒 **Productos:**\n${lines.join('\n')}\n\n💡 *Para ver precios y comprar, ingresa a la sección **Tienda** en nuestra página web con tu correo registrado.*\n\n¿Necesitas algo más?`;
       }
 
       const prodCatMatch = matchProductCategory(ctx.lower, ctx.catalog.products);
       if (prodCatMatch) {
-        let out = `🛒 **${prodCatMatch.category}** — Productos disponibles:\n\n`;
+        let out = `🛒 **${prodCatMatch.category}** — Productos:\n\n`;
         out += prodCatMatch.items.slice(0, 8).map(p => {
           const stock = p.stock > 0 ? `✅ ${p.stock} und.` : '❌ Agotado';
           return `• **${p.nombre}** (${stock})`;
         }).join('\n');
-        if (prodCatMatch.items.length > 8) out += `\n... y ${prodCatMatch.items.length - 8} más`;
-        out += '\n\nCompra en la sección **Tienda** con tu correo. ¿Buscas algo en particular?';
+        if (prodCatMatch.items.length > 8) out += `\n... y ${prodCatMatch.items.length - 8} productos más`;
+        out += '\n\n💡 *Para precios y compra, visita la **Tienda** en nuestra web con tu correo.*\n\n¿Buscas algo en particular?';
         return out;
       }
 
@@ -543,10 +547,11 @@ const INTENTS: Intent[] = [
       for (const [cat, items] of catMap) {
         out += `**${cat}:**\n`;
         out += items.slice(0, 5).map(p => {
-          return `• ${p.nombre} — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`;
+          const desc = p.descripcion ? ` — ${p.descripcion.slice(0, 50)}${p.descripcion.length > 50 ? '…' : ''}` : '';
+          return `• ${p.nombre}${desc} (${p.stock > 0 ? `${p.stock} disp.` : 'agotado'})`;
         }).join('\n') + '\n\n';
       }
-      out += 'Compra en la sección **Tienda** con tu correo. ¿Buscas algo en particular?';
+      out += '💡 *Para precios y compra, visita la **Tienda** en nuestra web con tu correo.*\n\n¿Te interesa alguna categoría en especial?';
       return out;
     }
   },
@@ -788,46 +793,45 @@ export async function buildChatbotReply(
   if (preguntaPendiente === 'vehiculo' && ctx.v) {
     const disponibles = serviciosCompatibles(catalog.services, ctx.v);
     const prodCount = catalog.products.length;
-    let out = `¡Perfecto! Has seleccionado **${ctx.label}** 🚗.\n\n`;
+    let out = `¡Perfecto! **${ctx.label}** 🚗 — excelente elección.\n\n`;
     out += `📋 **Para ${ctx.label}** tenemos:\n`;
-    out += `• **${disponibles.length} servicios** disponibles\n`;
-    out += `• **${prodCount} productos** en tienda\n\n`;
-    out += '¿Qué deseas consultar? Puedo ayudarte con **cotizar**, **agendar** o ver **servicios**.';
+    out += `• 🔧 **${disponibles.length} servicios** disponibles\n`;
+    out += `• 🛒 **${prodCount} productos** en tienda\n\n`;
+    out += '¿Qué deseas hacer?\n• **Ver servicios** — Mostrar lista completa\n• **Agendar** — Apartar una cita\n• **Productos** — Ver lo que tenemos en tienda\n• O pregúntame lo que necesites.';
     return out;
   }
 
   if (preguntaPendiente === 'servicio' && ctx.serviciosEncontrados.length > 0) {
     const s = ctx.serviciosEncontrados[0];
-    return `📅 **${s.nombre}**\n\n${servicioDetalle(s, ctx.v)}\n\nDime la **fecha** que prefieres para agendar (ej: "mañana" o "15 de junio"). __SLOT__FECHA__`;
+    return `📅 **Agendar: ${s.nombre}**\n\n${servicioDetalle(s, ctx.v)}\n\n¿Qué **fecha** prefieres? Puedes decirme por ejemplo: *"mañana"*, *"15 de junio"*, *"este sábado"*. __SLOT__FECHA__`;
   }
 
   // Fecha slot: check availability
   if (preguntaPendiente === 'fecha') {
     const fecha = parseFecha(message);
-    if (!fecha) return 'No entendí la fecha. ¿Puedes decirla de nuevo? (ej: "mañana", "15 de junio", "lunes") __SLOT__FECHA__';
+    if (!fecha) return 'No entendí bien la fecha. ¿Puedes repetirla? Por ejemplo: *"mañana"*, *"15 de junio"*, *"este lunes"*. __SLOT__FECHA__';
 
-    // Get the service from context (last mentioned or from history)
     const ultimoMensajeBuscando = [...history].reverse().find(t => t.role === 'user');
     const ctxForService = ultimoMensajeBuscando ? buildContext(ultimoMensajeBuscando.text, vehiculoHeredado, catalog) : ctx;
     const servicio = ctxForService.serviciosEncontrados[0] || ctx.serviciosEncontrados[0];
-    if (!servicio) return `Entendido, **${fecha}**. Pero no tengo claro el servicio. ¿Puedes decirme cuál necesitas? __SLOT__SERVICIO__`;
+    if (!servicio) return `Entendido, **${fecha}**. Pero no me quedó claro el servicio. ¿Puedes decirme cuál necesitas? Por ejemplo: lavado, detailing, cambio de aceite. __SLOT__SERVICIO__`;
 
     const serviceId = (servicio as any)._id;
-    if (!serviceId) return `Entendido, **${fecha}**. Pero no puedo verificar disponibilidad para ese servicio. Agenda directamente en la web.`;
+    if (!serviceId) return `Entendido, **${fecha}**. No puedo verificar disponibilidad para ese servicio desde aquí. Te recomiendo agendar directamente en nuestra página web.`;
 
     const disponibles = await verificarDisponibilidad(serviceId, fecha);
-    if (disponibles.length === 0) return `Lo siento, no hay horarios disponibles para **${fecha}**. ¿Puedes elegir otra fecha? __SLOT__FECHA__`;
+    if (disponibles.length === 0) return `Lo siento, no hay horarios disponibles para el **${fecha}**. ¿Podrías elegir otra fecha? __SLOT__FECHA__`;
 
-    return `✅ Hay **${disponibles.length} horarios** disponibles para **${fecha}**:\n\n${disponibles.map(h => `• ${HORARIO_LABELS[h] || h}`).join('\n')}\n\n¿Qué hora prefieres? __SLOT__CONFIRMAR_CITA__`;
+    return `✅ Hay **${disponibles.length} horarios** disponibles el **${fecha}**:\n\n${disponibles.map(h => `• ${HORARIO_LABELS[h] || h}`).join('\n')}\n\n¿Qué hora prefieres? __SLOT__CONFIRMAR_CITA__`;
   }
 
   // Confirmar cita: process the booking
   if (preguntaPendiente === 'confirmar_cita') {
-    if (!userEmail) return 'Para agendar necesito tu correo electrónico. Escríbelo por favor.';
+    if (!userEmail) return 'Para agendar la cita necesito tu **correo electrónico**. Escríbelo por favor 📧';
 
     const horarioElegido = parseHorario(message);
     if (!horarioElegido) {
-      return 'No entendí la hora. Los horarios disponibles son:\n\n' + formatHorarios() + '\n\n¿Qué hora prefieres? (ej: "10:00", "2 pm") __SLOT__CONFIRMAR_CITA__';
+      return 'No entendí la hora. Los horarios disponibles son:\n\n' + formatHorarios() + '\n\n¿Qué hora prefieres? Por ejemplo: *"10:00"*, *"2 pm"*, *"9 de la mañana"*. __SLOT__CONFIRMAR_CITA__';
     }
 
     // Get fecha and servicio from conversation
@@ -880,13 +884,13 @@ export async function buildChatbotReply(
 
     if (!result.ok) return `❌ ${result.error || 'No se pudo agendar la cita.'}`;
 
-    return `✅ **Cita agendada con éxito!** 🎉\n\n📋 **Resumen:**\n• **Servicio:** ${servicio.nombre}\n• **Vehículo:** ${ctx.label || 'Automóvil'}\n• **Fecha:** ${fecha}\n• **Hora:** ${HORARIO_LABELS[horarioElegido] || horarioElegido}\n• **Ticket:** ${result.ticket}\n\n📩 Recibirás confirmación en tu correo.\n¿Necesitas algo más?`;
+    return `✅ **¡Cita agendada con éxito!** 🎉\n\n📋 **Resumen de tu cita:**\n• **Servicio:** ${servicio.nombre}\n• **Vehículo:** ${ctx.label || 'Automóvil'}\n• **Fecha:** ${fecha}\n• **Hora:** ${HORARIO_LABELS[horarioElegido] || horarioElegido}\n• **Ticket:** ${result.ticket}\n\n📩 Te enviaremos los detalles a tu correo.\n🙏 ¡Gracias por confiar en **Luxury Service Manga**!\n\n¿Necesitas algo más? Estoy aquí para ayudarte.`;
   }
 
   if (preguntaPendiente === 'producto' && ctx.productosEncontrados.length > 0) {
     const p = ctx.productosEncontrados[0];
-    const stock = p.stock > 0 ? `✅ ${p.stock} unidades` : '❌ Agotado';
-    return `🛒 **${p.nombre}**\n${p.descripcion}\nStock: ${stock}\n\n¿Quieres comprarlo? Ve a la **Tienda** con tu correo registrado.`;
+    const stock = p.stock > 0 ? `✅ ${p.stock} unidades disponibles` : '❌ Agotado por el momento';
+    return `🛒 **${p.nombre}**\n📝 ${p.descripcion}\n📦 Stock: ${stock}\n\n💡 *Para conocer el precio y realizar tu compra, ingresa a la sección **Tienda** en nuestra página web con tu correo registrado.*\n\n¿Necesitas algo más?`;
   }
 
   // ── INTENT DETECTION ────────────────────────────────────────────
@@ -911,10 +915,10 @@ export async function buildChatbotReply(
   if (ctx.serviciosEncontrados.length > 0) {
     if (ctx.serviciosEncontrados.length === 1) {
       const s = ctx.serviciosEncontrados[0];
-      return `${servicioDetalle(s, ctx.v)}\n\n¿Quieres **agendar** este servicio o **cotizar**?`;
+      return `${servicioDetalle(s, ctx.v)}\n\n¿Te gustaría **agendar** este servicio? Solo dime la fecha.`;
     }
     const lines = ctx.serviciosEncontrados.map(s => formatoServicio(s, ctx.v));
-    return `Encontré varios servicios:\n${lines.join('\n')}\n\n¿Cuál te interesa?`;
+    return `Encontré estos servicios:\n${lines.join('\n')}\n\n¿Cuál te gustaría agendar? Dime el nombre.`;
   }
 
   let catMatch: string[] | null = null;
@@ -926,16 +930,17 @@ export async function buildChatbotReply(
     const items = disponibles.filter(s => catMatch!.includes(s.categoria || ''));
     if (items.length > 0) {
       const lines = items.map(s => formatoServicio(s, ctx.v));
-      return `🔧 **${items[0].categoria?.toUpperCase() || 'SERVICIOS'}**${ctx.label ? ` (${ctx.label})` : ''}:\n${lines.join('\n')}\n\n¿Te interesa alguno?`;
+      return `🔧 **${items[0].categoria?.toUpperCase() || 'SERVICIOS'}**${ctx.label ? ` (${ctx.label})` : ''}:\n${lines.join('\n')}\n\n¿Te gustaría agendar alguno? Dime cuál.`;
     }
   }
 
   if (ctx.productosEncontrados.length > 0) {
     const lines = ctx.productosEncontrados.map(p => {
       const stock = p.stock > 0 ? `✅ ${p.stock} und.` : '❌ Agotado';
-      return `• **${p.nombre}** (${stock})`;
+      const desc = p.descripcion ? `\n   ${p.descripcion.slice(0, 60)}${p.descripcion.length > 60 ? '…' : ''}` : '';
+      return `• **${p.nombre}** (${stock})${desc}`;
     });
-    return `🛒 **Productos:**\n${lines.join('\n')}\n\nCompra en la sección **Tienda** con tu correo. ¿Buscas algo en particular?`;
+    return `🛒 **Productos:**\n${lines.join('\n')}\n\n💡 *Para ver precios y comprar, visita la **Tienda** en nuestra web con tu correo.* ¿Necesitas algo más?`;
   }
 
   const prodCatMatch = matchProductCategory(ctx.lower, catalog.products);
@@ -944,8 +949,8 @@ export async function buildChatbotReply(
     out += prodCatMatch.items.slice(0, 8).map(p => {
       return `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} und.` : 'agotado'}`;
     }).join('\n');
-    if (prodCatMatch.items.length > 8) out += `\n... y ${prodCatMatch.items.length - 8} más`;
-    out += '\n\nCompra en la sección **Tienda**. ¿Buscas algo en particular?';
+    if (prodCatMatch.items.length > 8) out += `\n... y ${prodCatMatch.items.length - 8} productos más`;
+    out += '\n\n💡 *Para precios y compra, visita la **Tienda** en nuestra web.* ¿Buscas algo en particular?';
     return out;
   }
 
@@ -957,7 +962,7 @@ export async function buildChatbotReply(
     const items = disponibles.filter(s => s.categoria === detectedCategory[0] || norm(s.nombre).includes(norm(detectedCategory[0])));
     if (items.length > 0) {
       const lines = items.map(s => formatoServicio(s, ctx.v));
-      return `🔧 **${detectedCategory[0].toUpperCase()}**${ctx.label ? ` (${ctx.label})` : ''}:\n${lines.join('\n')}\n\n¿Te interesa alguno?`;
+      return `🔧 **${detectedCategory[0].toUpperCase()}**${ctx.label ? ` (${ctx.label})` : ''}:\n${lines.join('\n')}\n\n¿Te gustaría agendar alguno? Dime cuál.`;
     }
   }
 
@@ -976,7 +981,7 @@ export async function buildChatbotReply(
     ).slice(0, 5);
     if (cerca.length > 0) {
       const lines = cerca.map(p => `• **${p.nombre}** — ${p.stock > 0 ? `${p.stock} disp.` : 'agotado'}`);
-      return `¿Buscas algún producto? Encontré estos:\n${lines.join('\n')}\n\nCompra en la sección **Tienda**. ¿Te gusta alguno?`;
+      return `¿Buscas algún producto? Encontré estos:\n${lines.join('\n')}\n\n💡 *Para precios y compra, visita la **Tienda** en nuestra web.* ¿Te gusta alguno?`;
     }
   }
 
@@ -989,12 +994,12 @@ export async function buildChatbotReply(
 
   if (serviciosCercanos.length > 0) {
     const nombres = serviciosCercanos.map(s => `**${s.nombre}**`).join(', ');
-    return `¿Te refieres a alguno de estos servicios? ${nombres}\n\nO cuéntame con más detalle qué necesitas. 😊`;
+    return `¿Te refieres a alguno de estos servicios? ${nombres}\n\nCuéntame con más detalle o dime si quieres **agendar** alguno. 😊`;
   }
 
   if (ctx.v) {
     const disponibles = serviciosCompatibles(catalog.services, ctx.v);
-    return `No entendí bien tu mensaje 😊 Tienes **${ctx.label}** — puedo ayudarte con:\n• **Servicios** (${disponibles.length} disponibles)\n• **Productos** en tienda (${catalog.products.length} productos)\n• **Agendar** una cita\n• **Cotizar** un servicio\n\n¿Qué necesitas?`;
+    return `Tienes **${ctx.label}** 🚗. ¿Qué necesitas?\n\n• 🔧 **Servicios** (${disponibles.length} disponibles)\n• 🛒 **Productos** en tienda\n• 📅 **Agendar** una cita\n• 💬 **Otra consulta**\n\nDime cómo puedo ayudarte.`;
   }
 
   const sugerencias: string[] = [];
@@ -1006,10 +1011,10 @@ export async function buildChatbotReply(
   if (/\b(contacto|telefono|whatsapp|correo|llamar)\b/.test(ctx.lower)) sugerencias.push('los datos de **contacto**');
 
   if (sugerencias.length > 0) {
-    return `No entendí bien, ¿quieres ${sugerencias.join(' o ')}?\n\nPrimero dime: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__`;
+    return `Disculpa, no entendí completamente tu mensaje. ¿Quieres ${sugerencias.join(' o ')}?\n\nPara empezar, dime: ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__`;
   }
 
-  return '¡Hola! Puedo ayudarte con:\n\n• **Servicios** de lavado, detailing, mecánica y más\n• **Productos** en tienda (aceites, filtros, llantas y más)\n• **Agendar** una cita\n• **Cotizar** servicios\n• **Contacto** y **ubicación**\n\nPara empezar, ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__';
+  return '¡Hola! Soy el asistente de **Luxury Service Manga** 🚗✨ Puedo ayudarte con:\n\n• 🔧 **Servicios** — Lavado, detailing, mecánica, pintura y más\n• 🛒 **Productos** — Aceites, filtros, llantas y accesorios\n• 📅 **Agendar** una cita\n• 📍 **Ubicación** y **contacto**\n\nPara empezar, ¿tu vehículo es 🚗 **Automóvil**, 🚙 **Camioneta** o 🏍️ **Moto**? __SLOT__VEHICULO__';
 }
 
 export function invalidateChatbotCache() {
