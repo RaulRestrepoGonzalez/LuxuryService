@@ -3,7 +3,7 @@
   <div class="page-hero-overlay"></div>
   <div class="page-hero-content">
     <p class="hero-brand-line"><img src="/logo.png" alt="Luxury Service" class="hero-logo" loading="lazy" fetchpriority="high" /></p>
-    <h1>Expertos en servicio automotriz premium</h1>
+    <h1>Expertos en servicio automotriz, lavado y detailing premium</h1>
     <p>IVA incluido · Autos y camionetas</p>
 
     <!-- Cotizar -->
@@ -11,15 +11,15 @@
       <div class="cotizar-post">
         <div class="cotizar-post-body">
           @if (!selected) {
-            <div class="cotizar-search-wrap" (focusin)="searchFocused = true" (focusout)="searchFocused = false">
-              <input type="text" class="cotizar-search-input" placeholder="Busca un servicio o combo…" [(ngModel)]="searchTerm" />
+            <div class="cotizar-search-wrap">
+              <input type="text" class="cotizar-search-input" placeholder="Busca un servicio o combo…" [(ngModel)]="searchTerm" (focus)="searchFocused = true" (blur)="onBlur()" />
               @if (searchFocused && recomendadosFiltrados.length) {
                 <div class="cotizar-search-dd">
                   @for (s of recomendadosFiltrados; track s.id) {
                     <div class="cotizar-search-dd-item">
                       <div class="cotizar-search-dd-info">
                         <span class="cotizar-search-dd-name">{{ s.nombre }}</span>
-                        <span class="cotizar-search-dd-price">Desde {{ formatPrecio(s.precio_base) }}</span>
+                        <span class="cotizar-search-dd-price">@if (s.precio_base) {Desde {{ formatPrecio(s.precio_base) }}} @else {Cotizar en local}</span>
                       </div>
                       <button type="button" class="cotizar-search-dd-btn" (mousedown)="seleccionar(s)">Seleccionar</button>
                     </div>

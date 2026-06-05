@@ -84,7 +84,7 @@ app.use('/api/products', (_req, res, next) => {
   next();
 });
 app.use('/api/appointments/available', (_req, res, next) => {
-  res.set('Cache-Control', `public, max-age=${PUBLIC_CACHE}, s-maxage=${PUBLIC_CACHE}`);
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   next();
 });
 app.use('/api/appointments/calendar', (_req, res, next) => {

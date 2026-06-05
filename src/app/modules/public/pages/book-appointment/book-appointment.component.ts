@@ -4,8 +4,8 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } 
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ApiService } from 'src/app/core/services/api.service';
 import { AuthService } from 'src/app/core/services/auth.service';
-import { FALLBACK_SERVICIOS, sortByNombreNatural } from 'src/app/shared/constants/servicios.data';
-import { productImage, resolvedProductImage } from 'src/app/shared/constants/catalog-images';
+import { FALLBACK_SERVICIOS, groupByCategoria, sortByNombreNatural } from 'src/app/shared/constants/servicios.data';
+import { resolvedProductImage } from 'src/app/shared/constants/catalog-images';
 
 interface HorarioSlot { value: string; label: string; }
 const DEFAULT_SLOTS: HorarioSlot[] = Array.from({ length: 11 }, (_, i) => {
@@ -15,14 +15,8 @@ const DEFAULT_SLOTS: HorarioSlot[] = Array.from({ length: 11 }, (_, i) => {
 });
 
 interface ProductoItem {
-  id: string;
-  nombre: string;
-  descripcion: string;
-  precio: number;
-  stock: number;
-  categoria?: string;
-  icono?: string;
-  imagen_url?: string;
+  id: string; nombre: string; descripcion: string; precio: number; stock: number;
+  categoria?: string; icono?: string; imagen_url?: string;
 }
 
 @Component({
@@ -33,8 +27,9 @@ interface ProductoItem {
   styleUrl: './book-appointment.component.css'
 })
 export class BookAppointmentComponent implements OnInit {
+  step = 1;
   appointmentForm: FormGroup;
-  servicios = FALLBACK_SERVICIOS.map(s => ({ id: s.id, nombre: s.nombre, precio_auto: s.precio_auto, precio_camioneta: s.precio_camioneta, precio_moto: s.precio_moto, precio_base: s.precio_base }));
+  servicios = FALLBACK_SERVICIOS.map(s => ({ id: s.id, nombre: s.nombre, descripcion: s.descripcion, precio_auto: s.precio_auto, precio_camioneta: s.precio_camioneta, precio_moto: s.precio_moto, precio_base: s.precio_base, categoria: s.categoria, icono: s.icono, imagen_url: s.imagen_url }));
   tipoVehiculo: 'auto' | 'camioneta' | 'moto' = 'auto';
   horarios: HorarioSlot[] = [];
   loadingSlots = false;
@@ -47,28 +42,24 @@ export class BookAppointmentComponent implements OnInit {
   calendarDays: { date: Date; inMonth: boolean; iso: string; disabled: boolean; fullyBooked: boolean }[] = [];
   loadingCalendar = false;
 
-  payment: { url: string; reference: string; amount: number; qr: string } | null = null;
-
   giftCardCode = '';
   giftCardValid: { valid: boolean; monto?: number; etiqueta?: string; error?: string } | null = null;
   validatingGiftCard = false;
   showGiftCardInput = false;
 
   productos: ProductoItem[] = [];
-  showProductSelection = false;
   selectedProduct: ProductoItem | null = null;
   searchServicio = '';
   searchProducto = '';
 
   selectedServiceIds: string[] = [];
+  collapsedCategories = new Set<string>();
 
   private bookedCache = new Map<string, Set<string>>();
-  private slotCache = new Map<string, HorarioSlot[]>();
   private serviciosFromApi = false;
   hasPreSelected = false;
-  private resolvingFallback = false;
-
   private autoSelectTimer: any = null;
+  private retrySlots: string | null = null;
 
   onSearchChange() {
     if (this.autoSelectTimer) clearTimeout(this.autoSelectTimer);
@@ -85,11 +76,8 @@ export class BookAppointmentComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
-    private api: ApiService,
-    public auth: AuthService,
-    private route: ActivatedRoute,
-    private router: Router
+    private fb: FormBuilder, private api: ApiService, public auth: AuthService,
+    private route: ActivatedRoute, private router: Router
   ) {
     this.appointmentForm = this.fb.group({
       fecha: ['', Validators.required],
@@ -103,47 +91,38 @@ export class BookAppointmentComponent implements OnInit {
 
     const serviciosParam = this.route.snapshot.queryParamMap.get('servicios');
     const tipoParam = this.route.snapshot.queryParamMap.get('tipo');
-    if (tipoParam === 'auto' || tipoParam === 'camioneta' || tipoParam === 'moto') {
-      this.tipoVehiculo = tipoParam;
-    }
+    if (tipoParam === 'auto' || tipoParam === 'camioneta' || tipoParam === 'moto') this.tipoVehiculo = tipoParam;
     if (serviciosParam) {
       this.hasPreSelected = true;
       this.selectedServiceIds = serviciosParam.split(',').filter(Boolean);
     } else {
       const pre = this.route.snapshot.queryParamMap.get('servicio');
-      if (pre) {
-        this.hasPreSelected = true;
-        this.selectedServiceIds = [pre];
-      }
+      if (pre) { this.hasPreSelected = true; this.selectedServiceIds = [pre]; }
     }
+
+    this.resetCollapsed();
 
     this.api.get<any[]>('/services').subscribe({
       next: (res) => {
         const sorted = sortByNombreNatural(res);
-        const fecha = this.appointmentForm.get('fecha')?.value;
         this.servicios = sorted;
         this.serviciosFromApi = true;
-
-        this.selectedServiceIds = this.selectedServiceIds
-          .map(id => {
-            if (id.startsWith('fb-')) {
-              const prev = FALLBACK_SERVICIOS.find(s => s.id === id);
-              if (!prev) return null;
-              const match = sorted.find((s: any) => s.nombre === prev.nombre);
-              return match ? match.id : null;
-            }
-            return sorted.some((s: any) => s.id === id) ? id : null;
-          })
-          .filter(Boolean) as string[];
-
+        this.resetCollapsed();
+        this.selectedServiceIds = this.selectedServiceIds.map(id => {
+          if (id.startsWith('fb-')) {
+            const prev = FALLBACK_SERVICIOS.find(s => s.id === id);
+            if (!prev) return null;
+            const match = sorted.find((s: any) => s.nombre === prev.nombre);
+            return match ? match.id : null;
+          }
+          return sorted.some((s: any) => s.id === id) ? id : null;
+        }).filter(Boolean) as string[];
         if (this.selectedServiceIds.length > 0) {
           this.loadMonthBookings();
+          this.step = 2;
         }
-        if (this.retrySlots && this.appointmentForm.get('fecha')?.value === this.retrySlots) {
-          this.loadSlots(this.retrySlots);
-        } else if (this.selectedServiceIds.length > 0 && this.appointmentForm.get('fecha')?.value) {
-          this.loadSlots(this.appointmentForm.get('fecha')!.value);
-        }
+        if (this.retrySlots && this.appointmentForm.get('fecha')?.value === this.retrySlots) this.loadSlots(this.retrySlots);
+        else if (this.selectedServiceIds.length > 0 && this.appointmentForm.get('fecha')?.value) this.loadSlots(this.appointmentForm.get('fecha')!.value);
       },
       error: () => console.error('[Booking] Error cargando servicios')
     });
@@ -154,13 +133,20 @@ export class BookAppointmentComponent implements OnInit {
     });
   }
 
+  toggleCategory(cat: string) {
+    if (this.collapsedCategories.has(cat)) this.collapsedCategories.delete(cat);
+    else this.collapsedCategories.add(cat);
+  }
+
+  private resetCollapsed() {
+    const cats = this.serviciosGrouped.categorias;
+    this.collapsedCategories = new Set(cats.slice(2));
+  }
+
   toggleService(id: string) {
     const idx = this.selectedServiceIds.indexOf(id);
-    if (idx >= 0) {
-      this.selectedServiceIds.splice(idx, 1);
-    } else {
-      this.selectedServiceIds.push(id);
-    }
+    if (idx >= 0) this.selectedServiceIds.splice(idx, 1);
+    else this.selectedServiceIds.push(id);
     this.selectedServiceIds = [...this.selectedServiceIds];
     this.onServiceChange();
   }
@@ -168,81 +154,59 @@ export class BookAppointmentComponent implements OnInit {
   onServiceChange() {
     this.appointmentForm.patchValue({ fecha: '', horario: '' });
     this.horarios = [];
-    this.payment = null;
-    this.successMsg = '';
-    this.errorMsg = '';
-    this.showProductSelection = false;
+    this.successMsg = ''; this.errorMsg = '';
     this.selectedProduct = null;
-    this.giftCardCode = '';
-    this.giftCardValid = null;
-    this.slotCache.clear();
+    this.giftCardCode = ''; this.giftCardValid = null;
     this.bookedCache.clear();
-    if (this.selectedServiceIds.length > 0) {
-      this.loadMonthBookings();
-    }
+    this.resetCollapsed();
+    if (this.selectedServiceIds.length > 0) this.loadMonthBookings();
+  }
+
+  goStep(n: number) {
+    if (n === 2 && this.selectedServiceIds.length === 0) return;
+    if (n === 3 && (!this.appointmentForm.get('fecha')?.value || !this.appointmentForm.get('horario')?.value)) return;
+    this.errorMsg = '';
+    this.step = n;
   }
 
   private matchSearch(text: string, query: string): boolean {
     const q = query.trim();
     if (!q) return true;
-    const norm = (s: string) =>
-      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '');
-    const words = norm(q).split(/\s+/).filter(w => w.length > 0);
-    const haystack = norm(text);
-    return words.some(w => w.length >= 1 && haystack.includes(w));
+    const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '');
+    return norm(q).split(/\s+/).filter(Boolean).some(w => norm(text).includes(w));
   }
 
   get filteredServicios(): any[] {
     return sortByNombreNatural(this.servicios.filter((s: any) => {
       if (s.cotizar_local) return false;
-      if (this.tipoVehiculo === 'moto') {
-        if (!/\b(moto(s)?|motocicleta)\b/i.test(s.nombre)) return false;
-      } else {
-        const precio = this.tipoVehiculo === 'auto'
-          ? (s.precio_auto ?? s.precio_base ?? 0)
-          : (s.precio_camioneta ?? s.precio_base ?? 0);
+      if (this.tipoVehiculo === 'moto') { if (!/\b(moto(s)?|motocicleta)\b/i.test(s.nombre)) return false; }
+      else {
+        const precio = this.tipoVehiculo === 'auto' ? (s.precio_auto ?? s.precio_base ?? 0) : (s.precio_camioneta ?? s.precio_base ?? 0);
         if (precio <= 0) return false;
       }
       if (this.usandoGiftCard) {
-        const precio = this.tipoVehiculo === 'auto'
-          ? (s.precio_auto ?? s.precio_base ?? 0)
-          : this.tipoVehiculo === 'moto'
-            ? (s.precio_moto ?? s.precio_base ?? 0)
-            : (s.precio_camioneta ?? s.precio_base ?? 0);
+        const precio = this.tipoVehiculo === 'auto' ? (s.precio_auto ?? s.precio_base ?? 0) : this.tipoVehiculo === 'moto' ? (s.precio_moto ?? s.precio_base ?? 0) : (s.precio_camioneta ?? s.precio_base ?? 0);
         if (precio + 10000 > this.giftCardValid!.monto!) return false;
       }
       return this.matchSearch(s.nombre + ' ' + (s.descripcion || '') + ' ' + (s.categoria || ''), this.searchServicio);
     }));
   }
 
+  get serviciosGrouped(): { categorias: string[]; grouped: Record<string, any[]> } {
+    return groupByCategoria(this.filteredServicios as any);
+  }
+
   get filteredProductos(): ProductoItem[] {
-    return this.productos.filter(p =>
-      this.matchSearch(p.nombre + ' ' + (p.descripcion || '') + ' ' + (p.categoria || ''), this.searchProducto)
-    );
+    return this.productos.filter(p => this.matchSearch(p.nombre + ' ' + (p.descripcion || '') + ' ' + (p.categoria || ''), this.searchProducto));
   }
 
-  toggleProductSelection(show: boolean) {
-    this.showProductSelection = show;
-    if (!show) this.selectedProduct = null;
-  }
-
-  selectProduct(p: ProductoItem) {
-    this.selectedProduct = this.selectedProduct?.id === p.id ? null : p;
-  }
-
-  private cacheKey(sid: string, y: number, m: number) {
-    return `${sid}|${y}|${m}`;
-  }
+  selectProduct(p: ProductoItem) { this.selectedProduct = this.selectedProduct?.id === p.id ? null : p; }
 
   private resolvedServiceIds(): string[] {
-    return this.selectedServiceIds
-      .map(id => this.resolveRealId(id))
-      .filter((id): id is string => !!id && !id.startsWith('fb-'));
+    return this.selectedServiceIds.map(id => this.resolveRealId(id)).filter((id): id is string => !!id && !id.startsWith('fb-'));
   }
 
-  private serviceIdsParam(): string {
-    return this.resolvedServiceIds().join(',');
-  }
+  private serviceIdsParam(): string { return this.resolvedServiceIds().join(','); }
 
   loadMonthBookings() {
     const ids = this.resolvedServiceIds();
@@ -251,11 +215,7 @@ export class BookAppointmentComponent implements OnInit {
     const m = this.calendarMonth.getMonth() + 1;
     const key = ids.join('_') + '|' + y + '|' + m;
     const cached = this.bookedCache.get(key);
-    if (cached) {
-      this.bookedDates = cached;
-      this.buildCalendar();
-      return;
-    }
+    if (cached) { this.bookedDates = cached; this.buildCalendar(); return; }
     this.loadingCalendar = true;
     this.api.get<{ bookedDates: string[] }>(`/appointments/calendar?servicioId=${this.serviceIdsParam()}&year=${y}&month=${m}`).subscribe({
       next: res => {
@@ -273,43 +233,30 @@ export class BookAppointmentComponent implements OnInit {
 
   prevMonth() {
     this.calendarMonth = new Date(this.calendarMonth.getFullYear(), this.calendarMonth.getMonth() - 1, 1);
-    this.bookedDates = new Set();
-    this.buildCalendar();
-    if (this.appointmentForm.get('servicioId')?.value && this.serviciosFromApi) this.loadMonthBookings();
+    this.bookedDates = new Set(); this.buildCalendar();
+    if (this.serviciosFromApi) this.loadMonthBookings();
   }
 
   nextMonth() {
     this.calendarMonth = new Date(this.calendarMonth.getFullYear(), this.calendarMonth.getMonth() + 1, 1);
-    this.bookedDates = new Set();
-    this.buildCalendar();
-    if (this.appointmentForm.get('servicioId')?.value && this.serviciosFromApi) this.loadMonthBookings();
+    this.bookedDates = new Set(); this.buildCalendar();
+    if (this.serviciosFromApi) this.loadMonthBookings();
   }
 
-  monthLabel() {
-    return this.calendarMonth.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
-  }
+  monthLabel() { return this.calendarMonth.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' }); }
 
   buildCalendar() {
     const y = this.calendarMonth.getFullYear();
     const m = this.calendarMonth.getMonth();
     const first = new Date(y, m, 1);
-    const start = new Date(first);
-    start.setDate(start.getDate() - start.getDay());
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const start = new Date(first); start.setDate(start.getDate() - start.getDay());
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     this.calendarDays = [];
     for (let i = 0; i < 42; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
+      const d = new Date(start); d.setDate(start.getDate() + i);
       const iso = this.toIso(d);
       const disabled = d < today || d.getDay() === 0 || this.bookedDates.has(iso);
-      this.calendarDays.push({
-        date: d,
-        inMonth: d.getMonth() === m,
-        iso,
-        disabled,
-        fullyBooked: this.bookedDates.has(iso)
-      });
+      this.calendarDays.push({ date: d, inMonth: d.getMonth() === m, iso, disabled, fullyBooked: this.bookedDates.has(iso) });
     }
   }
 
@@ -317,9 +264,7 @@ export class BookAppointmentComponent implements OnInit {
     if (disabled) return;
     this.appointmentForm.patchValue({ fecha: iso, horario: '' });
     this.loadSlots(iso);
-    this.payment = null;
-    this.successMsg = '';
-    this.errorMsg = '';
+    this.successMsg = ''; this.errorMsg = '';
   }
 
   private resolveRealId(fbOrFakeId: string): string | null {
@@ -331,46 +276,27 @@ export class BookAppointmentComponent implements OnInit {
     return match ? match.id : fbOrFakeId;
   }
 
-  private retrySlots: string | null = null;
-
   loadSlots(fecha: string) {
     const ids = this.resolvedServiceIds();
     if (ids.length === 0) {
       const sid = this.selectedServiceIds[0] ? this.resolveRealId(this.selectedServiceIds[0]) : null;
-      if (sid && sid.startsWith('fb-') && !this.serviciosFromApi) {
-        this.retrySlots = fecha;
-        this.loadingSlots = true;
-        return;
-      }
+      if (sid && sid.startsWith('fb-') && !this.serviciosFromApi) { this.retrySlots = fecha; this.loadingSlots = true; return; }
       return;
     }
     this.retrySlots = null;
-    const key = ids.join('_') + '|' + fecha;
-    const cached = this.slotCache.get(key);
-    if (cached) {
-      this.horarios = cached;
-      return;
-    }
-
     this.loadingSlots = true;
-    this.api.get<HorarioSlot[]>(`/appointments/available?fecha=${fecha}&servicioId=${this.serviceIdsParam()}`).subscribe({
+    this.api.get<HorarioSlot[]>(`/appointments/available?fecha=${fecha}&servicioId=${this.serviceIdsParam()}&_=${Date.now()}`).subscribe({
       next: res => {
-        this.slotCache.set(key, res);
-        this.horarios = res;
-        this.loadingSlots = false;
+        this.horarios = res; this.loadingSlots = false;
+        if (res.length === 0) this.errorMsg = 'No hay horarios disponibles para esta fecha. Por favor selecciona otra.';
       },
-      error: () => {
-        this.loadingSlots = false;
-        this.horarios = DEFAULT_SLOTS;
-      }
+      error: () => { this.loadingSlots = false; this.errorMsg = 'Error al consultar horarios. Intenta de nuevo.'; }
     });
   }
 
   selectHorario(h: HorarioSlot) {
     this.appointmentForm.patchValue({ horario: h.value });
-    this.payment = null;
-    this.successMsg = '';
-    this.errorMsg = '';
+    this.successMsg = ''; this.errorMsg = '';
     this.verifySlotStillAvailable(h.value);
   }
 
@@ -382,12 +308,9 @@ export class BookAppointmentComponent implements OnInit {
     const label = this.horarios.find(h => h.value === horario)?.label || horario;
     this.api.get<HorarioSlot[]>(`/appointments/available?fecha=${fecha}&servicioId=${this.serviceIdsParam()}&_=${Date.now()}`).subscribe({
       next: slots => {
-        const stillFree = slots.some(s => s.value === horario);
-        if (!stillFree) {
+        if (!slots.some(s => s.value === horario)) {
           this.appointmentForm.patchValue({ horario: '' });
-          this.errorMsg = `⚠️ El horario de las ${label} ya fue tomado por otro cliente. Por favor selecciona otro.`;
-          const key = ids.join('_') + '|' + fecha;
-          this.slotCache.set(key, slots);
+          this.errorMsg = `⚠️ El horario de las ${label} ya fue tomado por otro cliente.`;
           this.horarios = slots;
         }
       }
@@ -399,54 +322,19 @@ export class BookAppointmentComponent implements OnInit {
     return this.horarios.find(h => h.value === v)?.label || '';
   }
 
-  isSelectedDate(iso: string) {
-    return this.appointmentForm.get('fecha')?.value === iso;
-  }
+  isSelectedDate(iso: string) { return this.appointmentForm.get('fecha')?.value === iso; }
 
   get selectedServices(): any[] {
     if (this.selectedServiceIds.length === 0) return [];
-    return this.selectedServiceIds
-      .map(id => {
-        const realId = this.resolveRealId(id);
-        const lookupId = realId || id;
-        return this.servicios.find((s: any) => s.id === lookupId) || FALLBACK_SERVICIOS.find(s => s.id === id);
-      })
-      .filter(Boolean);
+    return this.selectedServiceIds.map(id => {
+      const realId = this.resolveRealId(id);
+      return this.servicios.find((s: any) => s.id === (realId || id)) || FALLBACK_SERVICIOS.find(s => s.id === id);
+    }).filter(Boolean);
   }
 
-  get selectedServiceNames(): string {
-    return this.selectedServices.map((s: any) => s.nombre).join(', ');
-  }
-
-  get precioServicio(): number {
-    return this.selectedServices.reduce((sum: number, s: any) => {
-      const p = this.tipoVehiculo === 'auto'
-        ? (s.precio_auto ?? s.precio_base ?? 0)
-        : this.tipoVehiculo === 'moto'
-          ? (s.precio_moto ?? s.precio_base ?? 0)
-          : (s.precio_camioneta ?? s.precio_base ?? 0);
-      return sum + (p || 0);
-    }, 0);
-  }
-
-  get precioProducto(): number {
-    return this.selectedProduct?.precio ?? 0;
-  }
-
-  get precioActual(): number {
-    return this.precioServicio + this.precioProducto;
-  }
-
-  get totalConRecargo(): number {
-    return this.precioActual + 10000;
-  }
+  get selectedServiceNames(): string { return this.selectedServices.map((s: any) => s.nombre).join(', '); }
 
   img(p: ProductoItem) { return resolvedProductImage(p); }
-
-  formatPrecio(n: number) {
-    if (!n) return '—';
-    return '$' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
-  }
 
   private generateTicket(): string {
     const prefix = 'LS';
@@ -455,115 +343,82 @@ export class BookAppointmentComponent implements OnInit {
     crypto.getRandomValues(buf);
     const rand = Array.from(buf, b => b.toString(16).padStart(2, '0').toUpperCase()).join('');
     const user = this.auth.getCurrentUser();
-    const emailHash = user?.email
-      ? Array.from(user.email).reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0)
-          .toString(36).toUpperCase().replace(/-/, 'Z').slice(-3)
-      : '';
+    const emailHash = user?.email ? Array.from(user.email).reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0).toString(36).toUpperCase().replace(/-/, 'Z').slice(-3) : '';
     return `${prefix}-${ts}${emailHash}${rand}`;
   }
 
   submit() {
-    if (!this.auth.isLoggedIn()) {
-      this.router.navigate(['/acceso']);
-      return;
-    }
+    if (!this.auth.isLoggedIn()) { this.router.navigate(['/acceso']); return; }
     const user = this.auth.getCurrentUser();
-    if (!user || !user.email) {
-      this.errorMsg = 'Debes iniciar sesión con tu correo electrónico para agendar.';
-      return;
-    }
-    if (!this.appointmentForm.get('fecha')?.value || !this.appointmentForm.get('horario')?.value) {
-      this.errorMsg = 'Completa todos los campos requeridos: servicio, fecha y horario.';
-      return;
-    }
-    if (this.selectedServiceIds.length === 0) {
-      this.errorMsg = 'Selecciona al menos un servicio.';
-      return;
-    }
-    this.submitting = true;
-    this.errorMsg = '';
+    if (!user || !user.email) { this.errorMsg = 'Debes iniciar sesión con tu correo electrónico para agendar.'; return; }
+    if (!this.appointmentForm.get('fecha')?.value || !this.appointmentForm.get('horario')?.value) { this.errorMsg = 'Completa todos los campos.'; return; }
+    if (this.selectedServiceIds.length === 0) { this.errorMsg = 'Selecciona al menos un servicio.'; return; }
+    this.submitting = true; this.errorMsg = '';
 
+    const fecha = this.appointmentForm.get('fecha')?.value;
+    const horarioValue = this.appointmentForm.get('horario')?.value;
+    const ids = this.resolvedServiceIds();
+    if (ids.length === 0 || !fecha || !horarioValue) { this.errorMsg = 'Error al verificar disponibilidad.'; this.submitting = false; return; }
+
+    this.api.get<HorarioSlot[]>(`/appointments/available?fecha=${fecha}&servicioId=${this.serviceIdsParam()}&_=${Date.now()}`).subscribe({
+      next: slots => {
+        if (!slots.some(s => s.value === horarioValue)) {
+          this.appointmentForm.patchValue({ horario: '' });
+          this.errorMsg = '⚠️ El horario seleccionado ya fue tomado.';
+          this.horarios = slots; this.submitting = false; return;
+        }
+        this.sendToWhatsApp();
+      },
+      error: () => this.sendToWhatsApp()
+    });
+  }
+
+  private sendToWhatsApp() {
+    const user = this.auth.getCurrentUser()!;
     const ticket = this.generateTicket();
     const serviciosList = this.selectedServices.map((s: any) => s.nombre).join(', ');
     const fecha = this.appointmentForm.get('fecha')?.value;
     const horario = this.selectedHorarioLabel();
     const tipoLabel = this.tipoVehiculo === 'auto' ? 'Automóvil' : this.tipoVehiculo === 'camioneta' ? 'Camioneta' : 'Moto';
     const cliente = user.nombre || user.email || 'Cliente';
-    const productoTexto = this.selectedProduct
-      ? `\n🛒 *Producto:* ${this.selectedProduct.nombre}`
-      : '';
-    const giftCardTexto = this.usandoGiftCard
-      ? `\n🎁 *Gift Card:* ${this.giftCardValid?.etiqueta || ''} (Saldo: ${this.formatPrice(this.giftCardValid?.monto || 0)})`
-      : '';
+    const productoTexto = this.selectedProduct ? `\n🛒 *Producto:* ${this.selectedProduct.nombre}` : '';
+    const giftCardTexto = this.usandoGiftCard ? `\n🎁 *Gift Card:* ${this.giftCardValid?.etiqueta || ''} (Saldo: ${this.formatPrice(this.giftCardValid?.monto || 0)})` : '';
 
-    const msgLines = [
-      '¡Hola! 🚗 Quiero agendar una cita.',
-      '',
-      `🎫 *Ticket:* ${ticket}`,
-      `👤 *Cliente:* ${cliente}`,
-      `📋 *Servicios:* ${serviciosList}`,
-      `🚘 *Vehículo:* ${tipoLabel}`,
-      `📅 *Fecha:* ${fecha}`,
-      `⏰ *Horario:* ${horario}${productoTexto}${giftCardTexto}`,
-      '',
-      'Por favor, confirma mi cita. Estaré atento a tu respuesta.',
-      '',
-      '🕐 *Horario de atención:* Lunes a Sábado de 8:00 a.m. a 6:00 p.m.',
-      '',
-      '¡Gracias! 😊'
-    ];
-    const msg = msgLines.join('\n');
-    const whatsappUrl = `https://wa.me/573006366429?text=${encodeURIComponent(msg)}`;
+    const msg = [
+      '¡Hola! 🚗 Quiero agendar una cita.', '',
+      `🎫 *Ticket:* ${ticket}`, `👤 *Cliente:* ${cliente}`, `📋 *Servicios:* ${serviciosList}`,
+      `🚘 *Vehículo:* ${tipoLabel}`, `📅 *Fecha:* ${fecha}`, `⏰ *Horario:* ${horario}${productoTexto}${giftCardTexto}`,
+      '', 'Por favor, confirma mi cita. Estaré atento a tu respuesta.',
+      '', '🕐 *Horario de atención:* Lunes a Sábado de 7:00 a.m. a 7:00 p.m.', '', '¡Gracias! 😊'
+    ].join('\n');
 
     this.successMsg = `🎫 Ticket generado: ${ticket}. Serás redirigido a WhatsApp para confirmar tu cita.`;
     this.submitting = false;
-    window.open(whatsappUrl, '_blank');
+    this.step = 4;
+    window.open(`https://wa.me/573006366429?text=${encodeURIComponent(msg)}`, '_blank');
   }
 
   clearGiftCard() {
-    this.giftCardCode = '';
-    this.giftCardValid = null;
-    this.errorMsg = '';
-    this.showGiftCardInput = false;
-    this.selectedServiceIds = [];
-    this.horarios = [];
-    this.selectedProduct = null;
-    this.showProductSelection = false;
+    this.giftCardCode = ''; this.giftCardValid = null; this.errorMsg = '';
+    this.showGiftCardInput = false; this.selectedServiceIds = [];
+    this.horarios = []; this.selectedProduct = null;
   }
 
   validateGiftCard() {
     const code = this.giftCardCode.trim();
     if (!code) return;
-    this.validatingGiftCard = true;
-    this.giftCardValid = null;
-    this.errorMsg = '';
+    this.validatingGiftCard = true; this.giftCardValid = null; this.errorMsg = '';
     this.api.get<{ valid: boolean; monto?: number; etiqueta?: string; error?: string }>(`/gift-cards/validate/${encodeURIComponent(code)}`).subscribe({
       next: res => {
         this.validatingGiftCard = false;
-        if (res.valid) {
-          this.giftCardValid = { valid: true, monto: res.monto, etiqueta: res.etiqueta };
-          this.selectedServiceIds = [];
-          this.horarios = [];
-          this.selectedProduct = null;
-          this.showProductSelection = false;
-        } else {
-          this.giftCardValid = { valid: false, error: res.error || 'Gift Card inválida' };
-        }
+        if (res.valid) { this.giftCardValid = { valid: true, monto: res.monto, etiqueta: res.etiqueta }; }
+        else { this.giftCardValid = { valid: false, error: res.error || 'Gift Card inválida' }; }
       },
-      error: () => {
-        this.validatingGiftCard = false;
-        this.giftCardValid = { valid: false, error: 'Error al validar Gift Card' };
-      }
+      error: () => { this.validatingGiftCard = false; this.giftCardValid = { valid: false, error: 'Error al validar Gift Card' }; }
     });
   }
 
-  get usandoGiftCard(): boolean {
-    return this.giftCardValid?.valid === true;
-  }
-
-  payAgain() {
-    if (this.payment) window.open(this.payment.url, '_blank');
-  }
+  get usandoGiftCard(): boolean { return this.giftCardValid?.valid === true; }
 
   formatPrice(n: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { getDb, ObjectId } from './db.js';
 
 export const HORARIO_LABELS: Record<string, string> = {
+  '07:00': '7:00 a.m.',
   '08:00': '8:00 a.m.',
   '09:00': '9:00 a.m.',
   '10:00': '10:00 a.m.',
@@ -12,9 +13,10 @@ export const HORARIO_LABELS: Record<string, string> = {
   '15:00': '3:00 p.m.',
   '16:00': '4:00 p.m.',
   '17:00': '5:00 p.m.',
-  '18:00': '6:00 p.m.'
+  '18:00': '6:00 p.m.',
+  '19:00': '7:00 p.m.'
 };
-export const HORARIOS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'] as const;
+export const HORARIOS = ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'] as const;
 
 export type Vehiculo = 'auto' | 'camioneta' | 'moto';
 

@@ -1,168 +1,207 @@
-<div class="book-page">
+<div class="booking-page">
 
-  @if (!auth.isLoggedIn()) {
-    <div class="book-alert">
-      <p>Accede con tu correo para agendar y recibir confirmación.</p>
-      <a routerLink="/acceso" class="book-alert-btn">Acceder</a>
+  <!-- Step Indicators -->
+  <div class="step-indicators">
+    <div class="step-dot" [class.active]="step >= 1" [class.done]="step > 1">
+      <span class="step-num" *ngIf="step <= 1">1</span>
+      <span class="step-check" *ngIf="step > 1">✓</span>
+      <span class="step-label">Servicios</span>
     </div>
-  }
+    <div class="step-line" [class.active]="step >= 2"></div>
+    <div class="step-dot" [class.active]="step >= 2" [class.done]="step > 2">
+      <span class="step-num" *ngIf="step <= 2">2</span>
+      <span class="step-check" *ngIf="step > 2">✓</span>
+      <span class="step-label">Fecha &amp; Hora</span>
+    </div>
+    <div class="step-line" [class.active]="step >= 3"></div>
+    <div class="step-dot" [class.active]="step >= 3" [class.done]="step > 3">
+      <span class="step-num" *ngIf="step <= 3">3</span>
+      <span class="step-check" *ngIf="step > 3">✓</span>
+      <span class="step-label">Confirmar</span>
+    </div>
+  </div>
 
-  <form [formGroup]="appointmentForm" (ngSubmit)="submit()" class="book-flow">
+  <!-- STEP 1: Service Selection -->
+  <div class="step-card" *ngIf="step === 1">
+    <h2 class="step-title">Selecciona tus servicios</h2>
 
     <!-- Gift Card -->
-    <div class="book-card">
-      <h3 class="book-card-title">¿Tienes una Gift Card?</h3>
-      <div class="book-gc-toggle">
-        <button type="button" class="book-gc-btn" [class.active]="showGiftCardInput" (click)="showGiftCardInput = true">Sí</button>
-        <button type="button" class="book-gc-btn" [class.active]="!showGiftCardInput && !usandoGiftCard" (click)="clearGiftCard()">No</button>
+    <div class="gift-card-section">
+      <button class="gift-toggle" (click)="showGiftCardInput = !showGiftCardInput; giftCardValid = null" *ngIf="!usandoGiftCard">
+        <span class="gift-icon">🎁</span> ¿Tienes una Gift Card?
+      </button>
+      <div class="gift-input-area" *ngIf="showGiftCardInput && !usandoGiftCard">
+        <input type="text" [(ngModel)]="giftCardCode" placeholder="Código de Gift Card" (keyup.enter)="validateGiftCard()" />
+        <button (click)="validateGiftCard()" [disabled]="validatingGiftCard">{{ validatingGiftCard ? 'Validando…' : 'Validar' }}</button>
       </div>
-      @if (showGiftCardInput) {
-        <div class="book-gc-row">
-          <input type="text" class="book-search" placeholder="Ej: ABCDE-FGHJ2-NPQRS-TUVW3" [(ngModel)]="giftCardCode" [ngModelOptions]="{standalone: true}" style="flex:1;min-width:0;text-transform:uppercase;font-family:monospace;letter-spacing:0.05em" />
-          <button type="button" class="book-gc-validate" (click)="validateGiftCard()" [disabled]="!giftCardCode.trim() || validatingGiftCard">
-            {{ validatingGiftCard ? 'Validando…' : 'Validar' }}
-          </button>
-        </div>
-        @if (giftCardValid) {
-          @if (giftCardValid.valid) {
-            <div class="book-gc-badge valid">
-              ✅ Gift Card {{ giftCardValid.etiqueta }}
-              <button type="button" class="book-gc-clear" (click)="clearGiftCard()">×</button>
-            </div>
-          } @else if (!errorMsg) {
-            <div class="book-gc-badge invalid">❌ {{ giftCardValid.error || 'Gift Card inválida' }}</div>
-          }
-        }
-      }
-    </div>
-
-    <!-- Steps indicator -->
-    <div class="book-steps">
-      <span class="book-step-dot" [class.done]="selectedServiceIds.length > 0">1</span>
-      <span class="book-step-line" [class.done]="selectedServiceIds.length > 0"></span>
-      <span class="book-step-dot" [class.done]="!!appointmentForm.get('fecha')?.value">2</span>
-      <span class="book-step-line" [class.done]="!!appointmentForm.get('horario')?.value"></span>
-      <span class="book-step-dot" [class.done]="!!appointmentForm.get('horario')?.value">3</span>
-    </div>
-
-    <!-- Step 1: Service -->
-    <div class="book-card">
-      <h3 class="book-card-title">Elige tu servicio</h3>
-
-      @if (!hasPreSelected) {
-      <div class="book-vehicle-toggle">
-        <button type="button" class="book-vehicle-btn" [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'">🚗 Auto</button>
-        <button type="button" class="book-vehicle-btn" [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'">🚙 Camioneta</button>
-        <button type="button" class="book-vehicle-btn" [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'">🏍️ Moto</button>
+      <div class="gift-status" *ngIf="giftCardValid && !giftCardValid.valid">
+        ❌ {{ giftCardValid.error }}
+        <button class="link-btn" (click)="clearGiftCard()">Limpiar</button>
       </div>
-      }
-
-      <div class="book-search-box">
-        <input type="text" class="book-search" placeholder="Buscar servicio…" [(ngModel)]="searchServicio" [ngModelOptions]="{standalone: true}" (ngModelChange)="onSearchChange()" />
-      </div>
-
-      <div class="book-svc-list">
-        @for (s of filteredServicios; track s.id) {
-          <label class="book-svc-item" [class.selected]="selectedServiceIds.includes(s.id)">
-            <input type="checkbox" [checked]="selectedServiceIds.includes(s.id)" (change)="toggleService(s.id)" />
-            <span class="book-svc-check"></span>
-            <span class="book-svc-name">{{ s.nombre }}</span>
-          </label>
-        }
+      <div class="gift-status ok" *ngIf="usandoGiftCard">
+        🎁 {{ giftCardValid!.etiqueta }} — Saldo: {{ formatPrice(giftCardValid!.monto!) }}
+        <button class="link-btn" (click)="clearGiftCard()">Eliminar</button>
       </div>
     </div>
 
-    @if (selectedServiceIds.length > 0) {
-      <!-- Step 2: Date & Product -->
-      <div class="book-card">
-        <h3 class="book-card-title">Elige fecha</h3>
+    <!-- Vehicle toggle -->
+    <div class="vehicle-toggle">
+      <button [class.active]="tipoVehiculo === 'auto'" (click)="tipoVehiculo = 'auto'; onServiceChange()">🚗 Auto</button>
+      <button [class.active]="tipoVehiculo === 'camioneta'" (click)="tipoVehiculo = 'camioneta'; onServiceChange()">🚙 Camioneta</button>
+      <button [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'; onServiceChange()">🏍️ Moto</button>
+    </div>
 
-        <div class="book-cal">
-          <div class="book-cal-nav">
-            <button type="button" class="book-cal-nav-btn" (click)="prevMonth()">‹</button>
-            <span class="book-cal-month">{{ monthLabel() }}</span>
-            <button type="button" class="book-cal-nav-btn" (click)="nextMonth()">›</button>
-          </div>
-          <div class="book-cal-weekdays">
-            @for (d of weekDays; track d) { <span>{{ d }}</span> }
-          </div>
-          <div class="book-cal-grid">
-            @for (day of calendarDays; track day.iso) {
-              <button type="button" class="book-cal-day"
-                [class.other]="!day.inMonth"
-                [class.disabled]="day.disabled"
-                [class.selected]="isSelectedDate(day.iso)"
-                [disabled]="day.disabled"
-                (click)="selectDate(day.iso, day.disabled)">
-                {{ day.date.getDate() }}
-              </button>
-            }
-          </div>
-        </div>
-      </div>
-    }
+    <!-- Service search -->
+    <input class="service-search" type="text" [(ngModel)]="searchServicio" (input)="onSearchChange()" placeholder="Buscar servicio…" />
 
-    @if (appointmentForm.get('fecha')?.value) {
-      <!-- Time slots -->
-      <div class="book-card">
-        <h3 class="book-card-title">Elige horario</h3>
-
-        @if (loadingSlots) {
-          <p class="book-muted">Cargando horarios…</p>
-        } @else if (horarios.length === 0) {
-          <p class="book-muted">No hay horarios disponibles este día</p>
-        } @else {
-          <div class="book-slots">
-            @for (h of horarios; track h.value) {
-              <button type="button" class="book-slot"
-                [class.selected]="appointmentForm.get('horario')?.value === h.value"
-                (click)="selectHorario(h)">
-                {{ h.label }}
-              </button>
-            }
-          </div>
-        }
-
-        @if (appointmentForm.get('horario')?.value && !successMsg) {
-          <div class="book-extras">
-            <details class="book-details">
-              <summary>Agregar producto (opcional)</summary>
-              <div class="book-search-box">
-                <input type="text" class="book-search" placeholder="Buscar producto…" [(ngModel)]="searchProducto" [ngModelOptions]="{standalone: true}" />
-              </div>
-              <div class="book-prod-list">
-                @for (p of filteredProductos; track p.id) {
-                  <div class="book-prod-item" [class.selected]="selectedProduct?.id === p.id" (click)="selectProduct(p)">
-                    <img [src]="img(p)" [alt]="p.nombre" loading="lazy" class="book-prod-img" />
-                    <span class="book-prod-name">{{ p.nombre }}</span>
-                    <span class="book-prod-price">{{ formatPrecio(p.precio) }}</span>
-                  </div>
-                }
-              </div>
-            </details>
-          </div>
-        }
-      </div>
-    }
-
-    @if (successMsg) { <div class="book-msg success">{{ successMsg }}</div> }
-    @if (errorMsg) { <div class="book-msg error">{{ errorMsg }}</div> }
-
-    <!-- CTA -->
-    @if (selectedServiceIds.length > 0 && appointmentForm.get('horario')?.value && !successMsg) {
-      <div class="book-cta-card">
-        <div class="book-cta-summary">
-          <span class="book-cta-svc">{{ selectedServiceNames }}</span>
-          @if (selectedProduct) {
-            <span class="book-cta-prod">+ {{ selectedProduct.nombre }}</span>
-          }
-        </div>
-        <button type="button" class="book-cta-btn" [disabled]="submitting" (click)="submit()">
-          {{ submitting ? 'Generando…' : 'Confirmar cita por WhatsApp' }}
+    <!-- Service cards grouped by category (collapsible) -->
+    <div class="services-by-cat" *ngIf="!searchServicio.trim()">
+      <div class="cat-group" *ngFor="let cat of serviciosGrouped.categorias">
+        <button class="cat-title" (click)="toggleCategory(cat)">
+          <span>{{ cat }}</span>
+          <span class="cat-chevron" [class.open]="!collapsedCategories.has(cat)">▼</span>
         </button>
-        <p class="book-cta-info">Lun - Sáb 8:00 a.m. - 6:00 p.m.</p>
+        <div class="service-cards" *ngIf="!collapsedCategories.has(cat)">
+          <div class="service-card" *ngFor="let s of serviciosGrouped.grouped[cat]"
+            [class.selected]="selectedServiceIds.includes(s.id)"
+            (click)="toggleService(s.id)">
+            <div class="card-icon">{{ s.icono === 'local_car_wash' ? '🚿' : s.icono === 'auto_awesome' ? '✨' : s.icono === 'build' ? '🔧' : s.icono === 'format_paint' ? '🎨' : s.icono === 'cleaning_services' ? '🧹' : s.categoria === 'Combos' ? '📦' : '🛠️' }}</div>
+            <div class="card-body">
+              <strong class="card-name">{{ s.nombre }}</strong>
+              <span class="card-desc" *ngIf="s.descripcion">{{ s.descripcion }}</span>
+            </div>
+            <span class="card-check" *ngIf="selectedServiceIds.includes(s.id)">✓</span>
+          </div>
+        </div>
       </div>
-    }
+    </div>
 
-  </form>
+    <!-- Flat list when searching -->
+    <div class="service-cards" *ngIf="searchServicio.trim()">
+      <div class="service-card" *ngFor="let s of filteredServicios"
+        [class.selected]="selectedServiceIds.includes(s.id)"
+        (click)="toggleService(s.id)">
+        <div class="card-icon">{{ s.icono === 'local_car_wash' ? '🚿' : s.icono === 'auto_awesome' ? '✨' : s.icono === 'build' ? '🔧' : s.icono === 'format_paint' ? '🎨' : s.icono === 'cleaning_services' ? '🧹' : s.categoria === 'Combos' ? '📦' : '🛠️' }}</div>
+        <div class="card-body">
+          <strong class="card-name">{{ s.nombre }}</strong>
+          <span class="card-desc">{{ s.descripcion }}</span>
+        </div>
+        <span class="card-check" *ngIf="selectedServiceIds.includes(s.id)">✓</span>
+      </div>
+    </div>
+
+    <p class="empty-msg" *ngIf="filteredServicios.length === 0 && searchServicio.trim()">No se encontraron servicios.</p>
+
+    <!-- Selected summary -->
+    <div class="selected-summary" *ngIf="selectedServiceIds.length > 0">
+      <p class="selected-label">Seleccionados: {{ selectedServiceNames }}</p>
+    </div>
+
+    <!-- Products accordion -->
+    <details class="products-accordion">
+      <summary class="products-summary">🛒 Productos adicionales <span class="badge" *ngIf="selectedProduct">1</span></summary>
+      <input class="product-search" type="text" [(ngModel)]="searchProducto" placeholder="Buscar producto…" />
+      <div class="products-grid">
+        <div class="product-item" *ngFor="let p of filteredProductos" [class.selected]="selectedProduct?.id === p.id" (click)="selectProduct(p)">
+          <img [src]="img(p)" [alt]="p.nombre" loading="lazy" />
+          <div class="product-info">
+            <strong>{{ p.nombre }}</strong>
+            <span class="product-price">{{ formatPrice(p.precio) }}</span>
+          </div>
+          <span class="check-icon" *ngIf="selectedProduct?.id === p.id">✓</span>
+        </div>
+        <p class="empty-msg" *ngIf="filteredProductos.length === 0">No se encontraron productos.</p>
+      </div>
+    </details>
+
+    <!-- Navigation -->
+    <div class="step-nav">
+      <button class="btn-primary" (click)="goStep(2)" [disabled]="selectedServiceIds.length === 0">
+        Continuar →
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Calendar & Time -->
+  <div class="step-card" *ngIf="step === 2">
+    <button class="back-link" (click)="goStep(1)">← Volver a servicios</button>
+    <h2 class="step-title">Elige fecha y hora</h2>
+
+    <div class="cal-time-layout">
+      <div class="calendar-panel">
+        <div class="cal-header">
+          <button (click)="prevMonth()">‹</button>
+          <span class="cal-month">{{ monthLabel() }}</span>
+          <button (click)="nextMonth()">›</button>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-weekday" *ngFor="let w of weekDays">{{ w }}</div>
+          <div class="cal-day"
+            *ngFor="let d of calendarDays"
+            [class.in-month]="d.inMonth"
+            [class.disabled]="d.disabled"
+            [class.selected]="isSelectedDate(d.iso)"
+            (click)="selectDate(d.iso, d.disabled)">
+            {{ d.date.getDate() }}
+          </div>
+        </div>
+      </div>
+
+      <div class="slots-panel">
+        <p class="slots-hint" *ngIf="!appointmentForm.get('fecha')?.value">Selecciona una fecha en el calendario.</p>
+        <div *ngIf="loadingSlots" class="loading-spinner">Cargando horarios…</div>
+        <div *ngIf="!loadingSlots && appointmentForm.get('fecha')?.value">
+          <div class="slot-list">
+            <button class="slot-btn"
+              *ngFor="let h of horarios"
+              [class.selected]="appointmentForm.get('horario')?.value === h.value"
+              (click)="selectHorario(h)">
+              {{ h.label }}
+            </button>
+          </div>
+          <p class="empty-msg" *ngIf="horarios.length === 0 && !loadingSlots">No hay horarios disponibles.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</div>
+    <div class="success-msg" *ngIf="successMsg">{{ successMsg }}</div>
+
+    <div class="step-nav" *ngIf="appointmentForm.get('fecha')?.value && appointmentForm.get('horario')?.value">
+      <button class="btn-primary" (click)="goStep(3)">
+        Continuar →
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Confirm -->
+  <div class="step-card" *ngIf="step === 3">
+    <button class="back-link" (click)="goStep(2)">← Volver a fecha</button>
+    <h2 class="step-title">Confirma tu cita</h2>
+
+    <div class="confirm-details">
+      <div class="confirm-row"><span class="confirm-label">Vehículo</span><span class="confirm-value">{{ tipoVehiculo === 'auto' ? 'Automóvil' : tipoVehiculo === 'camioneta' ? 'Camioneta' : 'Moto' }}</span></div>
+      <div class="confirm-row"><span class="confirm-label">Servicios</span><span class="confirm-value">{{ selectedServiceNames }}</span></div>
+      <div class="confirm-row" *ngIf="selectedProduct"><span class="confirm-label">Producto</span><span class="confirm-value">{{ selectedProduct.nombre }} — {{ formatPrice(selectedProduct.precio) }}</span></div>
+      <div class="confirm-row" *ngIf="usandoGiftCard"><span class="confirm-label">Gift Card</span><span class="confirm-value">{{ giftCardValid!.etiqueta }} — {{ formatPrice(giftCardValid!.monto!) }}</span></div>
+      <div class="confirm-row"><span class="confirm-label">Fecha</span><span class="confirm-value">{{ appointmentForm.get('fecha')?.value }}</span></div>
+      <div class="confirm-row"><span class="confirm-label">Hora</span><span class="confirm-value">{{ selectedHorarioLabel() }}</span></div>
+    </div>
+
+    <button class="btn-primary btn-confirm" (click)="submit()" [disabled]="submitting">
+      {{ submitting ? 'Confirmando…' : 'Confirmar cita por WhatsApp' }}
+    </button>
+
+    <p class="hours-note">🕐 Horario de atención: Lun – Sáb 7:00 a.m. – 7:00 p.m.</p>
+  </div>
+
+  <!-- STEP 4: Done -->
+  <div class="step-card done-card" *ngIf="step === 4">
+    <div class="done-icon">✅</div>
+    <h2 class="step-title">Casi listo</h2>
+    <p>{{ successMsg }}</p>
+    <p class="hours-note">Te recordamos que nuestro horario de atención es Lun – Sáb de 7:00 a.m. a 7:00 p.m.</p>
+    <button class="btn-primary" routerLink="/">Volver al inicio</button>
+  </div>
+
 </div>
