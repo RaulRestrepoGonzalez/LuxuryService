@@ -51,7 +51,8 @@ export class HomeComponent implements OnInit {
   }
 
   agendar() {
-    this.router.navigate(['/agendar-cita']);
+    if (!this.selected) return;
+    this.router.navigate(['/agendar-cita'], { queryParams: { servicio: this.selected.id, tipo: 'auto' } });
   }
 
   formatPrecio(n: number) {

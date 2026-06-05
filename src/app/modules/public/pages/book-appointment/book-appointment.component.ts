@@ -55,6 +55,7 @@ export class BookAppointmentComponent implements OnInit {
   selectedServiceIds: string[] = [];
   collapsedCategories = new Set<string>();
   todayIso = this.toIso(new Date());
+  showFullList = false;
 
   private bookedCache = new Map<string, Set<string>>();
   private serviciosFromApi = false;
@@ -120,7 +121,6 @@ export class BookAppointmentComponent implements OnInit {
         }).filter(Boolean) as string[];
         if (this.selectedServiceIds.length > 0) {
           this.loadMonthBookings();
-          this.step = 2;
         }
         if (this.retrySlots && this.appointmentForm.get('fecha')?.value === this.retrySlots) this.loadSlots(this.retrySlots);
         else if (this.selectedServiceIds.length > 0 && this.appointmentForm.get('fecha')?.value) this.loadSlots(this.appointmentForm.get('fecha')!.value);

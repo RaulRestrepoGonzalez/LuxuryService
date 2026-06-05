@@ -1,5 +1,5 @@
 .booking-page {
-  max-width: 860px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
 }
@@ -153,6 +153,27 @@
 }
 .empty-msg { color: #9ca3af; font-size: 1rem; text-align: center; padding: 0.5rem 0; width: 100%; }
 
+/* ── Pre-selected from home ── */
+.preselected-card {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 1rem; border-radius: 12px;
+  border: 1.5px solid #bbf7d0; background: #f0fdf4; margin-bottom: 0.75rem;
+}
+.preselected-icon {
+  font-size: 1.5rem; flex-shrink: 0;
+}
+.preselected-body { display: flex; flex-direction: column; gap: 0.1rem; }
+.preselected-name { font-size: 1rem; font-weight: 600; color: #166534; }
+.preselected-hint { font-size: 0.8rem; color: #6b7280; }
+.add-service-btn {
+  display: block; width: 100%; text-align: center;
+  padding: 0.65rem; border-radius: 10px; border: 1.5px dashed #d1d5db;
+  background: #fafafa; font-size: 0.95rem; font-weight: 500; color: #6b7280;
+  cursor: pointer; transition: all .15s; margin-bottom: 1rem;
+}
+.add-service-btn:hover { border-color: #b91c1c; color: #b91c1c; background: #fef2f2; }
+.add-service-btn.cancel { border-style: solid; border-color: #e5e7eb; font-size: 0.85rem; }
+
 /* ── Selected Summary ── */
 .selected-summary {
   background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 0.75rem 1rem;
@@ -195,43 +216,43 @@
 
 /* ── Calendar ── */
 .cal-time-layout {
-  display: flex; gap: 1.5rem;
+  display: flex; gap: 2rem;
 }
 .calendar-panel {
-  flex: 1; min-width: 0;
+  flex: 2; min-width: 0;
   background: #fff; border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
 }
 .cal-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.75rem 0.5rem 0.4rem;
+  padding: 1rem 0.75rem 0.5rem;
 }
 .cal-header button {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 50%;
-  width: 36px; height: 36px;
-  font-size: 1.1rem; cursor: pointer;
+  width: 42px; height: 42px;
+  font-size: 1.3rem; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: all .15s; color: #6b7280;
 }
 .cal-header button:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
 .cal-month {
-  font-weight: 700; font-size: 1.05rem; color: #111827; text-transform: capitalize;
+  font-weight: 700; font-size: 1.2rem; color: #111827; text-transform: capitalize;
   letter-spacing: 0.01em;
 }
 .cal-grid {
-  display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
-  padding: 0 0.5rem 0.6rem;
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+  padding: 0 0.75rem 0.8rem;
 }
 .cal-weekday {
-  text-align: center; font-size: 0.78rem; font-weight: 600; color: #9ca3af;
-  padding: 0.3rem 0 0.5rem; text-transform: uppercase; letter-spacing: 0.04em;
+  text-align: center; font-size: 0.85rem; font-weight: 600; color: #9ca3af;
+  padding: 0.4rem 0 0.6rem; text-transform: uppercase; letter-spacing: 0.04em;
 }
 .cal-day {
   position: relative;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 10px; font-size: 0.9rem;
+  border-radius: 10px; font-size: 1rem;
   cursor: pointer; transition: all .15s; color: #374151;
-  padding: 0.5rem 0; min-height: 40px;
+  padding: 0.6rem 0; min-height: 48px;
 }
 .cal-day.in-month { font-weight: 500; }
 .cal-day:not(.in-month) { color: transparent; pointer-events: none; }
@@ -253,16 +274,16 @@
 .cal-day.selected:hover { background: #b91c1c; color: #fff; }
 
 /* ── Slots ── */
-.slots-panel { flex: 1; min-width: 0; }
-.slots-hint { color: #9ca3af; font-size: 1rem; }
-.loading-spinner { color: #6b7280; font-size: 1rem; text-align: center; padding: 1rem 0; }
+.slots-panel { flex: 1.2; min-width: 0; }
+.slots-hint { color: #9ca3af; font-size: 1.05rem; }
+.loading-spinner { color: #6b7280; font-size: 1.05rem; text-align: center; padding: 1rem 0; }
 .slot-list {
-  display: flex; flex-direction: column; gap: 0.4rem; max-height: 300px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 0.5rem; max-height: 400px; overflow-y: auto;
 }
 .slot-btn {
-  display: block; width: 100%; text-align: left; padding: 0.75rem 1rem;
+  display: block; width: 100%; text-align: left; padding: 0.85rem 1.1rem;
   border: 1.5px solid #e5e7eb; border-radius: 10px; background: #fff;
-  font-size: 1rem; cursor: pointer; transition: all .15s;
+  font-size: 1.05rem; cursor: pointer; transition: all .15s;
 }
 .slot-btn:hover { border-color: #fca5a5; background: #fef2f2; }
 .slot-btn.selected { border-color: #b91c1c; background: #fef2f2; font-weight: 600; color: #b91c1c; }

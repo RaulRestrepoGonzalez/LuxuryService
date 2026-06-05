@@ -51,51 +51,67 @@
       <button [class.active]="tipoVehiculo === 'moto'" (click)="tipoVehiculo = 'moto'; onServiceChange()">🏍️ Moto</button>
     </div>
 
-    <!-- Service search -->
-    <input class="service-search" type="text" [(ngModel)]="searchServicio" (input)="onSearchChange()" placeholder="Buscar servicio…" />
+    @if (hasPreSelected && !showFullList) {
+      <!-- Pre-selected from home: show only the chosen service -->
+      <div class="preselected-card">
+        <div class="preselected-icon">✅</div>
+        <div class="preselected-body">
+          <strong class="preselected-name">{{ selectedServiceNames }}</strong>
+          <span class="preselected-hint">Servicio seleccionado</span>
+        </div>
+      </div>
+      <button class="add-service-btn" (click)="showFullList = true">¿Deseas agregar otro servicio? +</button>
+    } @else {
+      <!-- Service search -->
+      <input class="service-search" type="text" [(ngModel)]="searchServicio" (input)="onSearchChange()" placeholder="Buscar servicio…" />
 
-    <!-- Service cards grouped by category (collapsible) -->
-    <div class="services-by-cat" *ngIf="!searchServicio.trim()">
-      <div class="cat-group" *ngFor="let cat of serviciosGrouped.categorias">
-        <button class="cat-title" (click)="toggleCategory(cat)">
-          <span>{{ cat }}</span>
-          <span class="cat-chevron" [class.open]="!collapsedCategories.has(cat)">▼</span>
-        </button>
-        <div class="service-cards" *ngIf="!collapsedCategories.has(cat)">
-          <div class="service-card" *ngFor="let s of serviciosGrouped.grouped[cat]"
-            [class.selected]="selectedServiceIds.includes(s.id)"
-            (click)="toggleService(s.id)">
-            <div class="card-icon">{{ s.icono === 'local_car_wash' ? '🚿' : s.icono === 'auto_awesome' ? '✨' : s.icono === 'build' ? '🔧' : s.icono === 'format_paint' ? '🎨' : s.icono === 'cleaning_services' ? '🧹' : s.categoria === 'Combos' ? '📦' : '🛠️' }}</div>
-            <div class="card-body">
-              <strong class="card-name">{{ s.nombre }}</strong>
-              <span class="card-desc" *ngIf="s.descripcion">{{ s.descripcion }}</span>
+      <!-- Service cards grouped by category (collapsible) -->
+      <div class="services-by-cat" *ngIf="!searchServicio.trim()">
+        <div class="cat-group" *ngFor="let cat of serviciosGrouped.categorias">
+          <button class="cat-title" (click)="toggleCategory(cat)">
+            <span>{{ cat }}</span>
+            <span class="cat-chevron" [class.open]="!collapsedCategories.has(cat)">▼</span>
+          </button>
+          <div class="service-cards" *ngIf="!collapsedCategories.has(cat)">
+            <div class="service-card" *ngFor="let s of serviciosGrouped.grouped[cat]"
+              [class.selected]="selectedServiceIds.includes(s.id)"
+              (click)="toggleService(s.id)">
+              <div class="card-icon">{{ s.icono === 'local_car_wash' ? '🚿' : s.icono === 'auto_awesome' ? '✨' : s.icono === 'build' ? '🔧' : s.icono === 'format_paint' ? '🎨' : s.icono === 'cleaning_services' ? '🧹' : s.categoria === 'Combos' ? '📦' : '🛠️' }}</div>
+              <div class="card-body">
+                <strong class="card-name">{{ s.nombre }}</strong>
+                <span class="card-desc" *ngIf="s.descripcion">{{ s.descripcion }}</span>
+              </div>
+              <span class="card-check" *ngIf="selectedServiceIds.includes(s.id)">✓</span>
             </div>
-            <span class="card-check" *ngIf="selectedServiceIds.includes(s.id)">✓</span>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Flat list when searching -->
-    <div class="service-cards" *ngIf="searchServicio.trim()">
-      <div class="service-card" *ngFor="let s of filteredServicios"
-        [class.selected]="selectedServiceIds.includes(s.id)"
-        (click)="toggleService(s.id)">
-        <div class="card-icon">{{ s.icono === 'local_car_wash' ? '🚿' : s.icono === 'auto_awesome' ? '✨' : s.icono === 'build' ? '🔧' : s.icono === 'format_paint' ? '🎨' : s.icono === 'cleaning_services' ? '🧹' : s.categoria === 'Combos' ? '📦' : '🛠️' }}</div>
-        <div class="card-body">
-          <strong class="card-name">{{ s.nombre }}</strong>
-          <span class="card-desc">{{ s.descripcion }}</span>
+      <!-- Flat list when searching -->
+      <div class="service-cards" *ngIf="searchServicio.trim()">
+        <div class="service-card" *ngFor="let s of filteredServicios"
+          [class.selected]="selectedServiceIds.includes(s.id)"
+          (click)="toggleService(s.id)">
+          <div class="card-icon">{{ s.icono === 'local_car_wash' ? '🚿' : s.icono === 'auto_awesome' ? '✨' : s.icono === 'build' ? '🔧' : s.icono === 'format_paint' ? '🎨' : s.icono === 'cleaning_services' ? '🧹' : s.categoria === 'Combos' ? '📦' : '🛠️' }}</div>
+          <div class="card-body">
+            <strong class="card-name">{{ s.nombre }}</strong>
+            <span class="card-desc">{{ s.descripcion }}</span>
+          </div>
+          <span class="card-check" *ngIf="selectedServiceIds.includes(s.id)">✓</span>
         </div>
-        <span class="card-check" *ngIf="selectedServiceIds.includes(s.id)">✓</span>
       </div>
-    </div>
 
-    <p class="empty-msg" *ngIf="filteredServicios.length === 0 && searchServicio.trim()">No se encontraron servicios.</p>
+      <p class="empty-msg" *ngIf="filteredServicios.length === 0 && searchServicio.trim()">No se encontraron servicios.</p>
 
-    <!-- Selected summary -->
-    <div class="selected-summary" *ngIf="selectedServiceIds.length > 0">
-      <p class="selected-label">Seleccionados: {{ selectedServiceNames }}</p>
-    </div>
+      <!-- Selected summary -->
+      <div class="selected-summary" *ngIf="selectedServiceIds.length > 0">
+        <p class="selected-label">Seleccionados: {{ selectedServiceNames }}</p>
+      </div>
+
+      @if (hasPreSelected) {
+        <button class="add-service-btn cancel" (click)="showFullList = false; searchServicio = ''">← Solo estos servicios</button>
+      }
+    }
 
     <!-- Products accordion -->
     <details class="products-accordion">
