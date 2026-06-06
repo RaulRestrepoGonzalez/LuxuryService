@@ -205,6 +205,18 @@
       <div class="confirm-row"><span class="confirm-label">Hora</span><span class="confirm-value">{{ selectedHorarioLabel() }}</span></div>
     </div>
 
+    <div class="add-more-section" *ngIf="popularServices.length > 0">
+      <p class="add-more-title">¿Quieres agregar más servicios?</p>
+      <div class="add-more-chips">
+        <button class="pop-chip" *ngFor="let s of popularServices"
+          [class.selected]="selectedServiceIds.includes(s.id)"
+          (click)="togglePopularService(s.id)">
+          {{ s.nombre }}
+        </button>
+      </div>
+      <button class="back-to-services-link" (click)="goStep(1)">Ver todos los servicios →</button>
+    </div>
+
     <button class="btn-primary btn-confirm" (click)="submit()" [disabled]="submitting">
       {{ submitting ? 'Confirmando…' : 'Confirmar cita por WhatsApp' }}
     </button>

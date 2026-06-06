@@ -421,6 +421,26 @@ export class BookAppointmentComponent implements OnInit {
 
   get usandoGiftCard(): boolean { return this.giftCardValid?.valid === true; }
 
+  // Popular services to suggest on step 3
+  private readonly POPULAR_SEARCH = [
+    'Lavado General Express', 'Encerado Cleaner Wash',
+    'Grafitado', 'Limpieza de Techo', 'Combo 1'
+  ];
+
+  get popularServices(): any[] {
+    return sortByNombreNatural(this.servicios).filter((s: any) =>
+      this.POPULAR_SEARCH.some(q => s.nombre.toLowerCase().includes(q.toLowerCase()))
+      && !this.selectedServiceIds.includes(s.id)
+    ).slice(0, 4);
+  }
+
+  togglePopularService(id: string) {
+    const idx = this.selectedServiceIds.indexOf(id);
+    if (idx >= 0) this.selectedServiceIds.splice(idx, 1);
+    else this.selectedServiceIds.push(id);
+    this.selectedServiceIds = [...this.selectedServiceIds];
+  }
+
   formatPrice(n: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
   }

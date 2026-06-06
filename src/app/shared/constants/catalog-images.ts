@@ -52,7 +52,7 @@ const MOBIL_HIDRAULICO_10W_IMAGE = 'https://lubriaceites.com/wp-content/uploads/
 const MOBIL_SUPER_1000_20W50_IMAGE = 'https://tecnifil.com/wp-content/uploads/2023/05/COMPRAR-ACEITE-MOBIL-SUPER-1000-MIL-20w-50-Colombia-.jpg';
 const MOBIL_SUPER_1000_20W50_GL_IMAGE = 'https://tecnifil.com/wp-content/uploads/2024/04/COMPRAR-ACEITE-MOBIL-SUPER-1000-MIL-20w-50-Galon-Colombia-Tecnifil.jpg';
 const MOBIL_SUPER_2000_5W20_IMAGE = 'https://autopla1.b-cdn.net/wp-content/uploads/2026/01/601250AM_1.webp';
-const WIPER_IMAGE = 'https://media.falabella.com/sodimacCO/229986/w=1036,h=832,f=webp,fit=contain,q=85';
+const WIPER_IMAGE = 'https://http2.mlstatic.com/D_NQ_NP_932956-MCO110432007671_042026-O.webp';
 const SHELL_10W30_IMAGE = 'https://tecnifil.com/wp-content/uploads/2023/06/Comprar-SHELL-10W30-CUARTO-Colombia-distribuidor-Tecnifil-.jpg';
 const SHELL_HELIX_ULTRA_0W20_IMAGE = 'https://tecnifil.com/wp-content/uploads/2024/01/Comprar-SHELL-HELIX-ULTRA-0W20-CUARTO-Colombia-distribuidor-Tecnifil.jpg';
 const SHELL_HELIX_ULTRA_0W20_GL_IMAGE = 'https://tecnifil.com/wp-content/uploads/2024/03/Comprar-SHELL-HELIX-ULTRA-SN-0W-20-Galon-Tecnifil-Colombia-Distribuidor-Colombia.jpg';
