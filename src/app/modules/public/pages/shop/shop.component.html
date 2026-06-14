@@ -1,9 +1,13 @@
 <div class="catalog-page page-light">
-  <h2 class="catalog-section-title">
-    PRODUCTOS
-  </h2>
-
-  <p class="catalog-payment-note">Próximamente podrás pagar aquí</p>
+  <div class="catalog-header-row">
+    <h2 class="catalog-section-title" style="margin:0">PRODUCTOS</h2>
+    <button class="cart-toggle-btn" (click)="toggleCart()" title="Carrito">
+      <span class="cart-toggle-icon">🛒</span>
+      @if (cartCount > 0) {
+        <span class="cart-badge">{{ cartCount }}</span>
+      }
+    </button>
+  </div>
 
   @if (featuredProducts.length > 0) {
     <section class="featured-section">
@@ -21,10 +25,10 @@
                 <button
                   type="button"
                   class="md-btn md-btn-filled"
-                  [disabled]="purchasing === p.id"
-                  (click)="comprar(p)"
+                  [disabled]="p.stock <= 0"
+                  (click)="addToCart(p)"
                 >
-                  {{ purchasing === p.id ? '...' : 'Comprar' }}
+                  Agregar al carrito
                 </button>
               </div>
             </div>
@@ -86,10 +90,10 @@
                 <button
                   type="button"
                   class="md-btn md-btn-filled"
-                  [disabled]="p.stock <= 0 || purchasing === p.id"
-                  (click)="comprar(p)"
+                  [disabled]="p.stock <= 0"
+                  (click)="addToCart(p)"
                 >
-                  {{ purchasing === p.id ? '...' : 'Comprar' }}
+                  Agregar al carrito
                 </button>
               } @else {
                 <a class="md-btn md-btn-text" routerLink="/acceso">Acceder →</a>
@@ -100,6 +104,49 @@
       }
     </div>
   }
+  <!-- Cart Sidebar -->
+  <div class="cart-overlay" [class.visible]="cartOpen" (click)="cartOpen = false"></div>
+  <aside class="cart-sidebar" [class.open]="cartOpen">
+    <div class="cart-header">
+      <h3>Carrito</h3>
+      <button class="cart-close" (click)="cartOpen = false">✕</button>
+    </div>
+
+    @if (cart.length === 0) {
+      <div class="cart-empty">
+        <span class="cart-empty-icon">🛒</span>
+        <p>Tu carrito está vacío</p>
+      </div>
+    } @else {
+      <div class="cart-items">
+        @for (item of cart; track item.product.id) {
+          <div class="cart-item">
+            <img class="cart-item-img" [src]="img(item.product)" [alt]="item.product.nombre" loading="lazy" />
+            <div class="cart-item-body">
+              <strong class="cart-item-name">{{ item.product.nombre }}</strong>
+              <span class="cart-item-price">{{ formatPrecio(item.product.precio) }}</span>
+              <div class="cart-qty-row">
+                <button class="cart-qty-btn" (click)="updateQuantity(item.product.id, -1)">−</button>
+                <span class="cart-qty">{{ item.quantity }}</span>
+                <button class="cart-qty-btn" (click)="updateQuantity(item.product.id, 1)">+</button>
+                <button class="cart-remove-btn" (click)="removeFromCart(item.product.id)">Eliminar</button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="cart-footer">
+        <div class="cart-total-row">
+          <span>Total</span>
+          <span class="cart-total-amount">{{ formatPrecio(cartTotal) }}</span>
+        </div>
+        <button class="md-btn md-btn-filled cart-buy-btn" (click)="buyCart()" [disabled]="comprando">
+          {{ comprando ? 'Procesando…' : 'Comprar' }}
+        </button>
+      </div>
+    }
+  </aside>
 </div>
 
 <div class="catalog-toast" [class.show]="toastVisible">{{ toast }}</div>

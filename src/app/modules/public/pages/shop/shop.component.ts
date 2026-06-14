@@ -179,6 +179,8 @@ const VALVULA_TR413_IMAGE = 'https://insumosgn.com/wp-content/uploads/2023/02/VA
 // Paño microfibra Simoniz (faggidistribuciones.com.co — Pereira, Colombia)
 const MICROFIBER_CLOTH_IMAGE = 'https://www.faggidistribuciones.com.co/wp-content/uploads/2021/05/pano-microfibra.jpg';
 
+export interface CartItem { product: Producto; quantity: number; }
+
 export interface Producto {
   id: string;
   nombre: string;
@@ -206,11 +208,54 @@ export class ShopComponent implements OnInit, OnDestroy {
   featuredIndex = 0;
   loading = true;
   error = '';
-  purchasing: string | null = null;
   activeCategory = 'Todos';
   categories: string[] = ['Todos'];
   toast = '';
   toastVisible = false;
+
+  cart: CartItem[] = [];
+  cartOpen = false;
+  comprando = false;
+
+  get cartCount(): number {
+    return this.cart.reduce((sum, item) => sum + item.quantity, 0);
+  }
+
+  get cartTotal(): number {
+    return this.cart.reduce((sum, item) => sum + item.product.precio * item.quantity, 0);
+  }
+
+  toggleCart() { this.cartOpen = !this.cartOpen; }
+
+  addToCart(p: Producto) {
+    if (p.stock <= 0) return;
+    const existing = this.cart.find(item => item.product.id === p.id);
+    if (existing) {
+      existing.quantity++;
+    } else {
+      this.cart.push({ product: p, quantity: 1 });
+    }
+    this.showToast(`${p.nombre} agregado al carrito`);
+    this.cartOpen = true;
+  }
+
+  removeFromCart(id: string) {
+    this.cart = this.cart.filter(item => item.product.id !== id);
+  }
+
+  updateQuantity(id: string, delta: number) {
+    const item = this.cart.find(i => i.product.id === id);
+    if (!item) return;
+    item.quantity += delta;
+    if (item.quantity <= 0) this.removeFromCart(id);
+  }
+
+  buyCart() {
+    this.comprando = true;
+    this.showToast('Procesando…');
+    // Credibanco payment link will be integrated here
+  }
+
   private refreshSub: Subscription | null = null;
   private featuredTimer: any = null;
 
@@ -872,25 +917,8 @@ export class ShopComponent implements OnInit, OnDestroy {
     return '$' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
   }
 
-  comprar(p: Producto) {
-    if (!this.auth.isLoggedIn()) {
-      this.showToast('Inicia sesión para comprar');
-      return;
-    }
-    if (p.stock <= 0) return;
-    this.purchasing = p.id;
-    this.api.post('/purchase', { productoId: p.id, cantidad: 1 }).subscribe({
-      next: () => {
-        this.purchasing = null;
-        this.showToast(`${p.nombre} agregado a tu compra`);
-        this.loadProducts();
-      },
-      error: err => {
-        this.purchasing = null;
-        this.showToast(err?.error?.error || 'Error al procesar la compra');
-      }
-    });
-  }
+  // Kept for backward compat — delegates to addToCart
+  comprar(p: Producto) { this.addToCart(p); }
 
   private showToast(msg: string) {
     this.toast = msg;
